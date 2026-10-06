@@ -1,0 +1,2239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script>
+    window.BACIO_PORTAL_MODE =
+      <?!= JSON.stringify(portalMode || 'escritorio') ?>;
+  </script>
+
+  <?!= include('Styles'); ?>
+</head>
+
+<body>
+
+  <div id="loading" class="loading-screen">
+    Carregando Bacio Conecta...
+  </div>
+
+  <div id="errorBox" class="error-box"></div>
+
+
+  <!-- =========================================================
+       LOGIN DAS LOJAS
+  ========================================================== -->
+
+  <div
+    id="loginScreen"
+    class="login-screen"
+    style="display:none">
+
+    <div class="login-card">
+
+      <div class="login-brand">
+
+        <span class="eyebrow">
+          Portal das lojas
+        </span>
+
+        <h1>
+          Bacio Conecta
+        </h1>
+
+        <p>
+          Entre com o acesso cadastrado para sua loja.
+        </p>
+
+      </div>
+
+
+      <div id="loginBox">
+
+        <label class="label">
+          E-mail
+        </label>
+
+        <input
+          id="storeLoginEmail"
+          class="field"
+          type="email"
+          autocomplete="username"
+          placeholder="loja@...">
+
+
+        <label class="label login-gap">
+          Senha
+        </label>
+
+        <input
+          id="storeLoginPassword"
+          class="field"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Sua senha">
+
+
+        <button
+          id="storeLoginBtn"
+          class="btn primary login-submit">
+
+          Entrar
+
+        </button>
+
+
+        <div
+          id="storeLoginMessage"
+          class="login-message">
+        </div>
+
+      </div>
+
+
+      <div
+        id="passwordChangeBox"
+        style="display:none">
+
+        <div class="login-message important">
+
+          Este é o primeiro acesso.
+          Crie uma nova senha antes de continuar.
+
+        </div>
+
+
+        <label class="label">
+          Nova senha
+        </label>
+
+        <input
+          id="storeNewPassword"
+          class="field"
+          type="password"
+          autocomplete="new-password"
+          placeholder="Mínimo de 8 caracteres">
+
+
+        <label class="label login-gap">
+          Confirmar nova senha
+        </label>
+
+        <input
+          id="storeNewPassword2"
+          class="field"
+          type="password"
+          autocomplete="new-password"
+          placeholder="Repita a nova senha">
+
+
+        <button
+          id="storeChangePasswordBtn"
+          class="btn primary login-submit">
+
+          Salvar nova senha
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       APLICATIVO
+  ========================================================== -->
+
+  <div
+    id="app"
+    class="app-shell">
+
+
+    <!-- SIDEBAR -->
+
+    <aside
+      id="sidebar"
+      class="sidebar">
+
+      <div class="brand">
+
+        <h1>
+          Bacio Conecta
+        </h1>
+
+        <small>
+          Operação integrada
+        </small>
+
+      </div>
+
+
+      <!-- MEU DIA -->
+
+      <div class="menu-label">
+        Meu dia
+      </div>
+
+
+      <button
+        class="nav-btn active"
+        data-page="home">
+
+        <span class="nav-dot"></span>
+
+        Minha Área
+
+      </button>
+
+
+      <button
+        class="nav-btn"
+        data-page="agenda">
+
+        <span class="nav-dot"></span>
+
+        Agenda
+
+      </button>
+
+
+      <button
+        class="nav-btn"
+        data-page="calendario">
+
+        <span class="nav-dot"></span>
+
+        Calendário
+
+      </button>
+
+
+      <button
+        id="evaluationNavBtn"
+        class="nav-btn"
+        data-page="avaliacoes">
+
+        <span class="nav-dot"></span>
+
+        Avaliações
+
+      </button>
+
+
+      <!-- OPERAÇÃO -->
+
+      <div class="menu-label">
+        Operação
+      </div>
+
+
+      <button
+        class="nav-btn"
+        data-page="campanhas">
+
+        <span class="nav-dot"></span>
+
+        Campanhas & Demandas
+
+      </button>
+
+
+      <button
+        class="nav-btn"
+        data-page="comunicados">
+
+        <span class="nav-dot"></span>
+
+        Comunicados
+
+      </button>
+
+
+      <button
+        class="nav-btn"
+        data-page="chat">
+
+        <span class="nav-dot"></span>
+
+        Chat
+
+      </button>
+
+
+      <!-- GESTÃO -->
+
+      <div id="managementMenu">
+
+        <div class="menu-label">
+          Gestão
+        </div>
+
+
+        <button
+          class="nav-btn"
+          data-page="respostas">
+
+          <span class="nav-dot"></span>
+
+          Respostas das Lojas
+
+        </button>
+
+
+        <button
+          class="nav-btn"
+          data-page="lojas">
+
+          <span class="nav-dot"></span>
+
+          Lojas & Estrutura
+
+        </button>
+
+
+        <button
+          id="accessNavBtn"
+          class="nav-btn"
+          data-page="acessos">
+
+          <span class="nav-dot"></span>
+
+          Usuários & Acessos
+
+        </button>
+
+      </div>
+
+
+      <div class="user-card">
+
+        <strong id="sideName">
+          Bacio Conecta
+        </strong>
+
+        <span id="sideContext">
+          Carregando...
+        </span>
+
+      </div>
+
+    </aside>
+
+
+    <!-- =======================================================
+         CONTEÚDO PRINCIPAL
+    ======================================================== -->
+
+    <main class="main">
+
+
+      <!-- TOPBAR -->
+
+      <header class="topbar">
+
+        <div class="topbar-left">
+
+          <button
+            id="mobileMenuBtn"
+            class="icon-btn mobile-menu"
+            aria-label="Abrir menu">
+
+            ☰
+
+          </button>
+
+
+          <div
+            id="topbarTitle"
+            class="topbar-title">
+
+            Bacio Conecta
+
+          </div>
+
+        </div>
+
+
+        <div class="topbar-right">
+
+          <span
+            id="weather"
+            class="weather">
+          </span>
+
+
+          <button
+            id="notificationButton"
+            class="notification-btn"
+            aria-label="Notificações"
+            aria-expanded="false">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7">
+
+              <path
+                d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+
+              <path
+                d="M10 21h4"/>
+
+            </svg>
+
+
+            <span
+              id="notificationBadge"
+              class="badge">
+
+              0
+
+            </span>
+
+          </button>
+
+
+          <strong id="topName"></strong>
+
+        </div>
+
+
+        <!-- PAINEL NOTIFICAÇÕES -->
+
+        <div
+          id="notificationPanel"
+          class="notification-panel"
+          aria-label="Notificações recentes">
+
+          <div class="notification-panel-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Alertas
+              </span>
+
+              <strong>
+                Notificações
+              </strong>
+
+            </div>
+
+
+            <button
+              id="markAllReadBtn"
+              class="link-btn">
+
+              Marcar todas como lidas
+
+            </button>
+
+          </div>
+
+
+          <div
+            id="notificationList"
+            class="notification-list">
+          </div>
+
+        </div>
+
+      </header>
+
+
+      <div class="content">
+
+
+        <!-- ===================================================
+             HOME
+        ==================================================== -->
+
+        <section
+          id="page-home"
+          class="page active">
+
+          <section class="hero">
+
+            <span class="eyebrow">
+              Visão operacional
+            </span>
+
+            <h2 id="welcomeTitle">
+              Bem-vinda.
+            </h2>
+
+            <p id="welcomeSubtitle">
+              Veja o que precisa da sua atenção hoje.
+            </p>
+
+          </section>
+
+
+          <div
+            id="homeSummary"
+            class="summary">
+          </div>
+
+
+          <section class="section">
+
+            <div class="section-head">
+
+              <div>
+
+                <span class="eyebrow">
+                  Prioridades
+                </span>
+
+                <h3>
+                  Para você hoje
+                </h3>
+
+                <p>
+                  As ações mais importantes aparecem primeiro.
+                </p>
+
+              </div>
+
+
+              <button
+                class="link-btn"
+                data-page="campanhas">
+
+                Ver todas →
+
+              </button>
+
+            </div>
+
+
+            <div
+              id="taskList"
+              class="task-list">
+            </div>
+
+          </section>
+
+
+          <section class="section">
+
+            <div class="section-head">
+
+              <div>
+
+                <span class="eyebrow">
+                  Em andamento
+                </span>
+
+                <h3>
+                  Campanhas
+                </h3>
+
+                <p>
+                  Visão rápida do andamento das lojas.
+                </p>
+
+              </div>
+
+
+              <button
+                class="link-btn"
+                data-page="campanhas">
+
+                Ver campanhas →
+
+              </button>
+
+            </div>
+
+
+            <div
+              id="homeCampaigns"
+              class="campaign-grid">
+            </div>
+
+          </section>
+
+
+          <section class="section">
+
+            <div class="section-head">
+
+              <div>
+
+                <span class="eyebrow">
+                  Comunicação
+                </span>
+
+                <h3>
+                  Comunicados recentes
+                </h3>
+
+              </div>
+
+
+              <button
+                class="link-btn"
+                data-page="comunicados">
+
+                Ver comunicados →
+
+              </button>
+
+            </div>
+
+
+            <div id="homeAnnouncements"></div>
+
+          </section>
+
+        </section>
+
+
+        <!-- ===================================================
+             AGENDA
+        ==================================================== -->
+
+        <section
+          id="page-agenda"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Meu dia
+              </span>
+
+              <h2 class="page-title">
+                Agenda
+              </h2>
+
+              <p class="subtitle">
+                Cronograma consolidado de campanhas,
+                demandas e prazos.
+              </p>
+
+            </div>
+
+
+            <div class="actions">
+
+              <select
+                id="agendaFilter"
+                class="select compact">
+
+                <option value="all">
+                  Todos
+                </option>
+
+                <option value="scheduled">
+                  Agendadas
+                </option>
+
+                <option value="active">
+                  Em andamento
+                </option>
+
+                <option value="due_today">
+                  Vence hoje
+                </option>
+
+                <option value="late">
+                  Em atraso
+                </option>
+
+                <option value="completed">
+                  Concluídas
+                </option>
+
+                <option value="closed">
+                  Encerradas
+                </option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="agendaSummary"
+            class="kpi-grid">
+          </div>
+
+
+          <div id="agendaList"></div>
+
+        </section>
+
+
+        <!-- ===================================================
+             CALENDÁRIO
+        ==================================================== -->
+
+        <section
+          id="page-calendario"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Meu dia
+              </span>
+
+              <h2 class="page-title">
+                Calendário
+              </h2>
+
+              <p class="subtitle">
+                Demandas, campanhas, promoções,
+                treinamentos e outros acontecimentos importantes.
+              </p>
+
+            </div>
+
+
+            <div class="actions">
+
+              <button
+                id="prevMonthBtn"
+                class="btn soft">
+
+                ←
+
+              </button>
+
+
+              <button
+                id="todayMonthBtn"
+                class="btn soft">
+
+                Hoje
+
+              </button>
+
+
+              <button
+                id="nextMonthBtn"
+                class="btn soft">
+
+                →
+
+              </button>
+
+
+              <button
+                id="newCalendarEventBtn"
+                class="btn primary">
+
+                + Novo evento
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="calendar-toolbar">
+
+            <strong id="calendarMonthTitle"></strong>
+
+
+            <div class="calendar-legend">
+
+              <span>
+
+                <i class="legend-dot demand"></i>
+
+                Demandas
+
+              </span>
+
+
+              <span>
+
+                <i class="legend-dot promo"></i>
+
+                Eventos
+
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="monthCalendar"
+            class="month-calendar">
+          </div>
+
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <div>
+
+                <span class="eyebrow">
+                  Próximos
+                </span>
+
+                <h3>
+                  Próximos eventos
+                </h3>
+
+              </div>
+
+            </div>
+
+
+            <div id="calendarUpcoming"></div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             CAMPANHAS & DEMANDAS
+        ==================================================== -->
+
+        <section
+          id="page-campanhas"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Operação
+              </span>
+
+              <h2 class="page-title">
+                Campanhas & Demandas
+              </h2>
+
+              <p class="subtitle">
+                Crie, acompanhe e cobre as ações das lojas
+                em um só lugar.
+              </p>
+
+            </div>
+
+
+            <div
+              id="campaignAdminActions"
+              class="actions">
+
+              <button
+                id="newDemandBtn"
+                class="btn soft">
+
+                + Nova demanda
+
+              </button>
+
+
+              <button
+                id="newCampaignBtn"
+                class="btn primary">
+
+                + Nova campanha
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="campaignKpis"
+            class="kpi-grid">
+          </div>
+
+
+          <div class="toolbar three">
+
+            <input
+              id="campaignSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar campanha ou demanda...">
+
+
+            <select
+              id="campaignTypeFilter"
+              class="select">
+
+              <option value="all">
+                Todos os tipos
+              </option>
+
+              <option value="campanha">
+                Campanhas
+              </option>
+
+              <option value="demanda">
+                Demandas
+              </option>
+
+            </select>
+
+
+            <select
+              id="campaignStatusFilter"
+              class="select">
+
+              <option value="all">
+                Todos os status
+              </option>
+
+              <option value="draft">
+                Rascunho
+              </option>
+
+              <option value="scheduled">
+                Agendada
+              </option>
+
+              <option value="active">
+                Em andamento
+              </option>
+
+              <option value="due_today">
+                Vence hoje
+              </option>
+
+              <option value="late">
+                Em atraso
+              </option>
+
+              <option value="completed">
+                Concluída
+              </option>
+
+              <option value="closed">
+                Encerrada
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="campaignTable"
+            class="table">
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             COMUNICADOS
+        ==================================================== -->
+
+        <section
+          id="page-comunicados"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Comunicação
+              </span>
+
+              <h2 class="page-title">
+                Comunicados
+              </h2>
+
+              <p class="subtitle">
+                Informações importantes do escritório para a operação.
+              </p>
+
+            </div>
+
+
+            <div
+              id="noticeAdminActions"
+              class="actions">
+
+              <button
+                id="newNoticeBtn"
+                class="btn primary">
+
+                + Novo comunicado
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="toolbar two">
+
+            <input
+              id="noticeSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar comunicado...">
+
+
+            <select
+              id="noticeTypeFilter"
+              class="select">
+
+              <option value="all">
+                Todos
+              </option>
+
+              <option value="important">
+                Importantes
+              </option>
+
+              <option value="action">
+                Exigem ação
+              </option>
+
+              <option value="info">
+                Informativos
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div id="noticeList"></div>
+
+        </section>
+
+
+        <!-- ===================================================
+             CHAT
+        ==================================================== -->
+
+        <section
+          id="page-chat"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Suporte
+              </span>
+
+              <h2 class="page-title">
+                Chat
+              </h2>
+
+              <p class="subtitle">
+                Converse com o escritório por campanha ou demanda.
+              </p>
+
+            </div>
+
+
+            <button
+              id="refreshChatBtn"
+              class="btn soft">
+
+              Atualizar
+
+            </button>
+
+          </div>
+
+
+          <div
+            id="chatLoading"
+            class="empty">
+
+            Carregando conversas...
+
+          </div>
+
+
+          <div
+            id="chatShell"
+            class="chat-shell"
+            style="display:none">
+
+
+            <div class="chat-list">
+
+              <input
+                id="chatThreadSearch"
+                class="field chat-search"
+                type="search"
+                placeholder="Buscar conversa...">
+
+
+              <div id="chatThreads"></div>
+
+            </div>
+
+
+            <div class="chat-main">
+
+              <div class="chat-head">
+
+                <div>
+
+                  <strong id="chatTitle">
+                    Conversa
+                  </strong>
+
+                  <div
+                    id="chatSubtitle"
+                    class="muted">
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <div
+                id="chatMessages"
+                class="messages">
+              </div>
+
+
+              <div class="chat-input">
+
+                <input
+                  id="chatText"
+                  class="field"
+                  placeholder="Escreva uma mensagem...">
+
+
+                <button
+                  id="sendChatBtn"
+                  class="btn primary">
+
+                  Enviar
+
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             RESPOSTAS DAS LOJAS
+        ==================================================== -->
+
+        <section
+          id="page-respostas"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Gestão
+              </span>
+
+              <h2 class="page-title">
+                Respostas das Lojas
+              </h2>
+
+              <p class="subtitle">
+                Avalie entregas, solicite ajustes e acompanhe pendências.
+              </p>
+
+            </div>
+
+
+            <button
+              id="refreshResponsesBtn"
+              class="btn soft">
+
+              Atualizar
+
+            </button>
+
+          </div>
+
+
+          <div
+            id="responseKpis"
+            class="kpi-grid">
+          </div>
+
+
+          <div class="toolbar three">
+
+            <input
+              id="responseSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar loja ou demanda...">
+
+
+            <select
+              id="responseStatusFilter"
+              class="select">
+
+              <option value="all">
+                Todos os status
+              </option>
+
+              <option value="respondido">
+                Aguardando análise
+              </option>
+
+              <option value="aprovada">
+                Aprovadas
+              </option>
+
+              <option value="ajuste_necessario">
+                Ajuste necessário
+              </option>
+
+              <option value="reprovada">
+                Reprovadas
+              </option>
+
+            </select>
+
+
+            <select
+              id="responseDemandFilter"
+              class="select">
+
+              <option value="all">
+                Todas as demandas
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="responsesTable"
+            class="table">
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             AVALIAÇÕES
+        ==================================================== -->
+
+        <section
+          id="page-avaliacoes"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Desempenho
+              </span>
+
+              <h2
+                id="evaluationPageTitle"
+                class="page-title">
+
+                Avaliações
+
+              </h2>
+
+
+              <p
+                id="evaluationPageSubtitle"
+                class="subtitle">
+
+                Nota, SLA e histórico das entregas das lojas.
+
+              </p>
+
+            </div>
+
+
+            <button
+              id="refreshEvaluationsBtn"
+              class="btn soft">
+
+              Atualizar
+
+            </button>
+
+          </div>
+
+
+          <div
+            id="evaluationKpis"
+            class="kpi-grid">
+          </div>
+
+
+          <div
+            id="evaluationManagementFilters"
+            class="toolbar two">
+
+            <input
+              id="evaluationSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar loja ou demanda...">
+
+
+            <select
+              id="evaluationStoreFilter"
+              class="select">
+
+              <option value="all">
+                Todas as lojas
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="evaluationStores"
+            class="evaluation-store-grid">
+          </div>
+
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <div>
+
+                <span class="eyebrow">
+                  Histórico
+                </span>
+
+                <h3>
+                  Avaliações realizadas
+                </h3>
+
+              </div>
+
+            </div>
+
+
+            <div
+              id="evaluationHistory"
+              class="table">
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             LOJAS & ESTRUTURA
+        ==================================================== -->
+
+        <section
+          id="page-lojas"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Gestão
+              </span>
+
+              <h2 class="page-title">
+                Lojas & Estrutura
+              </h2>
+
+              <p class="subtitle">
+                Base operacional com regional, consultor,
+                cidade e status de cada loja.
+              </p>
+
+            </div>
+
+
+            <div
+              id="storeAdminActions"
+              class="actions">
+
+              <button
+                id="importStoresBtn"
+                class="btn soft">
+
+                Importar / atualizar base
+
+              </button>
+
+
+              <button
+                id="addStoreBtn"
+                class="btn primary">
+
+                + Nova loja
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="storeKpis"
+            class="kpi-grid">
+          </div>
+
+
+          <div class="toolbar three">
+
+            <input
+              id="storeSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar código, loja, regional, consultor ou cidade...">
+
+
+            <select
+              id="storeRegionalFilter"
+              class="select">
+
+              <option value="all">
+                Todas as regionais
+              </option>
+
+            </select>
+
+
+            <select
+              id="storeConsultorFilter"
+              class="select">
+
+              <option value="all">
+                Todos os consultores
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="storesTable"
+            class="table">
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             USUÁRIOS & ACESSOS
+        ==================================================== -->
+
+        <section
+          id="page-acessos"
+          class="page">
+
+          <div class="page-head">
+
+            <div>
+
+              <span class="eyebrow">
+                Administração
+              </span>
+
+              <h2 class="page-title">
+                Usuários & Acessos
+              </h2>
+
+              <p class="subtitle">
+                Cadastre o login das lojas, redefina senhas
+                temporárias e ative ou desative acessos.
+              </p>
+
+            </div>
+
+
+            <div class="actions">
+
+              <button
+                id="refreshAccessBtn"
+                class="btn soft">
+
+                Atualizar
+
+              </button>
+
+
+              <button
+                id="newStoreAccessBtn"
+                class="btn primary">
+
+                + Criar acesso
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="accessKpis"
+            class="kpi-grid">
+          </div>
+
+
+          <div class="toolbar two">
+
+            <input
+              id="accessSearch"
+              class="field"
+              type="search"
+              placeholder="Buscar loja ou login...">
+
+
+            <select
+              id="accessStatusFilter"
+              class="select">
+
+              <option value="all">
+                Todos
+              </option>
+
+              <option value="active">
+                Ativos
+              </option>
+
+              <option value="inactive">
+                Inativos
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="accessTable"
+            class="table">
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- =========================================================
+       MODAL CAMPANHA / DEMANDA
+  ========================================================== -->
+
+  <div
+    id="campaignModal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true">
+
+    <div class="modal wide">
+
+      <div class="modal-head">
+
+        <div>
+
+          <span class="eyebrow">
+            Conteúdo operacional
+          </span>
+
+          <h3 id="campaignModalTitle">
+            Nova demanda
+          </h3>
+
+        </div>
+
+
+        <button
+          class="close-btn"
+          data-close="campaignModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div class="modal-body">
+
+        <div class="form-grid">
+
+
+          <div>
+
+            <label class="label">
+              Tipo
+            </label>
+
+            <select
+              id="fType"
+              class="select">
+
+              <option value="demanda">
+                Demanda
+              </option>
+
+              <option value="campanha">
+                Campanha
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div>
+
+            <label class="label">
+              Publicação
+            </label>
+
+            <select
+              id="fStatus"
+              class="select">
+
+              <option value="draft">
+                Salvar como rascunho
+              </option>
+
+              <option value="active">
+                Publicar para as lojas
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="full">
+
+            <label class="label">
+              Título
+            </label>
+
+            <input
+              id="fTitle"
+              class="field"
+              placeholder="Ex.: Campanha Speciali — Primavera">
+
+          </div>
+
+
+          <div class="full">
+
+            <label class="label">
+              Descrição
+            </label>
+
+            <textarea
+              id="fDescription"
+              class="textarea"
+              placeholder="Explique de forma objetiva o que a loja precisa fazer."></textarea>
+
+          </div>
+
+
+          <!-- CRONOGRAMA -->
+
+          <div class="block full">
+
+            <div class="block-title">
+
+              <div>
+
+                <strong>
+                  Cronograma
+                </strong>
+
+                <div class="helper">
+                  Defina início, prazo para resposta,
+                  encerramento e lembretes.
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div class="schedule-grid">
+
+              <div>
+
+                <label class="label">
+                  Início
+                </label>
+
+                <input
+                  id="fStart"
+                  class="field"
+                  type="datetime-local">
+
+              </div>
+
+
+              <div>
+
+                <label class="label">
+                  Prazo
+                </label>
+
+                <input
+                  id="fDeadline"
+                  class="field"
+                  type="datetime-local">
+
+              </div>
+
+
+              <div>
+
+                <label class="label">
+                  Encerramento
+                </label>
+
+                <input
+                  id="fEnd"
+                  class="field"
+                  type="datetime-local">
+
+              </div>
+
+            </div>
+
+
+            <div class="checks">
+
+              <label class="check">
+
+                <input
+                  id="r24"
+                  type="checkbox"
+                  checked>
+
+                24h antes
+
+              </label>
+
+
+              <label class="check">
+
+                <input
+                  id="r2"
+                  type="checkbox"
+                  checked>
+
+                2h antes
+
+              </label>
+
+
+              <label class="check">
+
+                <input
+                  id="rDue"
+                  type="checkbox"
+                  checked>
+
+                No vencimento
+
+              </label>
+
+            </div>
+
+          </div>
+
+
+          <div>
+
+            <label class="label">
+              Resposta obrigatória
+            </label>
+
+            <select
+              id="fRequired"
+              class="select">
+
+              <option value="yes">
+                Sim
+              </option>
+
+              <option value="no">
+                Não
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div>
+
+            <label class="label">
+              Lojas participantes
+            </label>
+
+            <select
+              id="fAudience"
+              class="select">
+
+              <option value="all">
+                Todas as lojas do meu escopo
+              </option>
+
+              <option value="selected">
+                Selecionar lojas
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            id="storePicker"
+            class="store-picker full">
+
+            <input
+              id="storePickerSearch"
+              class="field"
+              placeholder="Buscar loja...">
+
+            <div id="storePickerList"></div>
+
+          </div>
+
+
+          <!-- MODELO DE RESPOSTA -->
+
+          <div class="block full">
+
+            <div class="tabs">
+
+              <button
+                class="tab active"
+                data-model-tab="manual">
+
+                Criar do zero
+
+              </button>
+
+
+              <button
+                class="tab"
+                data-model-tab="import">
+
+                Importar planilha base
+
+              </button>
+
+            </div>
+
+
+            <div id="manualModelTab">
+
+              <div class="builder-head">
+
+                <div>
+
+                  <strong>
+                    Modelo de resposta
+                  </strong>
+
+                  <div class="helper">
+                    As perguntas ficam em JSON.
+                    Você pode mudar o formulário sem alterar
+                    a estrutura do banco.
+                  </div>
+
+                </div>
+
+
+                <button
+                  id="addQuestionBtn"
+                  class="btn soft"
+                  type="button">
+
+                  + Pergunta
+
+                </button>
+
+              </div>
+
+
+              <div
+                id="questionList"
+                class="question-list">
+              </div>
+
+            </div>
+
+
+            <div
+              id="importModelTab"
+              style="display:none">
+
+              <div class="upload-box">
+
+                <strong>
+                  Transformar planilha em formulário
+                </strong>
+
+                <span>
+                  Excel, CSV ou TSV · a primeira linha será usada
+                  como nome das perguntas
+                </span>
+
+
+                <input
+                  id="formSpreadsheet"
+                  class="field"
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.tsv">
+
+              </div>
+
+
+              <div
+                id="formImportPreview"
+                class="question-list import-preview">
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="modal-foot">
+
+        <button
+          class="btn"
+          data-close="campaignModal">
+
+          Cancelar
+
+        </button>
+
+
+        <div class="actions">
+
+          <button
+            id="saveCampaignBtn"
+            class="btn primary">
+
+            Salvar
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       MODAL DETALHES
+  ========================================================== -->
+
+  <div
+    id="detailModal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true">
+
+    <div class="modal wide">
+
+      <div class="modal-head">
+
+        <div>
+
+          <span class="eyebrow">
+            Detalhes
+          </span>
+
+          <h3 id="detailTitle">
+            Demanda
+          </h3>
+
+        </div>
+
+
+        <button
+          class="close-btn"
+          data-close="detailModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div
+        id="detailBody"
+        class="modal-body">
+      </div>
+
+
+      <div
+        id="detailFoot"
+        class="modal-foot">
+
+        <button
+          class="btn"
+          data-close="detailModal">
+
+          Fechar
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       MODAL GENÉRICO
+  ========================================================== -->
+
+  <div
+    id="genericModal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true">
+
+    <div class="modal small">
+
+      <div class="modal-head">
+
+        <div>
+
+          <span
+            id="genericEyebrow"
+            class="eyebrow">
+
+            Novo
+
+          </span>
+
+          <h3 id="genericTitle">
+            Novo item
+          </h3>
+
+        </div>
+
+
+        <button
+          class="close-btn"
+          data-close="genericModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div
+        id="genericBody"
+        class="modal-body">
+      </div>
+
+
+      <div class="modal-foot">
+
+        <button
+          class="btn"
+          data-close="genericModal">
+
+          Cancelar
+
+        </button>
+
+
+        <button
+          id="genericSaveBtn"
+          class="btn primary">
+
+          Salvar
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       IMPORTAÇÃO DE LOJAS
+  ========================================================== -->
+
+  <div
+    id="storeImportModal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true">
+
+    <div class="modal wide">
+
+      <div class="modal-head">
+
+        <div>
+
+          <span class="eyebrow">
+            Lojas & Estrutura
+          </span>
+
+          <h3>
+            Importar / atualizar base
+          </h3>
+
+        </div>
+
+
+        <button
+          class="close-btn"
+          data-close="storeImportModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div class="modal-body">
+
+        <div class="block">
+
+          <strong>
+            Selecione a Base Lojas
+          </strong>
+
+
+          <p class="helper">
+
+            O sistema compara antes de gravar,
+            preserva IDs e pode inativar lojas ausentes
+            sem apagar histórico.
+
+          </p>
+
+
+          <input
+            id="storesSpreadsheet"
+            class="field"
+            type="file"
+            accept=".xlsx,.xls,.csv,.tsv">
+
+        </div>
+
+
+        <div id="storeImportContent"></div>
+
+      </div>
+
+
+      <div class="modal-foot">
+
+        <button
+          class="btn"
+          data-close="storeImportModal">
+
+          Cancelar
+
+        </button>
+
+
+        <button
+          id="applyStoreImportBtn"
+          class="btn primary"
+          disabled>
+
+          Aplicar atualização
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- TOAST -->
+
+  <div
+    id="toast"
+    class="toast">
+  </div>
+
+
+  <!-- LEITOR DE EXCEL -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+  </script>
+
+
+  <!-- JAVASCRIPT DO PROJETO -->
+
+ <?!= include('Scripts'); ?>
+<?!= include('AutoRefresh'); ?>
+
+</body>
+</html>

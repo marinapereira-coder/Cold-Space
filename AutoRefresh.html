@@ -1,0 +1,1192 @@
+<script>
+/**
+ * BACIO CONECTA V2
+ * Atualização automática inteligente
+ *
+ * Chat: a cada 10 segundos
+ * Respostas: a cada 20 segundos
+ * Avaliações: a cada 20 segundos
+ * Home / notificações / agenda: a cada 30 segundos
+ *
+ * Não recarrega a página.
+ * Não apaga texto digitado no chat.
+ */
+
+(function () {
+
+  var AUTO_TIMER = null;
+  var AUTO_TICK = 0;
+
+  var BUSY = {
+    chat: false,
+    responses: false,
+    evaluations: false,
+    bootstrap: false
+  };
+
+  var LAST_CHAT_SIGNATURE = '';
+  var LAST_RESPONSES_SIGNATURE = '';
+  var LAST_EVALUATIONS_SIGNATURE = '';
+  var LAST_BOOTSTRAP_SIGNATURE = '';
+
+
+  /* ==========================================================
+     INICIALIZAÇÃO
+  ========================================================== */
+
+  window.addEventListener(
+    'load',
+    function () {
+
+      setTimeout(
+        function () {
+
+          startAutoRefresh();
+
+        },
+        4000
+      );
+
+    }
+  );
+
+
+  document.addEventListener(
+    'visibilitychange',
+    function () {
+
+      /*
+       * Quando a pessoa volta para a aba do navegador,
+       * atualiza imediatamente.
+       */
+
+      if (
+        !document.hidden
+      ) {
+
+        setTimeout(
+          function () {
+
+            runAutoRefresh(true);
+
+          },
+          500
+        );
+
+      }
+
+    }
+  );
+
+
+  function startAutoRefresh() {
+
+    if (
+      AUTO_TIMER
+    ) {
+
+      clearInterval(
+        AUTO_TIMER
+      );
+
+    }
+
+
+    AUTO_TICK = 0;
+
+
+    AUTO_TIMER =
+      setInterval(
+        function () {
+
+          runAutoRefresh(false);
+
+        },
+        10000
+      );
+
+  }
+
+
+  function appReady() {
+
+    return (
+      typeof google !==
+        'undefined' &&
+
+      google.script &&
+
+      google.script.run &&
+
+      typeof APP_DATA !==
+        'undefined' &&
+
+      APP_DATA &&
+
+      typeof CURRENT_PAGE !==
+        'undefined'
+    );
+
+  }
+
+
+  /* ==========================================================
+     CONTROLADOR
+  ========================================================== */
+
+  function runAutoRefresh(force) {
+
+    if (
+      !appReady()
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      document.hidden &&
+      !force
+    ) {
+
+      return;
+
+    }
+
+
+    AUTO_TICK++;
+
+
+    /*
+     * CHAT
+     * 10 segundos
+     */
+
+    if (
+      CURRENT_PAGE ===
+        'chat' &&
+
+      typeof CHAT_THREAD_ID !==
+        'undefined' &&
+
+      CHAT_THREAD_ID
+    ) {
+
+      refreshChatSilently();
+
+    }
+
+
+    /*
+     * RESPOSTAS
+     * 20 segundos
+     */
+
+    if (
+      CURRENT_PAGE ===
+        'respostas' &&
+
+      typeof CURRENT_ROLE !==
+        'undefined' &&
+
+      CURRENT_ROLE !==
+        'loja' &&
+
+      (
+        force ||
+        AUTO_TICK % 2 === 0
+      )
+    ) {
+
+      refreshResponsesSilently();
+
+    }
+
+
+    /*
+     * AVALIAÇÕES
+     * 20 segundos
+     */
+
+    if (
+      CURRENT_PAGE ===
+        'avaliacoes' &&
+
+      (
+        force ||
+        AUTO_TICK % 2 === 0
+      )
+    ) {
+
+      refreshEvaluationsSilently();
+
+    }
+
+
+    /*
+     * NOTIFICAÇÕES + DADOS GERAIS
+     * 30 segundos
+     */
+
+    if (
+      force ||
+      AUTO_TICK % 3 === 0
+    ) {
+
+      refreshBootstrapSilently();
+
+    }
+
+  }
+
+
+  /* ==========================================================
+     CHAT
+  ========================================================== */
+
+  function refreshChatSilently() {
+
+    if (
+      BUSY.chat
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      typeof CHAT_DATA ===
+        'undefined' ||
+
+      !CHAT_DATA
+    ) {
+
+      return;
+
+    }
+
+
+    var thread =
+      (
+        CHAT_DATA.threads ||
+        []
+      )
+      .find(
+        function (item) {
+
+          return (
+            String(
+              item.id
+            ) ===
+            String(
+              CHAT_THREAD_ID
+            )
+          );
+
+        }
+      );
+
+
+    if (
+      !thread
+    ) {
+
+      return;
+
+    }
+
+
+    BUSY.chat =
+      true;
+
+
+    var payload = {
+
+      storeId:
+        thread.storeId ||
+        '',
+
+      demandId:
+        thread.demandId ||
+        ''
+    };
+
+
+    var runner =
+      google.script.run
+
+        .withSuccessHandler(
+          function (messages) {
+
+            BUSY.chat =
+              false;
+
+
+            messages =
+              messages ||
+              [];
+
+
+            var signature =
+              chatSignature(
+                messages
+              );
+
+
+            /*
+             * Só redesenha se chegou mensagem nova
+             * ou alguma mensagem foi alterada.
+             */
+
+            if (
+              signature ===
+              LAST_CHAT_SIGNATURE
+            ) {
+
+              return;
+
+            }
+
+
+            LAST_CHAT_SIGNATURE =
+              signature;
+
+
+            var input =
+              document.getElementById(
+                'chatText'
+              );
+
+
+            var draft =
+              input
+                ? input.value
+                : '';
+
+
+            var box =
+              document.getElementById(
+                'chatMessages'
+              );
+
+
+            var previousTop =
+              box
+                ? box.scrollTop
+                : 0;
+
+
+            var nearBottom =
+              box
+                ? (
+                    box.scrollHeight -
+                    box.scrollTop -
+                    box.clientHeight <
+                    80
+                  )
+                : true;
+
+
+            if (
+              typeof renderChatMessages ===
+              'function'
+            ) {
+
+              renderChatMessages(
+                messages
+              );
+
+            }
+
+
+            /*
+             * Se a pessoa estava escrevendo,
+             * mantém exatamente o texto.
+             */
+
+            if (
+              input
+            ) {
+
+              input.value =
+                draft;
+
+            }
+
+
+            /*
+             * Se a pessoa estava lendo mensagens antigas,
+             * não força a rolagem para o fim.
+             */
+
+            if (
+              box &&
+              !nearBottom
+            ) {
+
+              box.scrollTop =
+                previousTop;
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function (error) {
+
+            BUSY.chat =
+              false;
+
+
+            console.warn(
+              'AutoRefresh Chat:',
+              error
+            );
+
+          }
+        );
+
+
+    if (
+      typeof AUTH_MODE !==
+        'undefined' &&
+
+      AUTH_MODE ===
+        'store'
+    ) {
+
+      runner
+        .getStoreChatMessages(
+          STORE_ACCESS_TOKEN,
+          payload
+        );
+
+    }
+    else {
+
+      runner
+        .getChatMessages(
+          payload
+        );
+
+    }
+
+  }
+
+
+  function chatSignature(
+    messages
+  ) {
+
+    return (
+      messages ||
+      []
+    )
+    .map(
+      function (item) {
+
+        return [
+          item.id ||
+            '',
+
+          item.createdAt ||
+            '',
+
+          item.email ||
+            '',
+
+          item.message ||
+            ''
+        ]
+        .join(
+          '|'
+        );
+
+      }
+    )
+    .join(
+      '||'
+    );
+
+  }
+
+
+  /* ==========================================================
+     RESPOSTAS DAS LOJAS
+  ========================================================== */
+
+  function refreshResponsesSilently() {
+
+    if (
+      BUSY.responses
+    ) {
+
+      return;
+
+    }
+
+
+    BUSY.responses =
+      true;
+
+
+    google.script.run
+
+      .withSuccessHandler(
+        function (data) {
+
+          BUSY.responses =
+            false;
+
+
+          data =
+            data ||
+            {
+              items: [],
+              stats: {}
+            };
+
+
+          var signature =
+            responsesSignature(
+              data
+            );
+
+
+          if (
+            signature ===
+            LAST_RESPONSES_SIGNATURE
+          ) {
+
+            return;
+
+          }
+
+
+          LAST_RESPONSES_SIGNATURE =
+            signature;
+
+
+          RESPONSES_DATA =
+            data;
+
+
+          /*
+           * Mantém os filtros atuais da tela.
+           */
+
+          if (
+            typeof populateResponseDemandFilter ===
+            'function'
+          ) {
+
+            populateResponseDemandFilter();
+
+          }
+
+
+          if (
+            typeof renderResponses ===
+            'function'
+          ) {
+
+            renderResponses();
+
+          }
+
+        }
+      )
+
+      .withFailureHandler(
+        function (error) {
+
+          BUSY.responses =
+            false;
+
+
+          console.warn(
+            'AutoRefresh Respostas:',
+            error
+          );
+
+        }
+      )
+
+      .getResponsesWorkspace();
+
+  }
+
+
+  function responsesSignature(
+    data
+  ) {
+
+    return (
+      (
+        data ||
+        {}
+      ).items ||
+      []
+    )
+    .map(
+      function (item) {
+
+        return [
+          item.responseId ||
+            '',
+
+          item.createdAt ||
+            '',
+
+          item.status ||
+            '',
+
+          (
+            item.evaluation ||
+            {}
+          ).evaluatedAt ||
+            ''
+        ]
+        .join(
+          '|'
+        );
+
+      }
+    )
+    .join(
+      '||'
+    );
+
+  }
+
+
+  /* ==========================================================
+     AVALIAÇÕES
+  ========================================================== */
+
+  function refreshEvaluationsSilently() {
+
+    if (
+      BUSY.evaluations
+    ) {
+
+      return;
+
+    }
+
+
+    BUSY.evaluations =
+      true;
+
+
+    var runner =
+      google.script.run
+
+        .withSuccessHandler(
+          function (data) {
+
+            BUSY.evaluations =
+              false;
+
+
+            data =
+              data ||
+              {
+                items: [],
+                stores: [],
+                summary: {}
+              };
+
+
+            var signature =
+              evaluationsSignature(
+                data
+              );
+
+
+            if (
+              signature ===
+              LAST_EVALUATIONS_SIGNATURE
+            ) {
+
+              return;
+
+            }
+
+
+            LAST_EVALUATIONS_SIGNATURE =
+              signature;
+
+
+            EVALUATION_DATA =
+              data;
+
+
+            if (
+              typeof populateEvaluationStoreFilter ===
+              'function'
+            ) {
+
+              populateEvaluationStoreFilter();
+
+            }
+
+
+            if (
+              typeof renderEvaluations ===
+              'function'
+            ) {
+
+              renderEvaluations();
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function (error) {
+
+            BUSY.evaluations =
+              false;
+
+
+            console.warn(
+              'AutoRefresh Avaliações:',
+              error
+            );
+
+          }
+        );
+
+
+    if (
+      typeof AUTH_MODE !==
+        'undefined' &&
+
+      AUTH_MODE ===
+        'store'
+    ) {
+
+      runner
+        .getStoreEvaluationWorkspace(
+          STORE_ACCESS_TOKEN
+        );
+
+    }
+    else {
+
+      runner
+        .getEvaluationWorkspace();
+
+    }
+
+  }
+
+
+  function evaluationsSignature(
+    data
+  ) {
+
+    return (
+      (
+        data ||
+        {}
+      ).items ||
+      []
+    )
+    .map(
+      function (item) {
+
+        return [
+          item.id ||
+            '',
+
+          item.status ||
+            '',
+
+          item.stars ||
+            '',
+
+          item.slaMet,
+
+          item.evaluatedAt ||
+            ''
+        ]
+        .join(
+          '|'
+        );
+
+      }
+    )
+    .join(
+      '||'
+    );
+
+  }
+
+
+  /* ==========================================================
+     HOME / SININHO / CAMPANHAS / AGENDA
+  ========================================================== */
+
+  function refreshBootstrapSilently() {
+
+    if (
+      BUSY.bootstrap
+    ) {
+
+      return;
+
+    }
+
+
+    /*
+     * Não atualiza enquanto um modal estiver aberto.
+     * Assim não interfere quando Marina estiver
+     * cadastrando ou editando alguma coisa.
+     */
+
+    if (
+      document.querySelector(
+        '.modal-backdrop.open'
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    BUSY.bootstrap =
+      true;
+
+
+    var runner =
+      google.script.run
+
+        .withSuccessHandler(
+          function (data) {
+
+            BUSY.bootstrap =
+              false;
+
+
+            if (
+              !data
+            ) {
+
+              return;
+
+            }
+
+
+            var signature =
+              bootstrapSignature(
+                data
+              );
+
+
+            if (
+              signature ===
+              LAST_BOOTSTRAP_SIGNATURE
+            ) {
+
+              return;
+
+            }
+
+
+            LAST_BOOTSTRAP_SIGNATURE =
+              signature;
+
+
+            /*
+             * Atualiza os dados em memória,
+             * mas NÃO chama startApp().
+             *
+             * Isso evita voltar para Home,
+             * fechar telas ou apagar filtros.
+             */
+
+            APP_DATA.summary =
+              data.summary ||
+              APP_DATA.summary;
+
+
+            APP_DATA.notifications =
+              data.notifications ||
+              [];
+
+
+            APP_DATA.tasks =
+              data.tasks ||
+              [];
+
+
+            APP_DATA.campaigns =
+              data.campaigns ||
+              [];
+
+
+            APP_DATA.managementItems =
+              data.managementItems ||
+              [];
+
+
+            APP_DATA.announcements =
+              data.announcements ||
+              [];
+
+
+            if (
+              Array.isArray(
+                data.stores
+              )
+            ) {
+
+              APP_DATA.stores =
+                data.stores;
+
+            }
+
+
+            /*
+             * Sininho sempre atualizado.
+             */
+
+            if (
+              typeof renderNotifications ===
+              'function'
+            ) {
+
+              renderNotifications();
+
+            }
+
+
+            /*
+             * Só redesenha a página que está aberta.
+             */
+
+            if (
+              CURRENT_PAGE ===
+                'home' &&
+              typeof renderHome ===
+                'function'
+            ) {
+
+              renderHome();
+
+            }
+
+
+            if (
+              CURRENT_PAGE ===
+                'agenda' &&
+              typeof renderAgenda ===
+                'function'
+            ) {
+
+              renderAgenda();
+
+            }
+
+
+            if (
+              CURRENT_PAGE ===
+                'campanhas' &&
+              typeof renderCampaignManagement ===
+                'function'
+            ) {
+
+              renderCampaignManagement();
+
+            }
+
+
+            if (
+              CURRENT_PAGE ===
+                'comunicados' &&
+              typeof renderNotices ===
+                'function'
+            ) {
+
+              renderNotices();
+
+            }
+
+          }
+        )
+
+        .withFailureHandler(
+          function (error) {
+
+            BUSY.bootstrap =
+              false;
+
+
+            console.warn(
+              'AutoRefresh Bootstrap:',
+              error
+            );
+
+          }
+        );
+
+
+    if (
+      typeof AUTH_MODE !==
+        'undefined' &&
+
+      AUTH_MODE ===
+        'store'
+    ) {
+
+      runner
+        .getStoreBootstrap(
+          STORE_ACCESS_TOKEN
+        );
+
+    }
+    else {
+
+      runner
+        .getBootstrapData();
+
+    }
+
+  }
+
+
+  function bootstrapSignature(
+    data
+  ) {
+
+    var notifications =
+      (
+        data.notifications ||
+        []
+      )
+      .map(
+        function (item) {
+
+          return [
+            item.id ||
+              '',
+
+            item.read
+              ? '1'
+              : '0',
+
+            item.createdAt ||
+              ''
+          ]
+          .join(
+            '|'
+          );
+
+        }
+      )
+      .join(
+        '||'
+      );
+
+
+    var management =
+      (
+        data.managementItems ||
+        []
+      )
+      .map(
+        function (item) {
+
+          return [
+            item.id ||
+              '',
+
+            item.timelineStatus ||
+              '',
+
+            item.progress ||
+              '',
+
+            (
+              item.timeline ||
+              {}
+            ).deadline ||
+              ''
+          ]
+          .join(
+            '|'
+          );
+
+        }
+      )
+      .join(
+        '||'
+      );
+
+
+    return (
+      notifications +
+      '###' +
+      management +
+      '###' +
+      JSON.stringify(
+        data.summary ||
+        {}
+      )
+    );
+
+  }
+
+
+  /* ==========================================================
+     EXPÕE CONTROLE MANUAL
+     Útil para testes no console, se necessário.
+  ========================================================== */
+
+  window.BacioAutoRefresh = {
+
+    refresh:
+      function () {
+
+        runAutoRefresh(
+          true
+        );
+
+      },
+
+    restart:
+      function () {
+
+        startAutoRefresh();
+
+      },
+
+    stop:
+      function () {
+
+        if (
+          AUTO_TIMER
+        ) {
+
+          clearInterval(
+            AUTO_TIMER
+          );
+
+          AUTO_TIMER =
+            null;
+
+        }
+
+      }
+
+  };
+
+})();
+</script>
