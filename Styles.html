@@ -2104,4 +2104,71 @@ textarea:focus{
   }
 
 }
+
+/* =========================================================
+   TEMA CLARO / ESCURO
+========================================================= */
+.theme-toggle{
+  border:1px solid var(--line);
+  background:var(--paper);
+  color:var(--brown);
+  border-radius:999px;
+  height:34px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size:9px;
+  font-weight:700;
+}
+.theme-toggle-track{
+  width:30px;
+  height:16px;
+  border-radius:999px;
+  background:#d8cbbc;
+  padding:2px;
+  display:block;
+  transition:background .2s ease;
+}
+.theme-toggle-thumb{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  display:block;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+  transition:transform .2s ease;
+}
+body.dark-mode{
+  --cream:#181513;
+  --cream2:#211c19;
+  --paper:#29231f;
+  --brown:#f5eadf;
+  --brown2:#d6c3b3;
+  --line:#443a33;
+  --shadow:0 18px 55px rgba(0,0,0,.25);
+  background:var(--cream);
+  color:var(--brown);
+}
+body.dark-mode .topbar{background:rgba(24,21,19,.96);}
+body.dark-mode .nav-btn{color:#d9c8ba;}
+body.dark-mode .nav-btn:hover{background:#302822;}
+body.dark-mode .nav-btn.active{background:#f0e2d4;color:#2b201a;}
+body.dark-mode .user-card span,
+body.dark-mode .weather,
+body.dark-mode .hero p,
+body.dark-mode .subtitle,
+body.dark-mode .section-head p,
+body.dark-mode .summary-text,
+body.dark-mode .muted{color:#bca898;}
+body.dark-mode .chat-list{background:#211c19;}
+body.dark-mode .chat-thread:hover{background:#302822;}
+body.dark-mode .bubble{background:#352d27;}
+body.dark-mode .bubble.me{background:#ead9c8;color:#2b201a;}
+body.dark-mode .store-picker{background:var(--paper);}
+body.dark-mode .notification-item:hover,
+body.dark-mode .notification-item.unread{background:#302822;}
+body.dark-mode .theme-toggle-track{background:var(--caramel);}
+body.dark-mode .theme-toggle-thumb{transform:translateX(14px);}
+body.dark-mode .error-box{background:#38231f;border-color:#75483f;color:#f0b7ad;}
 </style>
