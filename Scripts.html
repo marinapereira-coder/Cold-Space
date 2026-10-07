@@ -19,7 +19,32 @@ var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
 var ACCESS_DATA=null;
 
+function applyTheme(theme){
+  var dark=theme==='dark';
+  document.body.classList.toggle('dark-mode',dark);
+  var btn=document.getElementById('themeToggle');
+  if(btn){
+    btn.setAttribute('aria-checked',dark?'true':'false');
+    btn.setAttribute('aria-label',dark?'Ativar modo claro':'Ativar modo escuro');
+    var icon=btn.querySelector('.theme-toggle-icon');
+    var label=btn.querySelector('.theme-toggle-label');
+    if(icon)icon.textContent=dark?'☾':'☀';
+    if(label)label.textContent=dark?'Escuro':'Claro';
+  }
+}
+function initTheme(){
+  var saved='';
+  try{saved=localStorage.getItem('bacio-theme')||'';}catch(e){}
+  applyTheme(saved==='dark'?'dark':'light');
+}
+function toggleTheme(){
+  var next=document.body.classList.contains('dark-mode')?'light':'dark';
+  applyTheme(next);
+  try{localStorage.setItem('bacio-theme',next);}catch(e){}
+}
+
 window.addEventListener('load',function(){
+  initTheme();
   try{bindEvents();}catch(e){showError('Erro ao iniciar a interface: '+(e.message||e));return;}
   if(typeof google==='undefined'||!google.script||!google.script.run){showError('O aplicativo foi aberto fora do ambiente do Google Apps Script.');return;}
   google.script.run
@@ -34,6 +59,7 @@ function bindEvents(){
     var close=e.target.closest('[data-close]');if(close){closeModal(close.getAttribute('data-close'));}
   });
   document.getElementById('mobileMenuBtn').onclick=function(){document.getElementById('sidebar').classList.toggle('open');};
+  document.getElementById('themeToggle').onclick=toggleTheme;
   document.getElementById('notificationButton').onclick=function(e){e.stopPropagation();toggleNotificationPanel();};
   document.getElementById('notificationPanel').onclick=function(e){e.stopPropagation();};
   document.addEventListener('click',closeNotificationPanel);
