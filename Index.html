@@ -253,6 +253,12 @@
       </button>
 
 
+
+      <button class="nav-btn" data-page="central">
+        <span class="nav-dot"></span>
+        Central de Operações
+      </button>
+
       <button
         class="nav-btn"
         data-page="chat">
@@ -1031,6 +1037,50 @@
 
         </section>
 
+
+
+        <!-- CENTRAL DE OPERAÇÕES -->
+        <section id="page-central" class="page">
+          <div class="central-hero">
+            <span class="eyebrow">Conhecimento operacional</span>
+            <h2 class="page-title">Tudo o que a loja precisa, em um só lugar.</h2>
+            <p class="subtitle">Encontre sistemas, documentos, processos e informações oficiais da operação.</p>
+          </div>
+          <div class="central-search-wrap"><input id="centralSearch" class="field central-search" type="search" placeholder="Busque por sistema, documento, processo ou palavra-chave..."></div>
+          <section class="section central-section">
+            <div class="section-head"><div><span class="eyebrow">Acesso rápido</span><h3>Mais utilizados</h3></div></div>
+            <div class="central-quick-grid">
+              <button class="central-quick-card" type="button"><span>Sistema</span><strong>Gestão de Cardápio</strong></button>
+              <button class="central-quick-card" type="button"><span>Operações</span><strong>Base de Lojas</strong></button>
+              <button class="central-quick-card" type="button"><span>Manutenção</span><strong>Abertura de Chamados</strong></button>
+              <button class="central-quick-card" type="button"><span>Treinamento</span><strong>UniBacio</strong></button>
+            </div>
+          </section>
+          <section class="section central-section">
+            <div class="section-head"><div><span class="eyebrow">Navegue por área</span><h3>Departamentos</h3><p>Conteúdo organizado por área responsável.</p></div></div>
+            <div id="centralDepartmentGrid" class="central-department-grid">
+              <article class="central-department-card" data-central-search="operações sistemas planilhas indicadores links procedimentos"><span class="central-card-icon">O</span><h4>Operações</h4><p>Sistemas, planilhas, indicadores e procedimentos da loja.</p></article>
+              <article class="central-department-card" data-central-search="rh pessoas benefícios admissões parceiros colaboradores"><span class="central-card-icon">P</span><h4>RH & Pessoas</h4><p>Benefícios, admissões, parceiros e informações para colaboradores.</p></article>
+              <article class="central-department-card" data-central-search="qualidade ciao auditoria dedetização boas práticas documentos"><span class="central-card-icon">Q</span><h4>Qualidade</h4><p>CIAO!, auditorias, boas práticas, dedetização e documentos.</p></article>
+              <article class="central-department-card" data-central-search="manutenção preventiva chamados cronogramas fornecedores equipamentos"><span class="central-card-icon">M</span><h4>Manutenção</h4><p>Preventivas, chamados, cronogramas e fornecedores.</p></article>
+              <article class="central-department-card" data-central-search="treinamento unibacio trilhas plano operações materiais"><span class="central-card-icon">T</span><h4>Treinamento</h4><p>UniBacio, trilhas, Plano de Operações e materiais.</p></article>
+              <article class="central-department-card" data-central-search="marketing growth campanhas promoções materiais calendário"><span class="central-card-icon">G</span><h4>Marketing & Growth</h4><p>Campanhas, promoções e materiais de apoio.</p></article>
+              <article class="central-department-card" data-central-search="delivery cardápio ifood plataformas processos indicadores"><span class="central-card-icon">D</span><h4>Delivery</h4><p>Cardápio, plataformas, processos e indicadores de delivery.</p></article>
+              <article class="central-department-card" data-central-search="financeiro notas fiscais cmv pagamento faturamento controles"><span class="central-card-icon">F</span><h4>Financeiro</h4><p>Notas fiscais, CMV, meios de pagamento e controles.</p></article>
+            </div>
+            <div id="centralSearchEmpty" class="empty" style="display:none"><strong>Nenhum resultado</strong>Tente outra palavra-chave.</div>
+          </section>
+          <div class="central-bottom-grid">
+            <section class="central-info-panel"><span class="eyebrow">Atualizações</span><h3>Novidades da Central</h3><div class="central-info-row"><div><strong>Manual de Boas Práticas CIAO! 2026</strong><span>Qualidade - conteúdo oficial</span></div><b>Novo</b></div><div class="central-info-row"><div><strong>Cronograma de Manutenção Preventiva</strong><span>Manutenção - documento atualizado</span></div><b>Atualizado</b></div></section>
+            <section class="central-info-panel"><span class="eyebrow">Próximos</span><h3>Datas importantes</h3><div class="central-info-row"><div><strong>Workshop Consultores</strong><span>Treinamento</span></div></div><div class="central-info-row"><div><strong>Campanha promocional</strong><span>Growth</span></div></div></section>
+          </div>
+          <section id="centralApprovalArea" class="section central-approval-area" style="display:none">
+            <div class="section-head"><div><span class="eyebrow">Governança de conteúdo</span><h3>Aprovações</h3><p>Nenhum conteúdo chega às lojas sem completar o fluxo de validação.</p></div></div>
+            <div class="central-approval-flow"><span>Departamento cria</span><i>→</i><span>Operações revisa</span><i>→</i><span>Gerência aprova</span><i>→</i><span>Diretoria aprova</span><i>→</i><span>Publicação</span></div>
+            <div class="central-approval-grid"><div><strong>0</strong><span>Aguardando Operações</span></div><div><strong>0</strong><span>Aguardando Gerência</span></div><div><strong>0</strong><span>Aguardando Diretoria</span></div><div><strong>0</strong><span>Agendados</span></div></div>
+            <div class="central-governance-note"><strong>Fluxo protegido</strong><p>Departamentos poderão preparar conteúdos, mas a publicação ficará bloqueada até as aprovações de Operações, Gerência de Operações e Diretoria. Alterações futuras em conteúdo aprovado deverão gerar uma nova versão para validação.</p></div>
+          </section>
+        </section>
 
         <!-- ===================================================
              CHAT
