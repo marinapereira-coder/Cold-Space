@@ -40,3 +40,19 @@ jobs:
 
       - name: Push source to Apps Script
         run: clasp push --force
+
+      - name: Create Apps Script version
+        id: version
+        shell: bash
+        run: |
+          OUTPUT="$(clasp version "GitHub ${GITHUB_SHA}")"
+          echo "$OUTPUT"
+          VERSION="$(printf '%s\n' "$OUTPUT" | grep -oE '[0-9]+' | tail -1)"
+          if [ -z "$VERSION" ]; then
+            echo "Could not determine the Apps Script version."
+            exit 1
+          fi
+          echo "number=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update Web App deployment
+        run: clasp deploy --deploymentId "AKfycbz3A2pocCs2YJAW7Zkyf1Uk0YWWHVSBcDjesGaDCxOzDQ-XHn5MTYQnpQ8gONeLZm45TA" --versionNumber "${{ steps.version.outputs.number }}" --description "GitHub ${GITHUB_SHA}"
