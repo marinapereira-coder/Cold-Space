@@ -486,5 +486,5 @@ function serverError(error){
 function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
-</script>
 function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';}
+</script>
