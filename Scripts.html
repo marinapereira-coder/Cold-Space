@@ -149,7 +149,7 @@ function showPage(page){
   CURRENT_PAGE=page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
-  var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Campanhas & Demandas',comunicados:'Comunicados',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
+  var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Campanhas & Demandas',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
   if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();
@@ -157,7 +157,7 @@ function showPage(page){
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
   if(page==='acessos'&&CURRENT_ROLE==='admin'&&!ACCESS_DATA)loadAccesses();
-  if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='comunicados')renderNotices();
+  if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='comunicados')renderNotices();if(page==='central')renderCentralOperations();
   window.scrollTo(0,0);
 }
 
@@ -487,3 +487,4 @@ function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
 </script>
+function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';}
