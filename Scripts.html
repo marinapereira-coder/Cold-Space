@@ -606,7 +606,18 @@ function openChatThread(id){
   CHAT_THREAD_ID=id;var t=((CHAT_DATA||{}).threads||[]).find(function(x){return String(x.id)===String(id);})||{};
   document.getElementById('chatTitle').textContent=t.title||'Conversa';document.getElementById('chatSubtitle').textContent=t.subtitle||'';renderChatThreads();document.getElementById('chatMessages').innerHTML='<div class="empty">Carregando mensagens...</div>';
   var payload={storeId:t.storeId||'',demandId:t.demandId||''};
-  var run=google.script.run.withSuccessHandler(function(messages){renderChatMessages(messages||[]);}).withFailureHandler(serverError);
+  if(AUTH_MODE!=='store'&&!payload.storeId){
+    document.getElementById('chatMessages').innerHTML='<div class="chat-error"><strong>Conversa sem loja vinculada.</strong><p>Esta conversa não possui uma loja de destino. Selecione uma conversa vinculada a uma loja para continuar.</p></div>';
+    return;
+  }
+  var threadId=id;
+  var run=google.script.run.withSuccessHandler(function(messages){if(String(CHAT_THREAD_ID)===String(threadId))renderChatMessages(messages||[]);})
+    .withFailureHandler(function(error){
+      if(String(CHAT_THREAD_ID)!==String(threadId))return;
+      var message=error&&error.message?error.message:String(error);
+      document.getElementById('chatMessages').innerHTML='<div class="chat-error" role="alert"><strong>Não foi possível carregar as mensagens.</strong><p>'+safe(message)+'</p><button type="button" class="btn soft" onclick="openChatThread(CHAT_THREAD_ID)">Tentar novamente</button></div>';
+      showToast('Falha ao carregar as mensagens do chat.');
+    });
   if(AUTH_MODE==='store')run.getStoreChatMessages(STORE_ACCESS_TOKEN,payload);else run.getChatMessages(payload);
 }
 
