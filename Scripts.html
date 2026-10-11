@@ -404,14 +404,31 @@ function storeSimulationBody(d,store){
  var sections=d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]||[];
  var fields=d.modelFields||[];
  var content=fields.map(function(f){
-  return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+
-    responseInput(f,'').replace(/class="([^"]*answer-input[^"]*)"/g,'class="$1" disabled')+'</div>';
+  return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,'')+'</div>';
  }).join('');
- return '<div class="response-status-note">Prévia para '+safe(store.label)+' — nenhuma resposta será registrada.</div>'+
+ return '<div class="response-status-note">Modo teste — '+safe(store.label)+'. Você pode preencher e simular o envio sem registrar respostas reais.</div>'+
  (sections.length?storeTemplateSectionHtml(sections):'<p class="helper">Não há dados de planilha específicos associados a esta loja neste modelo.</p>')+
- (content||'<div class="empty">Sem perguntas de resposta configuradas.</div>')+
- '<div><label class="label">Observação</label><textarea class="textarea" disabled placeholder="Campo que a loja poderá preencher"></textarea></div>'+
- '<button class="btn primary" disabled style="margin-top:12px">Enviar resposta (prévia)</button>';
+ '<div id="storeResponsePreviewForm">'+(content||'<div class="empty">Sem perguntas de resposta configuradas.</div>')+
+ '<div><label class="label">Observação</label><textarea id="storeResponsePreviewObs" class="textarea" placeholder="Digite sua observação de teste"></textarea></div>'+
+ '<button type="button" class="btn primary" style="margin-top:12px" onclick="simulateStoreResponse()">Enviar resposta de teste</button>'+
+ '<div id="storeResponsePreviewResult" role="status" style="margin-top:12px"></div></div>';
+}
+function simulateStoreResponse(){
+ var host=document.getElementById('storeResponsePreviewForm'),result=document.getElementById('storeResponsePreviewResult');
+ if(!host||!result)return;
+ var answers=[],missing=[];
+ host.querySelectorAll('.answer-input').forEach(function(el){
+  var label=(el.closest('div')||{}).querySelector?el.closest('div').querySelector('label'):null;
+  var name=label?label.textContent.trim():(el.dataset.key||'Campo');
+  var value=String(el.value||'').trim();
+  if(el.getAttribute('data-required')==='1'&&!value)missing.push(name);
+  answers.push({name:name,value:value||'—'});
+ });
+ if(missing.length){result.innerHTML='<div class="response-status-note" style="color:#9c4c24">Preencha os campos obrigatórios: '+missing.map(safe).join(', ')+'</div>';return;}
+ var observation=(document.getElementById('storeResponsePreviewObs')||{}).value||'';
+ result.innerHTML='<div class="response-status-note"><strong>Teste concluído! Nenhuma resposta foi enviada ou salva.</strong></div>'+
+ '<div class="detail-box"><h4>Resumo da resposta simulada</h4>'+answers.map(function(item){return '<div class="answer-line"><strong>'+safe(item.name)+'</strong><span>'+safe(item.value)+'</span></div>';}).join('')+
+ '<div class="answer-line"><strong>Observação</strong><span>'+safe(observation||'—')+'</span></div></div>';
 }
 function renderSelectedStoreSimulator(storeId){
  var d=window.BACIO_CURRENT_DETAIL,store=(window.BACIO_SIM_STORES||[]).filter(function(x){return x.id===String(storeId);})[0];
