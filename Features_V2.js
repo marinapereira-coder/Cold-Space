@@ -870,10 +870,23 @@ function getDemandDetailForStoreV2_(
       demanda.model_source ||
       'manual',
 
-    modelFields:
-      normalizeObjectArray_(
-        demanda.model_fields
-      ),
+    modelFields: (function(){
+      var all=normalizeObjectArray_(demanda.model_fields);
+      var importMeta=normalizeJsonObject_(demanda.import_meta);
+      if(!importMeta.perStore)return all;
+      var codes=targetStores.map(function(loja){
+        var m=String(loja.codigo||loja.nome||'').match(/(?:LJ\s*)?0*(\d{1,5})(?:\b|$)/i);
+        return m?('0000'+m[1]).slice(-4):'';
+      }).filter(Boolean);
+      var sections=[];
+      codes.forEach(function(code){sections=sections.concat(importMeta.perStore[code]||[]);});
+      var names=sections.map(function(sec){return String(sec.sheet||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');});
+      return all.filter(function(field){
+        var id=String(field.id||'');
+        if(id.indexOf('import_')!==0)return true;
+        return names.some(function(name){return id.indexOf('import_'+name+'_')===0;});
+      });
+    })(),
 
     importMeta: (function(){
       var raw=normalizeJsonObject_(demanda.import_meta);
