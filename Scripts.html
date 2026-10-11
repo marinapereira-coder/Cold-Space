@@ -435,7 +435,7 @@ function renderAdminStoreSimulator(d){
  if(!options.length)return '<div class="empty">Esta solicitação não possui lojas destinatárias identificadas.</div>';
  window.BACIO_SIM_STORES=options;
  var first=options[0];
- return '<div class="helper" style="margin-bottom:12px">Simulação somente leitura da solicitação recebida pela loja. Nenhuma resposta será enviada.</div>'+
+ return '<div class="helper" style="margin-bottom:12px">Simulação interativa: preencha e envie uma resposta de teste, sem alterar registros oficiais.</div>'+
  '<label class="label">Visualizar como loja</label><select class="select" id="campaignStoreSimulatorSelect" onchange="renderSelectedStoreSimulator(this.value)">'+options.map(function(o){return '<option value="'+safe(o.id)+'">'+safe(o.label)+'</option>';}).join('')+'</select>'+
  '<div id="campaignStoreSimulatorBody" style="margin-top:12px">'+storeSimulationBody(d,first)+'</div>';
 }
@@ -482,7 +482,17 @@ function simulateStoreResponse(){
   answers:answers,observacao:observation,modelFields:requestFieldsForStore(d.modelFields||[],d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]||[]),
   evaluation:null};
  BACIO_TEST_RESPONSES.unshift(item);
- result.innerHTML='<div class="response-status-note"><strong>Resposta de teste registrada nesta sessão.</strong> Você pode consultá-la em Respostas das Lojas → Respostas simuladas. Nenhum dado oficial foi alterado.</div>';
+ renderTestResponses();
+ result.innerHTML='<div class="response-status-note"><strong>Resposta de teste registrada!</strong> A resposta da '+safe(store.label)+' está disponível em Respostas das Lojas → Respostas simuladas. Os dados oficiais não foram alterados.</div>'+
+ '<button type="button" class="btn primary" style="margin-top:12px" onclick="openSimulatedResponses()">Ver resposta enviada no teste</button>';
+ showToast('Resposta de teste enviada com sucesso (sem alterar dados oficiais).');
+}
+function openSimulatedResponses(){
+ closeModal('detailModal');
+ showPage('respostas');
+ renderTestResponses();
+ var section=document.getElementById('testResponsesSection');
+ if(section&&section.scrollIntoView)section.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderTestResponses(){
  var host=document.getElementById('testResponsesTable');if(!host)return;
