@@ -84,6 +84,9 @@ function bindEvents(){
 
   document.getElementById('newDemandBtn').onclick=function(){openCampaignModal('demanda');};
   document.getElementById('newCampaignBtn').onclick=function(){openCampaignModal('campanha');};
+  document.getElementById('fDepartment').onchange=refreshRequestCategories;
+  document.getElementById('fRequestCategory').onchange=syncRequestLegacyType;
+  document.getElementById('campaignDepartmentFilter').onchange=renderCampaignManagement;
   document.getElementById('saveCampaignBtn').onclick=saveCampaign;
   document.getElementById('addQuestionBtn').onclick=function(){addManualQuestion();};
   document.querySelectorAll('[data-model-tab]').forEach(function(btn){btn.onclick=function(){setModelTab(btn.getAttribute('data-model-tab'));};});
@@ -149,7 +152,7 @@ function showPage(page){
   CURRENT_PAGE=page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
-  var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Campanhas & Demandas',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
+  var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
   if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();
@@ -185,10 +188,47 @@ function renderAgenda(){
   document.getElementById('agendaList').innerHTML='<div class="calendar">'+Object.keys(grouped).sort().map(function(key){var items=grouped[key],first=items[0],raw=(first.timeline||{}).deadline||first.deadline||'';var day=raw?formatDate(raw):'Sem prazo';var time=raw?formatTime(raw):'';return '<div class="calendar-row"><div class="calendar-day"><strong>'+safe(day)+'</strong><span>'+safe(time)+'</span></div><div class="calendar-items">'+items.map(function(i){return '<div class="calendar-event" onclick="openDemandDetail(\''+safeJs(i.id)+'\')"><strong>'+safe(i.title)+'</strong><span>'+safe(typeLabel(i.type))+' · '+safe(i.timelineLabel||timelineLabel(i.timelineStatus))+'</span></div>';}).join('')+'</div></div>';}).join('')+'</div>';
 }
 
+
+// Taxonomia da Central de Solicitações. Mantém 'campanha'/'demanda' para compatibilidade
+// com os cadastros, importação de planilhas e fluxos já existentes.
+var REQUEST_DEPARTMENTS={
+ 'Operações':['Demanda geral','Campanha','Comunicado operacional','Coleta de informações','Orientação para lojas'],
+ 'Marketing':['Campanha','Lançamento de produto','Material de comunicação','Pesquisa'],
+ 'Growth':['Campanha','Ação de fidelidade','Pesquisa'],
+ 'Qualidade':['Auditoria','Coleta de evidências','Orientação de qualidade'],
+ 'Treinamento':['Treinamento','Material educativo','Avaliação'],
+ 'Comercial':['Campanha','Ação comercial','Coleta de informações'],
+ 'TI':['Suporte técnico','Incidente','Atualização de sistema'],
+ 'RH':['Pesquisa','Comunicado','Treinamento']
+};
+function requestDepartment(item){return item.departamento||item.department||'Operações';}
+function populateRequestDepartments(){
+ var el=document.getElementById('fDepartment');
+ el.innerHTML=Object.keys(REQUEST_DEPARTMENTS).map(function(d){return '<option value="'+safe(d)+'">'+safe(d)+'</option>';}).join('');
+}
+function refreshRequestCategories(){
+ var dept=document.getElementById('fDepartment').value;
+ var el=document.getElementById('fRequestCategory'),previous=el.value;
+ el.innerHTML=(REQUEST_DEPARTMENTS[dept]||['Demanda geral']).map(function(t){return '<option value="'+safe(t)+'">'+safe(t)+'</option>';}).join('');
+ if((REQUEST_DEPARTMENTS[dept]||[]).indexOf(previous)>=0)el.value=previous;
+ syncRequestLegacyType();
+}
+function syncRequestLegacyType(){
+ document.getElementById('fType').value=document.getElementById('fRequestCategory').value==='Campanha'?'campanha':'demanda';
+}
+function populateDepartmentFilter(){
+ var el=document.getElementById('campaignDepartmentFilter'),old=el.value||'all';
+ if(el.options.length>1)return;
+ el.innerHTML='<option value="all">Todos os departamentos</option>'+Object.keys(REQUEST_DEPARTMENTS).map(function(d){return '<option value="'+safe(d)+'">'+safe(d)+'</option>';}).join('');
+ el.value=old;
+}
+
 function renderCampaignManagement(){
+  populateDepartmentFilter();
   var items=(APP_DATA.managementItems||[]).filter(function(i){return String(i.type||'').toLowerCase()!=='comunicado';});
   var q=(document.getElementById('campaignSearch').value||'').toLowerCase().trim();var t=document.getElementById('campaignTypeFilter').value;var s=document.getElementById('campaignStatusFilter').value;
-  var filtered=items.filter(function(i){var text=((i.title||'')+' '+(i.description||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(t==='all'||String(i.type)===t)&&(s==='all'||String(i.timelineStatus||i.status)===s);});
+  var depFilter=document.getElementById('campaignDepartmentFilter').value;
+  var filtered=items.filter(function(i){var text=((i.title||'')+' '+(i.description||'')).toLowerCase();var dep=requestDepartment(i);return (!q||text.indexOf(q)>=0)&&(t==='all'||String(i.type)===t)&&(s==='all'||String(i.timelineStatus||i.status)===s)&&(depFilter==='all'||dep===depFilter);});
   document.getElementById('campaignKpis').innerHTML=[
     [items.filter(function(i){return i.timelineStatus==='active';}).length,'Em andamento'],[items.filter(function(i){return i.timelineStatus==='late'||i.timelineStatus==='due_today';}).length,'Precisam de atenção'],[items.filter(function(i){return i.timelineStatus==='draft';}).length,'Rascunhos'],[items.filter(function(i){return i.timelineStatus==='completed'||i.timelineStatus==='closed';}).length,'Concluídas / encerradas']
   ].map(kpiHtml).join('');
@@ -238,12 +278,20 @@ function markAllNotificationsRead(){
 function openCampaignModal(type,id){
   if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem criar ou editar campanhas e demandas.');return;}
   CAMPAIGN_EDIT_ID=id||null;MODEL_TAB='manual';MANUAL_FIELDS=[];IMPORTED_FIELDS=[];
-  document.getElementById('campaignModalTitle').textContent=id?'Editar conteúdo':(type==='campanha'?'Nova campanha':'Nova demanda');
-  document.getElementById('fType').value=type||'demanda';document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';
+  document.getElementById('campaignModalTitle').textContent=id?'Editar solicitação':'Nova solicitação';
+  populateRequestDepartments();
+  document.getElementById('fType').value=type||'demanda';
+  document.getElementById('fDepartment').value='Operações';refreshRequestCategories();
+  if(type==='campanha')document.getElementById('fRequestCategory').value='Campanha';syncRequestLegacyType();
+  document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';
   setModelTab('manual');addManualQuestion('text','');renderStorePicker();toggleStorePicker();openModal('campaignModal');
   if(id){google.script.run.withSuccessHandler(fillCampaignEdit).withFailureHandler(serverError).getDemandDetail(id);}
 }
 function fillCampaignEdit(d){
+  document.getElementById('fDepartment').value=requestDepartment(d);
+  refreshRequestCategories();
+  document.getElementById('fRequestCategory').value=d.tipoSolicitacao||d.requestCategory||(d.type==='campanha'?'Campanha':'Demanda geral');
+  if(!document.getElementById('fRequestCategory').value)document.getElementById('fRequestCategory').value='Demanda geral';
   document.getElementById('fType').value=d.type==='campanha'?'campanha':'demanda';document.getElementById('fStatus').value=d.publishStatus||'active';document.getElementById('fTitle').value=d.title||'';document.getElementById('fDescription').value=d.description||'';document.getElementById('fStart').value=toLocalInput(d.inicioEm||(d.timeline||{}).startAt);document.getElementById('fDeadline').value=toLocalInput(d.deadline||(d.timeline||{}).deadline);document.getElementById('fEnd').value=toLocalInput(d.encerramentoEm||(d.timeline||{}).endAt);document.getElementById('fRequired').value=d.responseRequired===false?'no':'yes';
   var rem=(d.cronograma||{}).lembretes||(d.timeline||{}).reminders||[];document.getElementById('r24').checked=hasReminder(rem,'24h_antes');document.getElementById('r2').checked=hasReminder(rem,'2h_antes');document.getElementById('rDue').checked=hasReminder(rem,'vencimento');
   MANUAL_FIELDS=(d.modelFields||[]).map(function(f,i){return {id:f.id||'q'+(i+1),label:f.label||'',type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});if(!MANUAL_FIELDS.length)MANUAL_FIELDS=[newField('text','')];renderManualQuestions();
@@ -264,7 +312,7 @@ function saveCampaign(){
   var fields=(MODEL_TAB==='import'?IMPORTED_FIELDS:MANUAL_FIELDS).filter(function(f){return String(f.label||'').trim();}).map(function(f,i){return {id:f.id||'q'+(i+1),label:String(f.label).trim(),type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});
   if(document.getElementById('fRequired').value==='yes'&&!fields.length){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
   var selectedIds=document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[];if(document.getElementById('fAudience').value==='selected'&&!selectedIds.length){showToast('Selecione pelo menos uma loja.');return;}
-  var payload={id:CAMPAIGN_EDIT_ID,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}:null,cronograma:{lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
+  var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}:null,cronograma:{lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
   setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('saveCampaignBtn',false,'Salvar');closeModal('campaignModal');showToast('Conteúdo salvo.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);}).saveDemand(payload);
 }
 function renderStorePicker(selected){var host=document.getElementById('storePickerList'),q=(document.getElementById('storePickerSearch').value||'').toLowerCase().trim(),sel={};(selected||getSelectedStoreIds()).forEach(function(id){sel[String(id)]=1;});host.innerHTML=(APP_DATA.stores||[]).filter(function(s){var text=((s.codigo||'')+' '+(s.nome||'')+' '+(s.cidade||'')).toLowerCase();return !q||text.indexOf(q)>=0;}).map(function(s){return '<label class="store-option"><input class="store-check" type="checkbox" value="'+safe(s.id)+'" '+(sel[String(s.id)]?'checked':'')+'><span><strong>'+safe((s.codigo?s.codigo+' · ':'')+s.nome)+'</strong><br><span class="muted">'+safe((s.regional||'')+(s.consultor?' · '+s.consultor:''))+'</span></span></label>';}).join('');}
