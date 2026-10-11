@@ -237,7 +237,7 @@
 
         <span class="nav-dot"></span>
 
-        Campanhas & Demandas
+        Central de Solicitações
 
       </button>
 
@@ -831,16 +831,15 @@
             <div>
 
               <span class="eyebrow">
-                Operação
+                Todos os departamentos
               </span>
 
               <h2 class="page-title">
-                Campanhas & Demandas
+                Central de Solicitações
               </h2>
 
               <p class="subtitle">
-                Crie, acompanhe e cobre as ações das lojas
-                em um só lugar.
+                Organize solicitações por departamento e tipo, com formulários e acompanhamento das lojas.
               </p>
 
             </div>
@@ -852,16 +851,17 @@
 
               <button
                 id="newDemandBtn"
-                class="btn soft">
+                class="btn primary">
 
-                + Nova demanda
+                + Nova solicitação
 
               </button>
 
 
               <button
                 id="newCampaignBtn"
-                class="btn primary">
+                class="btn primary"
+                style="display:none">
 
                 + Nova campanha
 
@@ -879,6 +879,8 @@
 
 
           <div class="toolbar three">
+
+            <select id="campaignDepartmentFilter" class="select" aria-label="Filtrar departamento"><option value="all">Todos os departamentos</option></select>
 
             <input
               id="campaignSearch"
@@ -1633,7 +1635,7 @@
         <div>
 
           <span class="eyebrow">
-            Conteúdo operacional
+            Central de Solicitações
           </span>
 
           <h3 id="campaignModalTitle">
@@ -1658,11 +1660,17 @@
 
         <div class="form-grid">
 
-
           <div>
-
+            <label class="label" for="fDepartment">Departamento solicitante</label>
+            <select id="fDepartment" class="select"></select>
+          </div>
+          <div>
+            <label class="label" for="fRequestCategory">Tipo de solicitação</label>
+            <select id="fRequestCategory" class="select"></select>
+          </div>
+          <div>
             <label class="label">
-              Tipo
+              Classificação interna (compatibilidade)
             </label>
 
             <select
