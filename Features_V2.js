@@ -875,9 +875,18 @@ function getDemandDetailForStoreV2_(
         demanda.model_fields
       ),
 
-    importMeta:
-      demanda.import_meta ||
-      null,
+    importMeta: (function(){
+      var raw=normalizeJsonObject_(demanda.import_meta);
+      if(!raw.perStore)return raw;
+      var selected=[];
+      targetStores.forEach(function(loja){
+        var m=String(loja.codigo||loja.nome||'').match(/LJ\\s*0*(\\d{1,5})/i);
+        if(!m)return;
+        var code=('0000'+m[1]).slice(-4);
+        if(raw.perStore[code])selected=selected.concat(raw.perStore[code]);
+      });
+      return {version:raw.version,fileName:raw.fileName,storeSections:selected};
+    })(),
 
     lojaIds:
       normalizeArray_(
