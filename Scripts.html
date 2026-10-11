@@ -412,10 +412,18 @@ function renderAdminStoreSimulator(d){
  '<label class="label">Visualizar como loja</label><select class="select" id="campaignStoreSimulatorSelect" onchange="renderSelectedStoreSimulator(this.value)">'+options.map(function(o){return '<option value="'+safe(o.id)+'">'+safe(o.label)+'</option>';}).join('')+'</select>'+
  '<div id="campaignStoreSimulatorBody" style="margin-top:12px">'+storeSimulationBody(d,first)+'</div>';
 }
+function requestFieldsForStore(fields,sections){
+ var names=(sections||[]).map(function(sec){return normalizeHeader(sec.sheet||'').replace(/ /g,'_');});
+ return (fields||[]).filter(function(f){
+  var id=String(f.id||'');
+  if(id.indexOf('import_')!==0)return true;
+  return names.some(function(name){return id.indexOf('import_'+name+'_')===0;});
+ });
+}
 function storeSimulationBody(d,store){
  if(!store)return '<div class="empty">Loja não encontrada.</div>';
  var sections=d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]||[];
- var fields=d.modelFields||[];
+ var fields=requestFieldsForStore(d.modelFields||[],sections);
  var content=fields.map(function(f){
   return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,'')+'</div>';
  }).join('');
@@ -465,7 +473,7 @@ function renderStoreResponseSection(d,answerHtml){
   if(current&&!canCorrect){return '<div class="response-status-note '+safe(status||'respondido')+'">Resposta enviada em '+safe(formatDateTime(current.createdAt))+'.</div>'+answerHtml+'<div class="answer-line"><strong>Observação</strong><span>'+safe(current.observacao||'—')+'</span></div>';}
   var previousAnswers=(current&&current.answers)||{};
   var notice=current?'<div class="response-status-note '+safe(status)+'">O escritório solicitou uma nova versão desta resposta. Revise os campos e envie novamente.</div>':'';
-  return notice+'<div id="storeResponseForm">'+(d.modelFields||[]).map(function(f){return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,previousAnswers[f.id])+'</div>';}).join('')+'<div><label class="label">Observação</label><textarea id="storeResponseObs" class="textarea">'+safe(current?current.observacao||'':'')+'</textarea></div><button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
+  return notice+'<div id="storeResponseForm">'+requestFieldsForStore(d.modelFields||[],(d.importMeta&&d.importMeta.storeSections)||[]).map(function(f){return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,previousAnswers[f.id])+'</div>';}).join('')+'<div><label class="label">Observação</label><textarea id="storeResponseObs" class="textarea">'+safe(current?current.observacao||'':'')+'</textarea></div><button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
 }
 function responseInput(f,current){var req=f.required?' data-required="1"':'',val=current==null?'':String(current);if(f.type==='textarea')return '<textarea class="textarea answer-input" data-key="'+safe(f.id)+'"'+req+'>'+safe(val)+'</textarea>';if(f.type==='boolean')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option><option value="Sim" '+(val==='Sim'?'selected':'')+'>Sim</option><option value="Não" '+(val==='Não'?'selected':'')+'>Não</option></select>';if(f.type==='select')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option>'+(f.options||[]).map(function(o){return '<option value="'+safe(o)+'" '+(val===String(o)?'selected':'')+'>'+safe(o)+'</option>';}).join('')+'</select>';return '<input class="field answer-input" data-key="'+safe(f.id)+'"'+req+' type="'+(f.type==='number'?'number':f.type==='date'?'date':'text')+'" value="'+safe(val)+'">';}
 function submitStoreResponse(demandaId){
