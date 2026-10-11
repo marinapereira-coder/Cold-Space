@@ -323,7 +323,10 @@ function parseMultiSheetCampaign(file,done,fail){
    var last=Math.max(titles.length,units.length);
    for(var ri=3;ri<rows.length;ri++){
     var row=rows[ri]||[],label=String(row[0]||'');
-    var matches=label.match(/LJ\s*0*\d{1,5}/gi)||[],codes=matches.map(storeCodeFromText).filter(Boolean);
+    // Alguns modelos possuem colunas iniciais vazias/mescladas: localizar o código LJ nas primeiras colunas.
+    var storeCell=row.slice(0,Math.min(5,row.length)).map(function(v){return String(v==null?'':v);}).find(function(v){return /LJ\s*\d+/i.test(v);})||label;
+    var matches=storeCell.match(/LJ\s*\d{1,5}/gi)||[];
+    var codes=matches.map(function(value){var m=value.match(/LJ\s*0*(\d{1,5})/i);return m?('0000'+m[1]).slice(-4):'';}).filter(Boolean);
     if(!codes.length)continue;
     var fields=[];
     for(var ci=1;ci<last;ci++){
@@ -337,7 +340,7 @@ function parseMultiSheetCampaign(file,done,fail){
    }
    if(count){source.push({sheet:name,rows:count});}
   });
-  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas operacionais. Verifique a coluna Loja e os códigos LJ.');
+  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada. Abas lidas: '+wb.SheetNames.join(' / ')+'. Verifique se as lojas estão identificadas com LJ e se a planilha possui registros a partir da quarta linha.');
   done({version:1,fileName:file.name,perStore:perStore,sheets:source});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
