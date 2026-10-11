@@ -308,7 +308,7 @@ function renderManualQuestions(){
 function questionTypeOptions(selected){return [['text','Texto curto'],['textarea','Texto longo'],['number','Número'],['boolean','Sim / Não'],['date','Data'],['select','Lista de opções']].map(function(o){return '<option value="'+o[0]+'" '+(selected===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join('');}
 // Importador multiabas: somente abas operacionais; bases administrativas não são enviadas às lojas.
 var CAMPAIGN_STORE_TEMPLATE=null;
-function storeCodeFromText(v){var m=String(v||'').match(/\bLJ\s*0*(\d{1,5})\b/i);return m?('0000'+m[1]).slice(-4):'';}
+function storeCodeFromText(v){var text=String(v||'').trim();var m=text.match(/(?:\bLJ\s*|^)(\d{1,5})(?:\b|$)/i);return m?('0000'+String(Number(m[1]))).slice(-4):'';}
 function parseMultiSheetCampaign(file,done,fail){
  var reader=new FileReader();
  reader.onload=function(e){try{
