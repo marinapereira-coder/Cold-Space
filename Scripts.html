@@ -330,8 +330,10 @@ function parseMultiSheetCampaign(file,done,fail){
     if(!codes.length)continue;
     var fields=[];
     for(var ci=1;ci<last;ci++){
-     var value=row[ci];if(value==null||String(value).trim()==='')continue;
+     var value=row[ci];
      var labelText=String(titles[ci]||units[ci]||('Coluna '+(ci+1))).trim();
+     var isAnswerColumn=/plaquinhas|insumos recebidos|observac/.test(normalizeHeader(labelText));
+     if((value==null||String(value).trim()==='')&&!isAnswerColumn)continue;
      if(!labelText)continue;
      var normalized=normalizeHeader(labelText);
      var editable=/plaquinhas|insumos recebidos|observac/.test(normalized);
