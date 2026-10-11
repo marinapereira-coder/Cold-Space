@@ -156,7 +156,7 @@ function showPage(page){
   var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
-  if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();
+  if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();if(page==='respostas')renderTestResponses();
   if(page==='avaliacoes'&&!EVALUATION_DATA)loadEvaluations();
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
@@ -505,17 +505,31 @@ function renderTestResponses(){
  }).join('');
 }
 function openTestResponse(id){
- var item=BACIO_TEST_RESPONSES.find(function(x){return x.responseId===id;});if(!item)return;
- var body='<div class="detail-box"><h4>TESTE · '+safe(item.storeLabel)+'</h4><p>'+safe(item.demandaTitle)+'</p>'+
- (item.modelFields||[]).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(item.answers[f.id]||'—')+'</span></div>';}).join('')+
+ var item=BACIO_TEST_RESPONSES.find(function(x){return String(x.responseId)===String(id);});
+ if(!item){showToast('Resposta de teste não encontrada nesta sessão.');return;}
+ var fields=item.modelFields||[],answers=item.answers||{},evalData=item.evaluation||{};
+ var body='<div class="detail-box"><h4>TESTE · '+safe(item.storeLabel)+'</h4><div class="muted">'+safe(item.demandaTitle)+'</div>'+
+ '<div class="answer-line"><strong>Entrega simulada</strong><span>'+safe(formatDateTime(item.createdAt))+'</span></div></div>'+
+ '<div style="margin-top:14px">'+fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('')+
  '<div class="answer-line"><strong>Observação</strong><span>'+safe(item.observacao||'—')+'</span></div></div>'+
- '<div style="margin-top:12px"><label class="label">Resultado do teste</label><select id="testEvalStatus" class="select">'+
+ '<div style="margin-top:16px"><label class="label">Nota da entrega (teste)</label><div id="testRatingPicker" class="rating-picker" data-value="'+safe(evalData.stars||0)+'">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star'+(Number(evalData.stars||0)>=n?' selected':'')+'" data-star="'+n+'">★</button>';}).join('')+'</div></div>'+
+ '<div><label class="label">Resultado</label><select id="testEvalStatus" class="select">'+
  [['aprovada','Aprovada'],['ajuste_necessario','Ajuste necessário'],['reprovada','Reprovada']].map(function(x){return '<option value="'+x[0]+'" '+(item.status===x[0]?'selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></div>'+
- '<div style="margin-top:12px"><label class="label">Comentário</label><textarea id="testEvalComment" class="textarea">'+safe(item.evaluation&&item.evaluation.comment||'')+'</textarea></div>';
+ '<div style="margin-top:12px"><label class="label">Comentário para a loja (teste)</label><textarea id="testEvalComment" class="textarea" placeholder="Feedback ou motivo...">'+safe(evalData.comment||'')+'</textarea></div>'+
+ '<p class="helper">Esta avaliação é uma simulação e não altera avaliações ou indicadores oficiais.</p>';
  openGeneric('Ambiente de teste','Avaliar resposta simulada',body,function(){
+  var picker=document.getElementById('testRatingPicker'),stars=Number(picker&&picker.getAttribute('data-value')||0);
+  if(stars<1||stars>5){showToast('Selecione de 1 a 5 estrelas para avaliar o teste.');return;}
   item.status=document.getElementById('testEvalStatus').value;
-  item.evaluation={status:item.status,comment:document.getElementById('testEvalComment').value.trim(),createdAt:new Date().toISOString()};
-  closeModal('genericModal');renderTestResponses();showToast('Avaliação de teste atualizada (somente nesta sessão).');
+  item.evaluation={status:item.status,stars:stars,comment:document.getElementById('testEvalComment').value.trim(),createdAt:new Date().toISOString()};
+  closeModal('genericModal');renderTestResponses();showToast('Avaliação de teste salva nesta sessão.');
+ });
+ document.querySelectorAll('#testRatingPicker .rating-star').forEach(function(btn){
+  btn.onclick=function(){
+   var value=Number(btn.getAttribute('data-star')),picker=document.getElementById('testRatingPicker');
+   picker.setAttribute('data-value',String(value));
+   picker.querySelectorAll('.rating-star').forEach(function(b){b.classList.toggle('selected',Number(b.getAttribute('data-star'))<=value);});
+  };
  });
 }
 function renderSelectedStoreSimulator(storeId){
