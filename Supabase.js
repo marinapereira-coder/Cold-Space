@@ -697,7 +697,62 @@ function saveDemand(input) {
     );
   }
 
+  // Notify only on first publication (draft -> active or new active).
+  // Editing an already published item must not generate duplicate alerts.
+  var wasPublished = existingRow && String(existingRow.status || '').toLowerCase() === 'active';
+  if (publishStatus === 'active' && !wasPublished) {
+    var publishedId = result && result[0] && result[0].id || input.id;
+    try {
+      var notificationResult = notifyDemandPublished_(auth, {
+        id: publishedId,
+        title: titulo,
+        type: tipo,
+        lojaIds: normalizeArray_(input.lojaIds || [])
+      });
+      return {ok:true,row:result&&result[0]?result[0]:null,notifications:notificationResult};
+    } catch (notificationError) {
+      console.error('Falha ao notificar publicação da demanda: '+String(notificationError));
+      return {ok:true,row:result&&result[0]?result[0]:null,notificationError:String(notificationError)};
+    }
+  }
   return { ok: true, row: result && result[0] ? result[0] : null };
+}
+
+function notifyDemandPublished_(auth, demand) {
+  var ids = (demand.lojaIds || []).map(String);
+  var idSet = {};
+  ids.forEach(function(id){idSet[id]=true;});
+  var users = supabaseRequest_('/rest/v1/' + table_('TABLE_USUARIOS','bacio_usuarios') +
+    '?select=*&ativo=eq.true&limit=5000','get') || [];
+  var stores = supabaseRequest_('/rest/v1/' + table_('TABLE_LOJAS','bacio_lojas') +
+    '?select=*&limit=5000','get') || [];
+  var selectedStores=stores.filter(function(store){return (ids.length===0||idSet[String(store.id)]) && store.ativa!==false;});
+  if(ids.length===0)selectedStores.forEach(function(store){idSet[String(store.id)]=true;});
+  var recipients={};
+  users.forEach(function(user){
+    var email=String(user.email||'').trim().toLowerCase();
+    if(!email)return;
+    var role=roleOf_(user),canSee=false;
+    if(role==='admin')canSee=true;
+    else if(role==='loja')canSee=!!idSet[String(user.loja_id||user.lojaId||'')];
+    else if(role==='consultor')canSee=selectedStores.some(function(store){
+      return String(store.consultor_id||'')===String(user.consultor_id||user.id||'');
+    });
+    else if(role==='regional')canSee=selectedStores.some(function(store){
+      return String(store.regional_id||'')===String(user.regional_id||'');
+    });
+    if(canSee)recipients[email]=true;
+  });
+  var emails=Object.keys(recipients);
+  if(!emails.length)return {sent:0,reason:'no_active_recipients'};
+  var now=new Date().toISOString(),message='Nova '+(demand.type==='campanha'?'campanha':'demanda')+' publicada: '+demand.title;
+  var payload=emails.map(function(email){return {
+    usuario_email:email,titulo:'Nova solicitação publicada',mensagem:message,
+    lida:false,created_at:now
+  };});
+  // A single batch creates one notification per eligible user.
+  supabaseRequest_('/rest/v1/'+table_('TABLE_NOTIFICACOES','bacio_notificacoes'),'post',payload,'return=minimal');
+  return {sent:payload.length};
 }
 
 function setDemandStatus(demandaId, newStatus) {
