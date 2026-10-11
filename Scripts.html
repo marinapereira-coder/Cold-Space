@@ -314,7 +314,7 @@ function parseMultiSheetCampaign(file,done,fail){
  reader.onload=function(e){try{
   if(typeof XLSX==='undefined')throw new Error('Leitor XLSX indisponível');
   var wb=XLSX.read(e.target.result,{type:'array',raw:false});
-  var perStore={},sections=[],source=[];
+  var perStore={},sections=[],source=[],editableFields={},editableOrder=[];
   wb.SheetNames.forEach(function(name){
    if(/base\s*(lojas|adm)/i.test(name))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
@@ -333,7 +333,18 @@ function parseMultiSheetCampaign(file,done,fail){
      var value=row[ci];if(value==null||String(value).trim()==='')continue;
      var labelText=String(titles[ci]||units[ci]||('Coluna '+(ci+1))).trim();
      if(!labelText)continue;
-     fields.push({label:labelText,unit:String(units[ci]||'').trim(),value:String(value)});
+     var normalized=normalizeHeader(labelText);
+     var editable=/plaquinhas|insumos recebidos|observac/.test(normalized);
+     var fieldId='import_'+normalizeHeader(name).replace(/ /g,'_')+'_'+ci;
+     if(editable){
+       if(!editableFields[fieldId]){
+         var isObs=/observac/.test(normalized);
+         editableFields[fieldId]={id:fieldId,label:name+' — '+labelText,type:isObs?'textarea':'boolean',required:false,options:[]};
+         editableOrder.push(fieldId);
+       }
+       // A resposta real da loja deve iniciar em branco, mesmo se a planilha possuir "Não".
+       fields.push({label:labelText,unit:'',value:String(value),editable:true,fieldId:fieldId});
+     }else fields.push({label:labelText,unit:String(units[ci]||'').trim(),value:String(value)});
     }
     codes.forEach(function(code){if(!perStore[code])perStore[code]=[];perStore[code].push({sheet:name,store:label,fields:fields});});
     count++;
@@ -341,7 +352,7 @@ function parseMultiSheetCampaign(file,done,fail){
    if(count){source.push({sheet:name,rows:count});}
   });
   if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada. Abas lidas: '+wb.SheetNames.join(' / ')+'. Verifique se as lojas estão identificadas com LJ e se a planilha possui registros a partir da quarta linha.');
-  done({version:1,fileName:file.name,perStore:perStore,sheets:source});
+  done({version:2,fileName:file.name,perStore:perStore,sheets:source,responseFields:editableOrder.map(function(id){return editableFields[id];})});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
  reader.readAsArrayBuffer(file);
@@ -356,10 +367,10 @@ function renderStoreTemplateInfo(template){
 function renderReadonlyStoreSections(sections,host){
  if(!host)return;
  host.innerHTML=(sections||[]).map(function(sec){return '<div class="detail-box" style="margin-top:12px"><h4>'+safe(sec.sheet)+'</h4><p class="helper">'+safe(sec.store)+'</p>'+
- sec.fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('')||'<div class="empty">Sem dados desta loja.</div>';
+ sec.fields.filter(function(f){return !f.editable;}).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('')||'<div class="empty">Sem dados desta loja.</div>';
 }
-function storeTemplateSectionHtml(sections){return (sections||[]).map(function(sec){return '<div class="detail-box" style="margin-bottom:12px"><h4>'+safe(sec.sheet)+'</h4><p class="helper">'+safe(sec.store)+'</p>'+sec.fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('');}
-function handleFormSpreadsheet(e){var file=e.target.files&&e.target.files[0];if(!file)return;readSheetFile(file,function(rows,meta){if(meta.sheets&&meta.sheets.length>1){IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=true;parseMultiSheetCampaign(file,function(template){CAMPAIGN_STORE_TEMPLATE=template;IMPORTED_FIELDS=[{id:'divergencia',label:'Divergências ou ajustes necessários',type:'textarea',required:false,options:[]}];window.BACIO_IMPORT_REQUIRES_MAPPING=false;renderStoreTemplateInfo(template);showToast('Modelo por loja pronto para conferência.');},function(err){showToast('Não foi possível mapear a planilha: '+err.message);});return;}window.BACIO_IMPORT_REQUIRES_MAPPING=false;var headers=(rows[0]||[]).map(function(x){return String(x||'').trim();}).filter(Boolean);IMPORTED_FIELDS=headers.map(function(h,i){return {id:'q'+(i+1),label:h,type:inferFieldType(h,rows.slice(1,21).map(function(r){return r[i];})),required:false,options:[]};});renderImportedFields(meta);},function(err){showToast('Não consegui ler a planilha: '+err.message);});}
+function storeTemplateSectionHtml(sections){return (sections||[]).map(function(sec){return '<div class="detail-box" style="margin-bottom:12px"><h4>'+safe(sec.sheet)+'</h4><p class="helper">'+safe(sec.store)+'</p>'+sec.fields.filter(function(f){return !f.editable;}).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('');}
+function handleFormSpreadsheet(e){var file=e.target.files&&e.target.files[0];if(!file)return;readSheetFile(file,function(rows,meta){if(meta.sheets&&meta.sheets.length>1){IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=true;parseMultiSheetCampaign(file,function(template){CAMPAIGN_STORE_TEMPLATE=template;IMPORTED_FIELDS=(template.responseFields||[]).concat([{id:'divergencia',label:'Outras divergências ou ajustes necessários',type:'textarea',required:false,options:[]}]);window.BACIO_IMPORT_REQUIRES_MAPPING=false;renderStoreTemplateInfo(template);showToast('Modelo por loja pronto para conferência.');},function(err){showToast('Não foi possível mapear a planilha: '+err.message);});return;}window.BACIO_IMPORT_REQUIRES_MAPPING=false;var headers=(rows[0]||[]).map(function(x){return String(x||'').trim();}).filter(Boolean);IMPORTED_FIELDS=headers.map(function(h,i){return {id:'q'+(i+1),label:h,type:inferFieldType(h,rows.slice(1,21).map(function(r){return r[i];})),required:false,options:[]};});renderImportedFields(meta);},function(err){showToast('Não consegui ler a planilha: '+err.message);});}
 function renderImportedFields(meta){var host=document.getElementById('formImportPreview');host.innerHTML='<div class="helper"><strong>'+IMPORTED_FIELDS.length+'</strong> campos encontrados em '+safe(meta.fileName||'arquivo')+'. Revise abaixo.</div>'+IMPORTED_FIELDS.map(function(f,i){return '<div class="question" data-type="'+safe(f.type)+'"><input class="field imp-label" data-i="'+i+'" value="'+safe(f.label)+'"><select class="select imp-type" data-i="'+i+'">'+questionTypeOptions(f.type)+'</select><label class="check"><input class="imp-required" data-i="'+i+'" type="checkbox">Obrigatória</label><span></span></div>';}).join('');host.querySelectorAll('.imp-label').forEach(function(el){el.oninput=function(){IMPORTED_FIELDS[+el.dataset.i].label=el.value;};});host.querySelectorAll('.imp-type').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].type=el.value;};});host.querySelectorAll('.imp-required').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].required=el.checked;};});}
 function saveCampaign(){
   if(MODEL_TAB==='import'&&window.BACIO_IMPORT_REQUIRES_MAPPING){showToast('Este modelo contém múltiplas abas e exige mapeamento por loja antes de publicar.');return;}
