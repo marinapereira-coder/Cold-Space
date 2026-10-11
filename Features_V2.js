@@ -880,7 +880,7 @@ function getDemandDetailForStoreV2_(
       if(!raw.perStore)return raw;
       var selected=[];
       targetStores.forEach(function(loja){
-        var m=String(loja.codigo||loja.nome||'').match(/LJ\\s*0*(\\d{1,5})/i);
+        var m=String(loja.codigo||loja.nome||'').match(/(?:LJ\s*)?0*(\d{1,5})(?:\b|$)/i);
         if(!m)return;
         var code=('0000'+m[1]).slice(-4);
         if(raw.perStore[code])selected=selected.concat(raw.perStore[code]);
