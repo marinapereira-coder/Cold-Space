@@ -91,6 +91,7 @@ function bindEvents(){
   document.getElementById('addQuestionBtn').onclick=function(){addManualQuestion();};
   document.querySelectorAll('[data-model-tab]').forEach(function(btn){btn.onclick=function(){setModelTab(btn.getAttribute('data-model-tab'));};});
   document.getElementById('fAudience').onchange=toggleStorePicker;
+  document.getElementById('fAudienceGroup').onchange=renderAudienceRouting;
   document.getElementById('storePickerSearch').oninput=renderStorePicker;
   document.getElementById('formSpreadsheet').onchange=handleFormSpreadsheet;
 
@@ -283,7 +284,7 @@ function openCampaignModal(type,id){
   document.getElementById('fType').value=type||'demanda';
   document.getElementById('fDepartment').value='Operações';refreshRequestCategories();
   if(type==='campanha')document.getElementById('fRequestCategory').value='Campanha';syncRequestLegacyType();
-  document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';
+  document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';document.getElementById('fAudienceGroup').value='lojas';renderAudienceRouting();
   setModelTab('manual');addManualQuestion('text','');renderStorePicker();toggleStorePicker();openModal('campaignModal');
   if(id){google.script.run.withSuccessHandler(fillCampaignEdit).withFailureHandler(serverError).getDemandDetail(id);}
 }
@@ -296,6 +297,10 @@ function fillCampaignEdit(d){
   var rem=(d.cronograma||{}).lembretes||(d.timeline||{}).reminders||[];document.getElementById('r24').checked=hasReminder(rem,'24h_antes');document.getElementById('r2').checked=hasReminder(rem,'2h_antes');document.getElementById('rDue').checked=hasReminder(rem,'vencimento');
   MANUAL_FIELDS=(d.modelFields||[]).map(function(f,i){return {id:f.id||'q'+(i+1),label:f.label||'',type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});if(!MANUAL_FIELDS.length)MANUAL_FIELDS=[newField('text','')];renderManualQuestions();
   if(d.importMeta&&d.importMeta.perStore){CAMPAIGN_STORE_TEMPLATE=d.importMeta;IMPORTED_FIELDS=(d.modelFields||[]).map(function(f){return {id:f.id,label:f.label,type:f.type,required:f.required,options:f.options||[]};});setModelTab('import');renderStoreTemplateInfo(CAMPAIGN_STORE_TEMPLATE);}
+  var direcionamento=(d.cronograma&&d.cronograma.direcionamento)||{};
+  document.getElementById('fAudienceGroup').value=direcionamento.modo||'lojas';
+  renderAudienceRouting();
+  if(document.getElementById('fRoutingTarget'))document.getElementById('fRoutingTarget').value=direcionamento.valor||'';
   var ids=(d.lojaIds||[]).map(String);document.getElementById('fAudience').value=ids.length?'selected':'all';renderStorePicker(ids);toggleStorePicker();
 }
 function setModelTab(tab){MODEL_TAB=tab;document.querySelectorAll('[data-model-tab]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-model-tab')===tab);});document.getElementById('manualModelTab').style.display=tab==='manual'?'block':'none';document.getElementById('importModelTab').style.display=tab==='import'?'block':'none';}
@@ -379,12 +384,34 @@ function saveCampaign(){
   var title=document.getElementById('fTitle').value.trim();if(!title){showToast('Informe um título.');return;}
   var fields=(MODEL_TAB==='import'?IMPORTED_FIELDS:MANUAL_FIELDS).filter(function(f){return String(f.label||'').trim();}).map(function(f,i){return {id:f.id||'q'+(i+1),label:String(f.label).trim(),type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});
   if(document.getElementById('fRequired').value==='yes'&&!fields.length){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
-  var selectedIds=document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[];if(document.getElementById('fAudience').value==='selected'&&!selectedIds.length){showToast('Selecione pelo menos uma loja.');return;}
-  var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
+  var routeMode=document.getElementById('fAudienceGroup').value;
+  var targetEl=document.getElementById('fRoutingTarget'),routeTarget=targetEl?targetEl.value:'';
+  if(routeMode!=='lojas'&&!routeTarget){showToast('Selecione a regional ou o consultor.');return;}
+  var selectedIds=routeMode==='lojas'?(document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[]):(APP_DATA.stores||[]).filter(function(store){return String(store[routeMode==='regional'?'regional':'consultor']||'').trim()===routeTarget;}).map(function(store){return String(store.id);});
+  if(routeMode==='lojas'&&document.getElementById('fAudience').value==='selected'&&!selectedIds.length){showToast('Selecione pelo menos uma loja.');return;}
+  if(routeMode!=='lojas'&&!selectedIds.length){showToast('Nenhuma loja associada a este destinatário.');return;}
+  var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:routeMode==='consultor'?'draft':document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{direcionamento:{modo:routeMode,valor:routeTarget},lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
   setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('saveCampaignBtn',false,'Salvar');closeModal('campaignModal');showToast('Conteúdo salvo.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);}).saveDemand(payload);
 }
 function renderStorePicker(selected){var host=document.getElementById('storePickerList'),q=(document.getElementById('storePickerSearch').value||'').toLowerCase().trim(),sel={};(selected||getSelectedStoreIds()).forEach(function(id){sel[String(id)]=1;});host.innerHTML=(APP_DATA.stores||[]).filter(function(s){var text=((s.codigo||'')+' '+(s.nome||'')+' '+(s.cidade||'')).toLowerCase();return !q||text.indexOf(q)>=0;}).map(function(s){return '<label class="store-option"><input class="store-check" type="checkbox" value="'+safe(s.id)+'" '+(sel[String(s.id)]?'checked':'')+'><span><strong>'+safe((s.codigo?s.codigo+' · ':'')+s.nome)+'</strong><br><span class="muted">'+safe((s.regional||'')+(s.consultor?' · '+s.consultor:''))+'</span></span></label>';}).join('');}
-function toggleStorePicker(){document.getElementById('storePicker').classList.toggle('show',document.getElementById('fAudience').value==='selected');}
+function renderAudienceRouting(){
+ var mode=document.getElementById('fAudienceGroup').value,host=document.getElementById('fRoutingOptions'),hint=document.getElementById('fRoutingHint');
+ var key=mode==='regional'?'regional':'consultor';
+ var values={};
+ (APP_DATA.stores||[]).forEach(function(store){var value=String(store[key]||'').trim();if(value)values[value]=true;});
+ var old=document.getElementById('fRoutingTarget'),previous=old?old.value:'';
+ host.innerHTML=mode==='lojas'?'':'<label class="label">'+(mode==='regional'?'Regional':'Consultor')+'</label><select id="fRoutingTarget" class="select"><option value="">Selecione...</option>'+Object.keys(values).sort().map(function(v){return '<option value="'+safe(v)+'">'+safe(v)+'</option>';}).join('')+'</select>';
+ if(previous&&document.getElementById('fRoutingTarget'))document.getElementById('fRoutingTarget').value=previous;
+ hint.textContent=mode==='consultor'?'A solicitação ficará como rascunho até existir o fluxo de aceite ou encaminhamento pelo consultor. Não será publicada diretamente às lojas.':
+ mode==='consultor_lojas'?'O envio será direcionado às lojas associadas ao consultor selecionado.':
+ mode==='regional'?'O envio será direcionado às lojas associadas à regional selecionada.':'Use a seleção atual de lojas participantes.';
+ document.getElementById('fAudience').parentNode.style.display=mode==='lojas'?'':'none';
+ toggleStorePicker();
+}
+function toggleStorePicker(){
+ var mode=document.getElementById('fAudienceGroup').value;
+ document.getElementById('storePicker').classList.toggle('show',mode==='lojas'&&document.getElementById('fAudience').value==='selected');
+}
 function getSelectedStoreIds(){return Array.prototype.slice.call(document.querySelectorAll('.store-check:checked')).map(function(el){return String(el.value);});}
 
 function openDemandDetail(id){
