@@ -1902,6 +1902,18 @@
           </div>
 
 
+          <div class="full" id="audienceRoutingFields">
+            <label class="label" for="fAudienceGroup">Direcionar solicitação para</label>
+            <select id="fAudienceGroup" class="select">
+              <option value="lojas">Lojas (envio direto)</option>
+              <option value="regional">Lojas de uma regional</option>
+              <option value="consultor_lojas">Lojas de um consultor</option>
+              <option value="consultor">Consultor (para responder ou encaminhar)</option>
+            </select>
+            <div id="fRoutingOptions" style="margin-top:10px"></div>
+            <p class="helper" id="fRoutingHint"></p>
+          </div>
+
           <div
             id="storePicker"
             class="store-picker full">
