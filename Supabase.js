@@ -104,6 +104,25 @@ function roleOf_(user) {
   return String(user.role || user.perfil || '').trim().toLowerCase();
 }
 
+// Department access is based on the stored request owner, never on a browser filter.
+// Existing admin/regional/consultor/store roles keep their original scope rules.
+function departmentOfUser_(user) {
+  var value=String(user.departamento||user.department||'').trim();
+  var role=roleOf_(user);
+  if(!value && ['marketing','rh','qualidade','treinamento','comercial','growth','ti'].indexOf(role)>=0)value=role;
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function departmentOfDemand_(demand) {
+  var schedule=normalizeJsonObject_(demand.cronograma);
+  return String(schedule.departamentoSolicitante||'Operações').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function isDepartmentUser_(user) {
+  var role=roleOf_(user);
+  return ['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(role)>=0 && !!departmentOfUser_(user);
+}
+function mayReadDepartmentDemand_(user,demand) {
+  return roleOf_(user)==='admin'||(isDepartmentUser_(user)&&departmentOfUser_(user)===departmentOfDemand_(demand));
+}
 function requireAdmin_() {
   var auth = getCurrentAuthContext_();
   if (roleOf_(auth.user) !== 'admin') {
@@ -153,6 +172,9 @@ function getRealBootstrap_(email) {
     '/rest/v1/' + demandasTable + '?select=*&ativa=eq.true&order=created_at.desc',
     []
   ).filter(function (d) {
+    if (isDepartmentUser_(user)) {
+      return mayReadDepartmentDemand_(user,d) && String(d.status||'active').toLowerCase()!=='draft';
+    }
     if (!demandaVisivelNoEscopo_(d, visibleLojaIds)) return false;
     if (role !== 'admin' && String(d.status || 'active').toLowerCase() === 'draft') return false;
     return true;
