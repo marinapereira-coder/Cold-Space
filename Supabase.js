@@ -123,6 +123,34 @@ function isDepartmentUser_(user) {
 function mayReadDepartmentDemand_(user,demand) {
   return roleOf_(user)==='admin'||(isDepartmentUser_(user)&&departmentOfUser_(user)===departmentOfDemand_(demand));
 }
+
+/* Corporate departments authenticate through the existing Google corporate login.
+   Store/password authentication is intentionally unchanged. */
+function getDepartmentAccessWorkspace(){
+  requireAdmin_();
+  var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+'?select=*&limit=5000',[]);
+  return {items:users.filter(function(u){return isDepartmentUser_(u);}).map(function(u){
+    return {id:String(u.id),nome:u.nome||'',email:u.email||'',departamento:departmentOfUser_(u),ativo:u.ativo!==false};
+  })};
+}
+function saveDepartmentAccess(input){
+  requireAdmin_();
+  input=input||{};
+  var email=String(input.email||'').trim().toLowerCase();
+  var name=String(input.nome||'').trim();
+  var dept=String(input.departamento||'').trim().toLowerCase();
+  var allowed=['marketing','rh','qualidade','treinamento','comercial','growth','ti'];
+  if(allowed.indexOf(dept)<0)throw new Error('Selecione um departamento permitido.');
+  if(!email||!name||email.indexOf('@')<1)throw new Error('Informe nome e e-mail corporativo.');
+  validateAllowedDomain_(email);
+  var table=table_('TABLE_USUARIOS','bacio_usuarios');
+  var existing=safeSupabaseSelect_('/rest/v1/'+table+'?select=*&email=eq.'+encodeURIComponent(email)+'&limit=1',[]);
+  if(existing.length && !isDepartmentUser_(existing[0]))throw new Error('Este e-mail já pertence a outro perfil. Nenhum acesso foi alterado.');
+  var payload={nome:name,email:email,role:dept,ativo:true,updated_at:new Date().toISOString()};
+  var result=supabaseRequest_('/rest/v1/'+table+'?on_conflict=email','post',payload,'resolution=merge-duplicates,return=representation');
+  return {ok:true,user:result&&result[0]||payload};
+}
+
 function requireAdmin_() {
   var auth = getCurrentAuthContext_();
   if (roleOf_(auth.user) !== 'admin') {
