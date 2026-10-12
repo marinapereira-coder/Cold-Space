@@ -184,8 +184,8 @@ function getVisibleStores_(user) {
   });
 }
 
-function getRealBootstrap_(email) {
-  var auth = getCurrentAuthContext_();
+function getRealBootstrap_(email,authOverride) {
+  var auth = authOverride || getCurrentAuthContext_();
   var user = auth.user;
   var role = roleOf_(user);
 
@@ -644,9 +644,9 @@ function validateAdminStoreTargets_(lojaIds) {
   return auth;
 }
 
-function saveDemand(input) {
+function saveDemand(input,authOverride) {
   if (!input) throw new Error('Dados da campanha não informados.');
-  var auth = getCurrentAuthContext_();
+  var auth = authOverride || getCurrentAuthContext_();
   var departmentAuthor=isDepartmentUser_(auth.user);
   if(!departmentAuthor)validateAdminStoreTargets_(input.lojaIds || []);
   if(departmentAuthor && input.id){
@@ -911,10 +911,10 @@ function deleteDemand(demandaId) {
   return { ok: true };
 }
 
-function getDemandDetail(demandaId) {
+function getDemandDetail(demandaId,authOverride) {
   if (!demandaId) throw new Error('Campanha/demanda não informada.');
 
-  var auth = getCurrentAuthContext_();
+  var auth = authOverride || getCurrentAuthContext_();
   var user = auth.user;
   var role = roleOf_(user);
   var lojas = getVisibleStores_(user);
