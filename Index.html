@@ -872,7 +872,11 @@
           </div>
 
 
-          <div id="campaignWorkspaceTabs" class="campaign-workspace-tabs" role="group" aria-label="Organização das solicitações"></div>
+          <div id="departmentPreviewBar" style="display:none;padding:14px;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)">
+<label for="departmentPreviewSelect">Prévia administrativa — visualizar como departamento</label>
+<select id="departmentPreviewSelect" class="select" onchange="setDepartmentPreview(this.value)">
+<option value="">Operações (visão normal)</option><option>Marketing</option><option>RH</option><option>Qualidade</option><option>Treinamento</option><option>Comercial</option><option>Growth</option><option>TI</option>
+</select><p class="muted">Simulação somente de leitura. O login administrativo permanece inalterado.</p></div><div id="campaignWorkspaceTabs" class="campaign-workspace-tabs" role="group" aria-label="Organização das solicitações"></div>
           <div id="campaignWorkspaceDescription" class="helper campaign-workspace-description"></div>
           <div id="campaignDepartmentsSummary" class="campaign-department-summary"></div>
 
