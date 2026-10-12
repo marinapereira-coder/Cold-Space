@@ -461,8 +461,8 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
       isDueToday: Boolean(isDueToday),
       answeredCount: answered,
       totalStores: targetIds.length,
-      timelineStatus: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'pending_approval':timeline.code,
-      timelineLabel: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'Aguardando aprovação':timeline.label,
+      timelineStatus: timeline.code,
+      timelineLabel: timeline.label,
       timeline: timeline,
       cronograma: normalizeJsonObject_(d.cronograma),
       departamento: normalizeJsonObject_(d.cronograma).departamentoSolicitante || 'Operações',
@@ -504,8 +504,8 @@ function buildManagementItems_(demandas, respostas, lojas) {
       status: status,
       publishStatus: savedStatus,
       owner: d.created_by || 'Operações',
-      timelineStatus: timeline.code,
-      timelineLabel: timeline.label,
+      timelineStatus: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'pending_approval':timeline.code,
+      timelineLabel: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'Aguardando aprovação':timeline.label,
       timeline: timeline,
       cronograma: normalizeJsonObject_(d.cronograma)
     };
