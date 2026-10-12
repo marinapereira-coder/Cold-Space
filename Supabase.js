@@ -180,6 +180,17 @@ function getRealBootstrap_(email) {
     return true;
   });
 
+  if (isDepartmentUser_(user)) {
+    var allStores=supabaseRequest_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&ativa=eq.true&limit=5000','get')||[];
+    var allowed={};
+    demandas.forEach(function(d){
+      var ids=getTargetStoreIds_(d,allStores.map(function(l){return String(l.id);}));
+      ids.forEach(function(id){allowed[String(id)]=true;});
+    });
+    lojas=allStores.filter(function(l){return allowed[String(l.id)];});
+    visibleLojaIds=lojas.map(function(l){return String(l.id);});
+  }
+
   var respostas = safeSupabaseSelect_(
     '/rest/v1/' + respostasTable + '?select=*&order=created_at.desc&limit=5000',
     []
@@ -858,13 +869,18 @@ function getDemandDetail(demandaId) {
   if (!rows || !rows.length) throw new Error('Campanha/demanda não encontrada.');
   var demanda = rows[0];
 
-  if (!demandaVisivelNoEscopo_(demanda, visibleLojaIds)) {
+  if (!(isDepartmentUser_(user) ? mayReadDepartmentDemand_(user,demanda) : demandaVisivelNoEscopo_(demanda, visibleLojaIds))) {
     throw new Error('Você não tem acesso a esta campanha/demanda.');
   }
   if (role !== 'admin' && String(demanda.status || 'active').toLowerCase() === 'draft') {
     throw new Error('Este item ainda está em rascunho.');
   }
 
+  if(isDepartmentUser_(user)){
+    var allStores=supabaseRequest_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&ativa=eq.true&limit=5000','get')||[];
+    visibleLojaIds=allStores.map(function(l){return String(l.id);});
+    lojas=allStores;
+  }
   var targetIds = getTargetStoreIds_(demanda, visibleLojaIds);
   var targetStores = lojas.filter(function (l) {
     return targetIds.indexOf(String(l.id)) >= 0;
