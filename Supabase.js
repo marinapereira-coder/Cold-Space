@@ -742,6 +742,7 @@ function saveDemand(input) {
         id: publishedId,
         title: titulo,
         type: tipo,
+        department: String(cronograma.departamentoSolicitante||'Operações'),
         lojaIds: normalizeArray_(input.lojaIds || [])
       });
       return {ok:true,row:result&&result[0]?result[0]:null,notifications:notificationResult};
@@ -769,6 +770,7 @@ function notifyDemandPublished_(auth, demand) {
     if(!email)return;
     var role=roleOf_(user),canSee=false;
     if(role==='admin')canSee=true;
+    else if(isDepartmentUser_(user))canSee=departmentOfUser_(user)===String(demand.department||'Operações').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     else if(role==='loja')canSee=!!idSet[String(user.loja_id||user.lojaId||'')];
     else if(role==='consultor')canSee=selectedStores.some(function(store){
       return String(store.consultor_id||'')===String(user.consultor_id||user.id||'');
