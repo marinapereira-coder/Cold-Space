@@ -543,8 +543,8 @@ function buildManagementItems_(demandas, respostas, lojas) {
       status: status,
       publishStatus: savedStatus,
       owner: d.created_by || 'Operações',
-      timelineStatus: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'pending_approval':timeline.code,
-      timelineLabel: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'Aguardando aprovação':timeline.label,
+      timelineStatus: savedStatus==='draft' && ['pendente','ajustes','reprovada'].indexOf(normalizeJsonObject_(d.cronograma).aprovacaoStatus)>=0?({'pendente':'pending_approval','ajustes':'needs_revision','reprovada':'rejected'})[normalizeJsonObject_(d.cronograma).aprovacaoStatus]:timeline.code,
+      timelineLabel: savedStatus==='draft' && ['pendente','ajustes','reprovada'].indexOf(normalizeJsonObject_(d.cronograma).aprovacaoStatus)>=0?({'pendente':'Aguardando aprovação','ajustes':'Ajustes solicitados','reprovada':'Reprovada'})[normalizeJsonObject_(d.cronograma).aprovacaoStatus]:timeline.label,
       timeline: timeline,
       cronograma: normalizeJsonObject_(d.cronograma)
     };
@@ -663,7 +663,7 @@ function saveDemand(input,authOverride) {
   if(!departmentAuthor)validateAdminStoreTargets_(input.lojaIds || []);
   if(departmentAuthor && input.id){
     var owned=supabaseRequest_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+'?select=*&id=eq.'+encodeURIComponent(String(input.id))+'&limit=1','get')||[];
-    if(!owned.length||!mayReadDepartmentDemand_(auth.user,owned[0])||String(owned[0].status)!=='draft')throw new Error('Somente solicitações próprias não publicadas podem ser editadas.');
+    if(!owned.length||!mayReadDepartmentDemand_(auth.user,owned[0])||String(owned[0].status)!=='draft'||normalizeJsonObject_(owned[0].cronograma).aprovacaoStatus==='reprovada')throw new Error('Somente solicitações próprias não publicadas podem ser editadas.');
   }
 
   var titulo = String(input.title || '').trim();
@@ -712,7 +712,14 @@ function saveDemand(input,authOverride) {
 
   if(departmentAuthor){
     cronograma.departamentoSolicitante=String(auth.user.departamento||auth.user.department||roleOf_(auth.user));
+    if(existingCronograma.aprovacaoStatus==='reprovada')throw new Error('Solicitação reprovada definitivamente não pode ser reenviada.');
     cronograma.aprovacaoStatus='pendente';
+    if(existingCronograma.aprovacaoStatus==='ajustes'){
+      cronograma.decisaoJustificativa='';
+      var history=Array.isArray(cronograma.historicoAprovacao)?cronograma.historicoAprovacao:[];
+      history.push({acao:'reenviada',por:auth.email,em:new Date().toISOString()});
+      cronograma.historicoAprovacao=history;
+    }
     publishStatus='draft';
   }
 
@@ -872,6 +879,42 @@ function notifyDemandPublished_(auth, demand) {
   // A single batch creates one notification per eligible user.
   supabaseRequest_('/rest/v1/'+table_('TABLE_NOTIFICACOES','bacio_notificacoes'),'post',payload,'return=minimal');
   return {sent:payload.length};
+}
+
+function decideDepartmentRequest(id,decision,reason) {
+ var auth=requireAdmin_();
+ decision=String(decision||'');
+ if(['ajustes','reprovada'].indexOf(decision)<0)throw new Error('Decisão inválida.');
+ reason=String(reason||'').trim();
+ if(reason.length<5)throw new Error('Informe a justificativa com pelo menos 5 caracteres.');
+ var table=table_('TABLE_DEMANDAS','bacio_demandas');
+ var rows=supabaseRequest_('/rest/v1/'+table+'?select=*&id=eq.'+encodeURIComponent(String(id))+'&limit=1','get')||[];
+ if(!rows.length)throw new Error('Solicitação não encontrada.');
+ var d=rows[0],c=normalizeJsonObject_(d.cronograma);
+ if(String(d.status)!=='draft'||c.aprovacaoStatus!=='pendente')throw new Error('Solicitação não está aguardando aprovação.');
+ var now=new Date().toISOString();
+ c.aprovacaoStatus=decision;
+ c.decisaoJustificativa=reason;
+ c.decisaoPor=auth.email;
+ c.decisaoEm=now;
+ var history=Array.isArray(c.historicoAprovacao)?c.historicoAprovacao:[];
+ history.push({acao:decision,justificativa:reason,por:auth.email,em:now});
+ c.historicoAprovacao=history;
+ supabaseRequest_('/rest/v1/'+table+'?id=eq.'+encodeURIComponent(String(id)),'patch',{cronograma:c,updated_at:now},'return=minimal');
+ var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+'?select=email,role,ativo&ativo=eq.true&limit=5000',[]);
+ var department=String(c.departamentoSolicitante||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+ var recipient={};
+ users.forEach(function(u){if(isDepartmentUser_(u)&&departmentOfUser_(u)===department){var email=String(u.email||'').toLowerCase().trim();if(email)recipient[email]=true;}});
+ if(d.created_by && users.some(function(u){return String(u.email||'').toLowerCase()===String(d.created_by).toLowerCase() && isDepartmentUser_(u)}))recipient[String(d.created_by).toLowerCase()]=true;
+ var notificationError=null;
+ try{
+ var emails=Object.keys(recipient);
+ if(emails.length){
+ var msg=(decision==='ajustes'?'Ajustes solicitados':'Solicitação reprovada')+': '+String(d.titulo||'')+'. Motivo: '+reason;
+ supabaseRequest_('/rest/v1/'+table_('TABLE_NOTIFICACOES','bacio_notificacoes'),'post',emails.map(function(email){return {usuario_email:email,titulo:decision==='ajustes'?'Ajustes solicitados':'Solicitação reprovada',mensagem:msg,lida:false,created_at:now};}),'return=minimal');
+ }
+ }catch(err){notificationError=String(err);}
+ return {ok:true,notificationError:notificationError};
 }
 
 function setDemandStatus(demandaId, newStatus) {
