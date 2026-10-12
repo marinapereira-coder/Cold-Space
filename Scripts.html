@@ -105,8 +105,6 @@ function bindEvents(){
   document.getElementById('refreshEvaluationsBtn').onclick=loadEvaluations;
   document.getElementById('refreshAccessBtn').onclick=loadAccesses;
   document.getElementById('newStoreAccessBtn').onclick=openUnifiedAccess;
-  document.getElementById('newDepartmentAccessBtn').onclick=openNewDepartmentAccess;
-  document.getElementById('saveDepartmentAccessBtn').onclick=submitDepartmentAccess;
   document.getElementById('refreshChatBtn').onclick=loadChatWorkspace;
   document.getElementById('chatThreadSearch').oninput=renderChatThreads;
   document.getElementById('sendChatBtn').onclick=sendChatMessage;
@@ -735,7 +733,7 @@ function switchProfileLogin(){
 function backToCorporateSession(){
  sessionStorage.removeItem('bacio_force_password_login');
  clearStoreSession();
- google.script.run.withSuccessHandler(function(state){if(state&&state.bootstrap)startApp(state.bootstrap);else showStoreLogin();}).withFailureHandler(serverError).getBootstrapData();
+ google.script.run.withSuccessHandler(function(data){AUTH_MODE='corporate';startApp(data);}).withFailureHandler(serverError).getBootstrapData();
 }
 function showStoreLogin(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='block';document.getElementById('passwordChangeBox').style.display='none';document.getElementById('storeLoginMessage').textContent='';}
 function showStorePasswordChange(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='none';document.getElementById('passwordChangeBox').style.display='block';}
