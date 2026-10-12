@@ -243,7 +243,17 @@ function getRealBootstrap_(email,authOverride) {
   var tasks = buildTasks_(published, respostas, lojas, role, user);
   var campaigns = buildCampaigns_(published, tasks);
   var announcements = buildAnnouncements_(published);
+  // Defence in depth: filter the final payload as well as source rows.
+  // This prevents cross-department records leaking through any future mapper.
   var managementItems = buildManagementItems_(demandas, respostas, lojas);
+  if (isDepartmentUser_(user)) {
+    var allowedDemandIds = {};
+    demandas.forEach(function(d){if(mayReadDepartmentDemand_(user,d))allowedDemandIds[String(d.id)] = true;});
+    managementItems = managementItems.filter(function(item){return allowedDemandIds[String(item.id)] === true;});
+    tasks = tasks.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
+    campaigns = campaigns.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
+    announcements = announcements.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
+  }
 
   var currentLoja = null;
   if (role === 'loja') {
