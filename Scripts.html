@@ -241,6 +241,14 @@ function approveDepartmentRequest(id){
  google.script.run.withSuccessHandler(function(){showToast('Solicitação aprovada e publicada.');refreshBootstrap('campanhas');})
  .withFailureHandler(serverError).setDemandStatus(id,'active');
 }
+function decideDepartmentRequestUI(id,decision){
+ if(CURRENT_ROLE!=='admin')return;
+ var reason=prompt((decision==='ajustes'?'Solicitar ajustes':'Reprovar definitivamente')+' — justificativa obrigatória:');
+ if(reason===null)return;
+ if(reason.trim().length<5){showToast('Informe uma justificativa com pelo menos 5 caracteres.');return;}
+ if(decision==='reprovada'&&!confirm('Confirma a reprovação definitiva?'))return;
+ google.script.run.withSuccessHandler(function(result){showToast(result&&result.notificationError?'Decisão registrada, mas o aviso falhou.':'Decisão registrada.');refreshBootstrap('campanhas');}).withFailureHandler(serverError).decideDepartmentRequest(id,decision,reason);
+}
 var CAMPAIGN_PREVIEW_DEPARTMENT='';
 function setDepartmentPreview(value){
  CAMPAIGN_PREVIEW_DEPARTMENT=CURRENT_ROLE==='admin'?String(value||''):'';
@@ -252,7 +260,7 @@ var CAMPAIGN_WORKSPACE_VIEW='all';
 function setCampaignWorkspaceView(view){CAMPAIGN_WORKSPACE_VIEW=view;renderCampaignManagement();}
 function campaignWorkspaceTabs(){
  var role=CAMPAIGN_PREVIEW_DEPARTMENT?'departamento':CURRENT_ROLE,views=role==='loja'?[['all','Recebidas'],['pending','Para responder'],['finished','Respondidas']]:
- [['all','Todas'],['pending_approval','Aguardando aprovação'],['active','Em andamento'],['attention','Precisam de atenção'],['finished','Concluídas'],['draft','Rascunhos']];
+ [['all','Todas'],['pending_approval','Aguardando aprovação'],['needs_revision','Ajustes solicitados'],['rejected','Reprovadas'],['active','Em andamento'],['attention','Precisam de atenção'],['finished','Concluídas'],['draft','Rascunhos']];
  var host=document.getElementById('campaignWorkspaceTabs');
  host.innerHTML=views.map(function(pair){return '<button type="button" class="btn '+(CAMPAIGN_WORKSPACE_VIEW===pair[0]?'primary':'soft')+'" onclick="setCampaignWorkspaceView(\''+pair[0]+'\')">'+pair[1]+'</button>';}).join('');
  var help=document.getElementById('campaignWorkspaceDescription');
@@ -279,7 +287,7 @@ function renderCampaignManagement(){
  var filtered=items.filter(function(i){
   var text=((i.title||'')+' '+(i.description||'')).toLowerCase(),st=String(i.timelineStatus||i.status||'');
   var view=CAMPAIGN_WORKSPACE_VIEW;
-  var matchesView=view==='all'||(view==='pending_approval'&&st==='pending_approval')||(view==='active'&&st==='active')||(view==='pending'&&st!=='completed'&&st!=='closed')||
+  var matchesView=view==='all'||(view==='pending_approval'&&st==='pending_approval')||(view==='needs_revision'&&st==='needs_revision')||(view==='rejected'&&st==='rejected')||(view==='active'&&st==='active')||(view==='pending'&&st!=='completed'&&st!=='closed')||
     (view==='attention'&&(st==='late'||st==='due_today'))||(view==='finished'&&(st==='completed'||st==='closed'))||
     (view==='draft'&&(st==='draft'||st==='pending_approval'));
   return matchesView&&(!q||text.indexOf(q)>=0)&&(t==='all'||String(i.type)===t)&&
@@ -308,7 +316,9 @@ function renderCampaignManagement(){
    safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:nowrap"><button class="btn soft" style="white-space:nowrap" onclick="openDemandDetail(\''+
    safeJs(item.id)+'\')">Detalhes</button>'+
     (CURRENT_ROLE==='admin'&&!CAMPAIGN_PREVIEW_DEPARTMENT&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
-    '<button class="btn primary" style="white-space:nowrap" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>':'')+'</div></div>';
+    '<button class="btn primary" style="white-space:nowrap" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>'+
+    '<button class="btn soft" onclick="decideDepartmentRequestUI(\''+safeJs(item.id)+'\',\'ajustes\')">Solicitar ajustes</button>'+
+    '<button class="btn soft" onclick="decideDepartmentRequestUI(\''+safeJs(item.id)+'\',\'reprovada\')">Reprovar</button>':'')+'</div></div>';
  }).join(''):'<div class="empty">Nenhuma solicitação encontrada com esses filtros.</div>');
 }
 
