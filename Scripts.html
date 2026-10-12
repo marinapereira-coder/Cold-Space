@@ -263,9 +263,9 @@ function renderCampaignManagement(){
  populateDepartmentFilter();
  var items=(APP_DATA.managementItems||[]).filter(function(i){return String(i.type||'').toLowerCase()!=='comunicado';});
  if(['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0){
-   var dept=String((APP_DATA.user||{}).departamento||CURRENT_ROLE).trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+   var dept=String((APP_DATA.user||{}).departamento||CURRENT_ROLE).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
    items=items.filter(function(item){
-     return String(requestDepartment(item)).trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')===dept;
+     return String(requestDepartment(item)).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')===dept;
    });
  }
  var previewBar=document.getElementById('departmentPreviewBar');
