@@ -229,6 +229,7 @@ function getRealBootstrap_(email) {
       nome: user.nome || niceNameFromEmail_(email),
       email: email,
       role: role,
+      departamento: user.departamento || user.department || (isDepartmentUser_(user)?role:''),
       lojaId: user.loja_id || user.lojaId || null,
       regionalId: user.regional_id || user.regionalId || null,
       contexto: getContextLabel_(role, user, currentLoja, lojas)
@@ -455,8 +456,8 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
       isDueToday: Boolean(isDueToday),
       answeredCount: answered,
       totalStores: targetIds.length,
-      timelineStatus: timeline.code,
-      timelineLabel: timeline.label,
+      timelineStatus: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'pending_approval':timeline.code,
+      timelineLabel: savedStatus==='draft' && normalizeJsonObject_(d.cronograma).aprovacaoStatus==='pendente'?'Aguardando aprovação':timeline.label,
       timeline: timeline,
       cronograma: normalizeJsonObject_(d.cronograma),
       departamento: normalizeJsonObject_(d.cronograma).departamentoSolicitante || 'Operações',
