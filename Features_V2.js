@@ -4075,6 +4075,10 @@ function createStoreAccess(
       []
     );
 
+  if (existing.length && roleOf_(existing[0]) !== 'loja') {
+    throw new Error('Este e-mail já pertence a outro perfil. Nenhum acesso foi alterado.');
+  }
+
   if (
     existing.length &&
     existing[0].auth_user_id
