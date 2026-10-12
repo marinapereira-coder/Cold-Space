@@ -599,6 +599,7 @@ function getContextLabel_(role, user, loja, lojas) {
   if (role === 'loja' && loja) {
     return (loja.codigo ? loja.codigo + ' · ' : '') + (loja.nome || loja.cidade || 'Loja');
   }
+  if (isDepartmentUser_(user)) return 'Departamento · '+(user.departamento||user.department||role).toUpperCase();
   if (role === 'regional') return user.regional_nome || user.regional || 'Regional';
   if (role === 'consultor') return 'Consultoria · ' + lojas.length + ' lojas';
   return 'Matriz · Operações';
