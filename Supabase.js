@@ -172,9 +172,7 @@ function getRealBootstrap_(email) {
     '/rest/v1/' + demandasTable + '?select=*&ativa=eq.true&order=created_at.desc',
     []
   ).filter(function (d) {
-    if (isDepartmentUser_(user)) {
-      return mayReadDepartmentDemand_(user,d) && String(d.status||'active').toLowerCase()!=='draft';
-    }
+    if (isDepartmentUser_(user)) return mayReadDepartmentDemand_(user,d);
     if (!demandaVisivelNoEscopo_(d, visibleLojaIds)) return false;
     if (role !== 'admin' && String(d.status || 'active').toLowerCase() === 'draft') return false;
     return true;
@@ -614,7 +612,13 @@ function validateAdminStoreTargets_(lojaIds) {
 
 function saveDemand(input) {
   if (!input) throw new Error('Dados da campanha não informados.');
-  var auth = validateAdminStoreTargets_(input.lojaIds || []);
+  var auth = getCurrentAuthContext_();
+  var departmentAuthor=isDepartmentUser_(auth.user);
+  if(!departmentAuthor)validateAdminStoreTargets_(input.lojaIds || []);
+  if(departmentAuthor && input.id){
+    var owned=supabaseRequest_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+'?select=*&id=eq.'+encodeURIComponent(String(input.id))+'&limit=1','get')||[];
+    if(!owned.length||!mayReadDepartmentDemand_(auth.user,owned[0])||String(owned[0].status)!=='draft')throw new Error('Somente solicitações próprias não publicadas podem ser editadas.');
+  }
 
   var titulo = String(input.title || '').trim();
   var descricao = String(input.description || '').trim();
@@ -659,6 +663,12 @@ function saveDemand(input) {
   var cronograma = {};
   Object.keys(existingCronograma).forEach(function (key) { cronograma[key] = existingCronograma[key]; });
   Object.keys(incomingCronograma).forEach(function (key) { cronograma[key] = incomingCronograma[key]; });
+
+  if(departmentAuthor){
+    cronograma.departamentoSolicitante=String(auth.user.departamento||auth.user.department||roleOf_(auth.user));
+    cronograma.aprovacaoStatus='pendente';
+    publishStatus='draft';
+  }
 
   // As datas principais agora ficam em colunas próprias.
   // Aceitamos nomes alternativos vindos do HTML para manter compatibilidade.
@@ -811,8 +821,17 @@ function setDemandStatus(demandaId, newStatus) {
   if (!rows.length) throw new Error('Demanda não encontrada.');
 
   var row = rows[0];
+  var fullRows=supabaseRequest_('/rest/v1/'+demandasTable+'?select=*&id=eq.'+encodeURIComponent(String(demandaId))+'&limit=1','get')||[];
+  var full=fullRows[0]||{};
+  var schedule=normalizeJsonObject_(full.cronograma);
+  if(status==='active' && schedule.aprovacaoStatus==='pendente'){
+    schedule.aprovacaoStatus='aprovada';
+    schedule.aprovadoPor=getCurrentAuthContext_().email;
+    schedule.aprovadoEm=new Date().toISOString();
+  }
   var payload = {
     status: status,
+    cronograma: schedule,
     updated_at: new Date().toISOString()
   };
 
@@ -833,7 +852,14 @@ function setDemandStatus(demandaId, newStatus) {
     'return=representation'
   );
 
-  return { ok: true, row: result && result[0] ? result[0] : null };
+  var notificationInfo=null;
+  if(status==='active'&&String(full.status||'')!=='active'){
+    try{notificationInfo=notifyDemandPublished_(getCurrentAuthContext_(),{
+      title:full.titulo||'',type:full.tipo||'demanda',department:schedule.departamentoSolicitante||'Operações',
+      lojaIds:normalizeArray_(full.loja_ids||[])
+    });}catch(e){notificationInfo={error:String(e)};}
+  }
+  return { ok: true, row: result && result[0] ? result[0] : null, notifications:notificationInfo };
 }
 
 function deleteDemand(demandaId) {
@@ -874,7 +900,7 @@ function getDemandDetail(demandaId) {
   if (!(isDepartmentUser_(user) ? mayReadDepartmentDemand_(user,demanda) : demandaVisivelNoEscopo_(demanda, visibleLojaIds))) {
     throw new Error('Você não tem acesso a esta campanha/demanda.');
   }
-  if (role !== 'admin' && String(demanda.status || 'active').toLowerCase() === 'draft') {
+  if (role !== 'admin' && !isDepartmentUser_(user) && String(demanda.status || 'active').toLowerCase() === 'draft') {
     throw new Error('Este item ainda está em rascunho.');
   }
 
