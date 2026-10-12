@@ -3874,7 +3874,7 @@ function getStoreAccessWorkspace() {
     safeSupabaseSelect_(
       '/rest/v1/' +
         usuariosTable +
-        '?select=*&role=eq.loja&order=created_at.desc&limit=5000',
+        '?select=*&order=created_at.desc&limit=5000',
       []
     );
 
@@ -3942,6 +3942,7 @@ function getStoreAccessWorkspace() {
             lojaNome:
               store.nome ||
               '',
+            departamento: isDepartmentUser_(u)?departmentOfUser_(u):'',
 
             ativo:
               u.ativo !==
@@ -4195,6 +4196,32 @@ function createStoreAccess(
   };
 }
 
+
+function createUnifiedAccess(input) {
+ input=input||{};
+ requireAdmin_();
+ var role=String(input.role||'').toLowerCase();
+ if(role==='loja')return createStoreAccess(input);
+ var allowed=['marketing','rh','qualidade','treinamento','comercial','growth','ti'];
+ if(allowed.indexOf(role)<0)throw new Error('Selecione um perfil permitido.');
+ var email=String(input.email||'').trim().toLowerCase();
+ var name=String(input.nome||'').trim();
+ var password=String(input.password||'');
+ if(!name||!email||password.length<8)throw new Error('Informe nome, e-mail e senha temporária com 8 caracteres.');
+ var table=table_('TABLE_USUARIOS','bacio_usuarios');
+ var rows=safeSupabaseSelect_('/rest/v1/'+table+'?select=*&email=eq.'+encodeURIComponent(email)+'&limit=1',[]);
+ if(rows.length && (rows[0].auth_user_id || !isDepartmentUser_(rows[0])))throw new Error('E-mail já vinculado a outro acesso; nenhum cadastro foi alterado.');
+ var created=supabaseAuthRequestV2_('/auth/v1/admin/users','post',{
+  email:email,password:password,email_confirm:true,
+  user_metadata:{nome:name,origem:'bacio_conecta'}
+ });
+ var authUser=created&&created.user?created.user:created;
+ if(!authUser||!authUser.id)throw new Error('Não foi possível criar a autenticação.');
+ var now=new Date().toISOString();
+ var payload={email:email,nome:name,role:role,ativo:true,auth_user_id:String(authUser.id),
+ auth_provider:'password',force_password_change:true,updated_at:now};
+ return {ok:true,user:supabaseRequest_('/rest/v1/'+table+'?on_conflict=email','post',payload,'resolution=merge-duplicates,return=representation')};
+}
 
 function resetStoreAccessPassword(
   input
