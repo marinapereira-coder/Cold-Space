@@ -232,23 +232,33 @@ function approveDepartmentRequest(id){
  google.script.run.withSuccessHandler(function(){showToast('Solicitação aprovada e publicada.');refreshBootstrap('campanhas');})
  .withFailureHandler(serverError).setDemandStatus(id,'active');
 }
+var CAMPAIGN_PREVIEW_DEPARTMENT='';
+function setDepartmentPreview(value){
+ CAMPAIGN_PREVIEW_DEPARTMENT=CURRENT_ROLE==='admin'?String(value||''):'';
+ CAMPAIGN_WORKSPACE_VIEW='all';
+ document.getElementById('campaignDepartmentFilter').value='all';
+ renderCampaignManagement();
+}
 var CAMPAIGN_WORKSPACE_VIEW='all';
 function setCampaignWorkspaceView(view){CAMPAIGN_WORKSPACE_VIEW=view;renderCampaignManagement();}
 function campaignWorkspaceTabs(){
- var role=CURRENT_ROLE,views=role==='loja'?[['all','Recebidas'],['pending','Para responder'],['finished','Respondidas']]:
+ var role=CAMPAIGN_PREVIEW_DEPARTMENT?'departamento':CURRENT_ROLE,views=role==='loja'?[['all','Recebidas'],['pending','Para responder'],['finished','Respondidas']]:
  [['all','Todas'],['pending_approval','Aguardando aprovação'],['active','Em andamento'],['attention','Precisam de atenção'],['finished','Concluídas'],['draft','Rascunhos']];
  var host=document.getElementById('campaignWorkspaceTabs');
  host.innerHTML=views.map(function(pair){return '<button type="button" class="btn '+(CAMPAIGN_WORKSPACE_VIEW===pair[0]?'primary':'soft')+'" onclick="setCampaignWorkspaceView(\''+pair[0]+'\')">'+pair[1]+'</button>';}).join('');
  var help=document.getElementById('campaignWorkspaceDescription');
- help.textContent=role==='loja'?'Solicitações destinadas à sua loja, organizadas por andamento e prazo.':
+ help.textContent=CAMPAIGN_PREVIEW_DEPARTMENT?'Prévia de '+CAMPAIGN_PREVIEW_DEPARTMENT+' — dados filtrados, sem trocar o login.':role==='loja'?'Solicitações destinadas à sua loja, organizadas por andamento e prazo.':
  'Acompanhe cada departamento, status e prazo. A visibilidade continua limitada às permissões atuais do usuário.';
 }
 function renderCampaignManagement(){
  populateDepartmentFilter();
  var items=(APP_DATA.managementItems||[]).filter(function(i){return String(i.type||'').toLowerCase()!=='comunicado';});
+ var previewBar=document.getElementById('departmentPreviewBar');
+ if(previewBar)previewBar.style.display=CURRENT_ROLE==='admin'?'block':'none';
  campaignWorkspaceTabs();
  var q=(document.getElementById('campaignSearch').value||'').toLowerCase().trim(),t=document.getElementById('campaignTypeFilter').value;
  var status=document.getElementById('campaignStatusFilter').value,depFilter=document.getElementById('campaignDepartmentFilter').value;
+ if(CURRENT_ROLE==='admin'&&CAMPAIGN_PREVIEW_DEPARTMENT)items=items.filter(function(i){return requestDepartment(i).toLowerCase()===CAMPAIGN_PREVIEW_DEPARTMENT.toLowerCase();});
  var filtered=items.filter(function(i){
   var text=((i.title||'')+' '+(i.description||'')).toLowerCase(),st=String(i.timelineStatus||i.status||'');
   var view=CAMPAIGN_WORKSPACE_VIEW;
@@ -280,7 +290,7 @@ function renderCampaignManagement(){
    safe(st)+'">'+safe(item.timelineLabel||timelineLabel(st))+'</span></div><div class="muted">'+
    safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div><button class="btn soft" onclick="openDemandDetail(\''+
    safeJs(item.id)+'\')">Ver detalhes · '+safe(item.progressLabel||'Acompanhar')+'</button>'+
-    (CURRENT_ROLE==='admin'&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
+    (CURRENT_ROLE==='admin'&&!CAMPAIGN_PREVIEW_DEPARTMENT&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
     '<button class="btn primary" style="margin-left:6px" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>':'')+'</div></div>';
  }).join(''):'<div class="empty">Nenhuma solicitação encontrada com esses filtros.</div>');
 }
