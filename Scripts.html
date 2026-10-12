@@ -127,7 +127,14 @@ function startApp(data){
     document.getElementById('welcomeSubtitle').textContent=Number((APP_DATA.summary||{}).pending||0)>0?'Veja o que precisa da sua atenção hoje.':'Tudo em dia por aqui.';
     document.getElementById('weather').textContent=(APP_DATA.weather||{}).city||'';
 
+    var passwordDepartment=AUTH_MODE==='store'&&CURRENT_ROLE!=='loja';
+    if(CURRENT_ROLE!=='admin')CAMPAIGN_PREVIEW_DEPARTMENT='';
     document.getElementById('managementMenu').style.display=CURRENT_ROLE==='loja'?'none':'block';
+    document.querySelectorAll('.nav-btn[data-page]').forEach(function(nav){
+      var page=nav.getAttribute('data-page');
+      if(passwordDepartment)nav.style.display=['home','campanhas','respostas'].indexOf(page)>=0?'':'none';
+      else nav.style.display='';
+    });
     document.getElementById('switchProfileLoginBtn').style.display=CURRENT_ROLE==='admin'?'inline-flex':'none';
     document.getElementById('campaignAdminActions').style.display=(CURRENT_ROLE==='admin'||['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0)?'flex':'none';
     document.getElementById('noticeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
@@ -148,6 +155,9 @@ function renderAllCore(){
 }
 
 function showPage(page){
+  if(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja'&&['home','campanhas','respostas'].indexOf(page)<0){
+    showToast('Essa área ainda não está habilitada para o perfil de departamento.');return;
+  }
   var target=document.getElementById('page-'+page);if(!target)return;
   if(page==='acessos'&&CURRENT_ROLE!=='admin'){showToast('Área exclusiva para administradores.');return;}
   if(page==='respostas'&&CURRENT_ROLE==='loja'){showToast('Esta área é da gestão.');return;}
@@ -817,7 +827,7 @@ function loadDepartmentAccesses(){
  }).withFailureHandler(function(e){el.textContent='Não foi possível carregar os departamentos: '+String(e.message||e);}).getDepartmentAccessWorkspace();
 }
 function loadAccesses(){if(CURRENT_ROLE!=='admin')return;document.getElementById('accessTable').innerHTML='<div class="empty">Carregando acessos...</div>';google.script.run.withSuccessHandler(function(data){ACCESS_DATA=data||{items:[]};renderAccesses();}).withFailureHandler(serverError).getStoreAccessWorkspace();}
-function renderAccesses(){if(!ACCESS_DATA){loadAccesses();return;}var q=(document.getElementById('accessSearch').value||'').toLowerCase().trim(),f=document.getElementById('accessStatusFilter').value,items=(ACCESS_DATA.items||[]).filter(function(i){var text=((i.lojaCodigo||'')+' '+(i.lojaNome||'')+' '+(i.nome||'')+' '+(i.role||'')+' '+(i.email||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(f==='all'||(f==='active'&&i.ativo)||(f==='inactive'&&!i.ativo));});document.getElementById('accessKpis').innerHTML=[[(ACCESS_DATA.items||[]).length,'Acessos cadastrados'],[(ACCESS_DATA.items||[]).filter(function(i){return i.ativo;}).length,'Ativos'],[(ACCESS_DATA.items||[]).filter(function(i){return !i.ativo;}).length,'Inativos'],[(ACCESS_DATA.items||[]).filter(function(i){return i.forcePasswordChange;}).length,'Senha temporária']].map(kpiHtml).join('');document.getElementById('accessTable').innerHTML='<div class="row header"><div>Usuário / Perfil</div><div>Login</div><div>Status</div><div>Senha</div><div>Ações</div></div>'+(items.map(function(i){return '<div class="row actions-row"><div><h4>'+safe((i.lojaCodigo?i.lojaCodigo+' · ':'')+(i.lojaNome||i.nome||'Usuário'))+'</h4></div><div class="muted">'+safe(i.email)+'</div><div><span class="access-pill '+(i.ativo?'active':'inactive')+'">'+(i.ativo?'Ativo':'Inativo')+'</span></div><div class="muted">'+(i.forcePasswordChange?'Temporária':'Definida')+'</div><div class="actions"><button class="btn soft" onclick="openResetAccessPassword(\''+safeJs(i.authUserId)+'\')">Redefinir senha</button><button class="btn '+(i.ativo?'danger':'soft')+'" onclick="toggleAccess(\''+safeJs(i.id)+'\','+(!i.ativo)+')">'+(i.ativo?'Desativar':'Ativar')+'</button></div></div>';}).join('')||'<div class="empty">Nenhum acesso cadastrado.</div>');}
+function renderAccesses(){if(!ACCESS_DATA){loadAccesses();return;}var q=(document.getElementById('accessSearch').value||'').toLowerCase().trim(),f=document.getElementById('accessStatusFilter').value,items=(ACCESS_DATA.items||[]).filter(function(i){var text=((i.lojaCodigo||'')+' '+(i.lojaNome||'')+' '+(i.nome||'')+' '+(i.role||'')+' '+(i.email||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(f==='all'||(f==='active'&&i.ativo)||(f==='inactive'&&!i.ativo));});document.getElementById('accessKpis').innerHTML=[[(ACCESS_DATA.items||[]).length,'Acessos cadastrados'],[(ACCESS_DATA.items||[]).filter(function(i){return i.ativo;}).length,'Ativos'],[(ACCESS_DATA.items||[]).filter(function(i){return !i.ativo;}).length,'Inativos'],[(ACCESS_DATA.items||[]).filter(function(i){return i.forcePasswordChange;}).length,'Senha temporária']].map(kpiHtml).join('');document.getElementById('accessTable').innerHTML='<div class="row header"><div>Usuário / Perfil</div><div>Login</div><div>Status</div><div>Senha</div><div>Ações</div></div>'+(items.map(function(i){return '<div class="row actions-row"><div><h4>'+safe((i.lojaCodigo?i.lojaCodigo+' · ':'')+(i.lojaNome||i.nome||'Usuário'))+'</h4><div class="muted">'+safe((i.role||'').toUpperCase())+'</div></div><div class="muted">'+safe(i.email)+'</div><div><span class="access-pill '+(i.ativo?'active':'inactive')+'">'+(i.ativo?'Ativo':'Inativo')+'</span></div><div class="muted">'+(i.forcePasswordChange?'Temporária':'Definida')+'</div><div class="actions"><button class="btn soft" onclick="openResetAccessPassword(\''+safeJs(i.authUserId)+'\')">Redefinir senha</button><button class="btn '+(i.ativo?'danger':'soft')+'" onclick="toggleAccess(\''+safeJs(i.id)+'\','+(!i.ativo)+')">'+(i.ativo?'Desativar':'Ativar')+'</button></div></div>';}).join('')||'<div class="empty">Nenhum acesso cadastrado.</div>');}
 function openUnifiedAccess(){
  var options=(APP_DATA.stores||[]).map(function(st){return '<option value="'+safe(st.id)+'">'+safe((st.codigo?st.codigo+' · ':'')+st.nome)+'</option>';}).join('');
  var body='<div><label class="label">Perfil de acesso</label><select id="accessRole" class="select" onchange="document.getElementById(\'accessStoreGroup\').style.display=this.value===\'loja\'?\'block\':\'none\';document.getElementById(\'accessNameGroup\').style.display=this.value===\'loja\'?\'none\':\'block\'"><option value="loja">Loja</option><option value="marketing">Marketing</option><option value="rh">RH</option><option value="qualidade">Qualidade</option><option value="treinamento">Treinamento</option><option value="comercial">Comercial</option><option value="growth">Growth</option><option value="ti">TI</option></select></div>'+
