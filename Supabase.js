@@ -195,7 +195,7 @@ function getRealBootstrap_(email) {
     '/rest/v1/' + respostasTable + '?select=*&order=created_at.desc&limit=5000',
     []
   ).filter(function (r) {
-    return visibleLojaIds.indexOf(String(r.loja_id || r.lojaId || '')) >= 0;
+    return visibleLojaIds.indexOf(String(r.loja_id || r.lojaId || '')) >= 0 && (!isDepartmentUser_(user)||demandas.some(function(d){return String(d.id)===String(r.demanda_id||r.demandaId||'');}));
   });
 
   var notifications = safeSupabaseSelect_(
