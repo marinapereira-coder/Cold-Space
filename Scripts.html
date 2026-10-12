@@ -305,10 +305,10 @@ function renderCampaignManagement(){
   return '<div class="row"><div><h4>'+safe(item.title)+'</h4><div class="muted">'+safe(requestDepartment(item))+
    ' · '+safe(item.description||'')+'</div></div><div class="muted">'+safe(typeLabel(item.type))+'</div><div><span class="status '+
    safe(st)+'">'+safe(item.timelineLabel||timelineLabel(st))+'</span></div><div class="muted">'+
-   safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div><button class="btn soft" onclick="openDemandDetail(\''+
-   safeJs(item.id)+'\')">Ver detalhes · '+safe(item.progressLabel||'Acompanhar')+'</button>'+
+   safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:nowrap"><button class="btn soft" style="white-space:nowrap" onclick="openDemandDetail(\''+
+   safeJs(item.id)+'\')">Detalhes</button>'+
     (CURRENT_ROLE==='admin'&&!CAMPAIGN_PREVIEW_DEPARTMENT&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
-    '<button class="btn primary" style="margin-left:6px" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>':'')+'</div></div>';
+    '<button class="btn primary" style="white-space:nowrap" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>':'')+'</div></div>';
  }).join(''):'<div class="empty">Nenhuma solicitação encontrada com esses filtros.</div>');
 }
 
