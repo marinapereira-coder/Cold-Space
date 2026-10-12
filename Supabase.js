@@ -166,6 +166,11 @@ function getRealBootstrap_(email) {
   var notificacoesTable = table_('TABLE_NOTIFICACOES', 'bacio_notificacoes');
 
   var lojas = getVisibleStores_(user);
+  // Department authors need the active store directory to select recipients;
+  // responses remain restricted by department demand ID below.
+  if(isDepartmentUser_(user)){
+    lojas=supabaseRequest_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&limit=5000','get').filter(function(store){return store.ativa!==false;});
+  }
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
 
   var demandas = safeSupabaseSelect_(
