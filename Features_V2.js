@@ -128,7 +128,7 @@ function storeChangePassword(accessToken, newPassword) {
 
 function getStoreBootstrap(accessToken) {
   var ctx = getStoreAuthContext_(accessToken);
-  return buildStoreBootstrapV2_(ctx);
+  return isDepartmentUser_(ctx.user) ? getRealBootstrap_(ctx.email,ctx) : buildStoreBootstrapV2_(ctx);
 }
 
 
@@ -179,11 +179,10 @@ function getStoreAuthContext_(accessToken) {
     throw new Error('Este acesso está desativado.');
   }
 
-  if (roleOf_(user) !== 'loja') {
-    throw new Error('Este login não está configurado como acesso de loja.');
+  if (roleOf_(user) !== 'loja' && !isDepartmentUser_(user)) {
+    throw new Error('Este perfil ainda não está habilitado para login por senha.');
   }
-
-  if (!user.loja_id) {
+  if (roleOf_(user) === 'loja' && !user.loja_id) {
     throw new Error('Este login não possui uma loja vinculada.');
   }
 
@@ -3854,6 +3853,23 @@ function validateChatContextV2_(
 /* ======================================================================
  * USUÁRIOS & ACESSOS DAS LOJAS
  * ====================================================================== */
+
+// Token-authenticated request operations; never trust client-supplied role or department.
+function getPasswordDemandDetail(token,id) {
+ var ctx=getStoreAuthContext_(token);
+ if(!isDepartmentUser_(ctx.user))throw new Error('Acesso não permitido.');
+ return getDemandDetail(id,ctx);
+}
+function savePasswordDepartmentDemand(token,input) {
+ var ctx=getStoreAuthContext_(token);
+ if(!isDepartmentUser_(ctx.user))throw new Error('Acesso não permitido.');
+ return saveDemand(input,ctx);
+}
+function getPasswordResponsesWorkspace(token) {
+ var ctx=getStoreAuthContext_(token);
+ if(!isDepartmentUser_(ctx.user))throw new Error('Acesso não permitido.');
+ return buildResponsesWorkspaceV2_(ctx.user);
+}
 
 function getStoreAccessWorkspace() {
   requireAdmin_();
