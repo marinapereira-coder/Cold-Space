@@ -814,6 +814,14 @@ function saveDemand(input,authOverride) {
       return {ok:true,row:result&&result[0]?result[0]:null,notificationError:String(notificationError)};
     }
   }
+  if (departmentAuthor && input.id && existingCronograma.aprovacaoStatus==='ajustes' && cronograma.aprovacaoStatus==='pendente') {
+    try {
+      var resend=notifyDemandPendingApproval_({title:titulo,department:cronograma.departamentoSolicitante});
+      return {ok:true,row:result&&result[0]?result[0]:null,notifications:resend};
+    } catch(err) {
+      return {ok:true,row:result&&result[0]?result[0]:null,notificationError:String(err)};
+    }
+  }
   // New department requests notify administrators once, never again on edits.
   if(departmentAuthor && !input.id && publishStatus==='draft' && cronograma.aprovacaoStatus==='pendente'){
     try{
@@ -940,6 +948,9 @@ function setDemandStatus(demandaId, newStatus) {
   var full=fullRows[0]||{};
   var schedule=normalizeJsonObject_(full.cronograma);
   if(status==='active' && schedule.aprovacaoStatus==='pendente'){
+    var history=Array.isArray(schedule.historicoAprovacao)?schedule.historicoAprovacao:[];
+    history.push({acao:'aprovada',por:getCurrentAuthContext_().email,em:new Date().toISOString()});
+    schedule.historicoAprovacao=history;
     schedule.aprovacaoStatus='aprovada';
     schedule.aprovadoPor=getCurrentAuthContext_().email;
     schedule.aprovadoEm=new Date().toISOString();
