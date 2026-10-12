@@ -1245,6 +1245,18 @@ function buildResponsesWorkspaceV2_(
       []
     );
 
+  if(isDepartmentUser_(user)){
+    demandas=demandas.filter(function(d){return mayReadDepartmentDemand_(user,d)&&String(d.status||'active').toLowerCase()!=='draft';});
+    var allowedDemandIds={};
+    demandas.forEach(function(d){allowedDemandIds[String(d.id)]=true;});
+    var allStores=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&ativa=eq.true&limit=5000',[]);
+    allStores.forEach(function(store){storeMap[String(store.id)]=store;});
+    respostas=respostas.concat(safeSupabaseSelect_('/rest/v1/'+respostasTable+'?select=*&order=created_at.desc&limit=10000',[]).filter(function(response){
+      return !!allowedDemandIds[String(response.demanda_id)]&&!respostas.some(function(existing){return String(existing.id)===String(response.id);});
+    }));
+    respostas=respostas.filter(function(response){return !!allowedDemandIds[String(response.demanda_id)];});
+  }
+
   var demandMap = {};
 
   demandas.forEach(
