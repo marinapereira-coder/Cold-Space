@@ -130,6 +130,7 @@ function startApp(data){
     document.getElementById('weather').textContent=(APP_DATA.weather||{}).city||'';
 
     document.getElementById('managementMenu').style.display=CURRENT_ROLE==='loja'?'none':'block';
+    document.getElementById('switchProfileLoginBtn').style.display=CURRENT_ROLE==='admin'?'inline-flex':'none';
     document.getElementById('campaignAdminActions').style.display=(CURRENT_ROLE==='admin'||['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0)?'flex':'none';
     document.getElementById('noticeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('storeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
@@ -718,13 +719,23 @@ function refreshBootstrap(page){
 ============================================================ */
 function handleEntryState(state){
   document.getElementById('loading').style.display='none';
-  if(state&&state.authenticated&&state.bootstrap){AUTH_MODE='corporate';startApp(state.bootstrap);return;}
+  if(state&&state.authenticated&&state.bootstrap&&!sessionStorage.getItem('bacio_force_password_login')){AUTH_MODE='corporate';startApp(state.bootstrap);return;}
   AUTH_MODE='store';
   STORE_ACCESS_TOKEN=sessionStorage.getItem('bacio_store_access')||'';
   STORE_REFRESH_TOKEN=sessionStorage.getItem('bacio_store_refresh')||'';
   if(STORE_ACCESS_TOKEN){
     google.script.run.withSuccessHandler(function(data){AUTH_MODE='store';data.authMode='store';if((data.user||{}).forcePasswordChange){showStorePasswordChange();}else{startApp(data);}}).withFailureHandler(function(){tryStoreRefreshOrLogin();}).getStoreBootstrap(STORE_ACCESS_TOKEN);
   }else showStoreLogin();
+}
+function switchProfileLogin(){
+ sessionStorage.setItem('bacio_force_password_login','1');
+ clearStoreSession();
+ AUTH_MODE='store';showStoreLogin();
+}
+function backToCorporateSession(){
+ sessionStorage.removeItem('bacio_force_password_login');
+ clearStoreSession();
+ google.script.run.withSuccessHandler(function(state){if(state&&state.bootstrap)startApp(state.bootstrap);else showStoreLogin();}).withFailureHandler(serverError).getEntryState();
 }
 function showStoreLogin(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='block';document.getElementById('passwordChangeBox').style.display='none';document.getElementById('storeLoginMessage').textContent='';}
 function showStorePasswordChange(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='none';document.getElementById('passwordChangeBox').style.display='block';}
