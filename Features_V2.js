@@ -1122,7 +1122,8 @@ function submitStoreDemandResponse(
       lojaId
     ),
 
-    lojaId
+    lojaId,
+    String(input.demandaId)
   );
 
   return {
@@ -4979,7 +4980,8 @@ function notifyStoreUsersV2_(
 function notifyManagementV2_(
   title,
   message,
-  storeId
+  storeId,
+  demandId
 ) {
 
   var usersTable =
@@ -4993,6 +4995,13 @@ function notifyManagementV2_(
       'TABLE_NOTIFICACOES',
       'bacio_notificacoes'
     );
+
+  var ownerDepartment='';
+  if(demandId){
+    var demandRows=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+      '?select=id,cronograma&id=eq.'+encodeURIComponent(String(demandId))+'&limit=1',[]);
+    if(demandRows.length)ownerDepartment=departmentOfDemand_(demandRows[0]);
+  }
 
   var users =
     safeSupabaseSelect_(
@@ -5013,6 +5022,10 @@ function notifyManagementV2_(
         // Nunca notificar a própria loja de que ela mesma respondeu.
         if (role === 'loja') {
           return false;
+        }
+
+        if(isDepartmentUser_(u)){
+          return !!ownerDepartment && departmentOfUser_(u)===ownerDepartment;
         }
 
         if (
