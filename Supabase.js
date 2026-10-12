@@ -807,7 +807,33 @@ function saveDemand(input,authOverride) {
       return {ok:true,row:result&&result[0]?result[0]:null,notificationError:String(notificationError)};
     }
   }
+  // New department requests notify administrators once, never again on edits.
+  if(departmentAuthor && !input.id && publishStatus==='draft' && cronograma.aprovacaoStatus==='pendente'){
+    try{
+      var approvalNotice=notifyDemandPendingApproval_({title:titulo,department:cronograma.departamentoSolicitante});
+      return {ok:true,row:result&&result[0]?result[0]:null,notifications:approvalNotice};
+    }catch(err){
+      console.error('Falha no aviso de aprovação: '+String(err));
+      return {ok:true,row:result&&result[0]?result[0]:null,notificationError:String(err)};
+    }
+  }
   return { ok: true, row: result && result[0] ? result[0] : null };
+}
+
+function notifyDemandPendingApproval_(demand) {
+  var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+'?select=email,role,ativo&ativo=eq.true&role=eq.admin&limit=5000',[]);
+  var unique={};
+  users.forEach(function(u){var email=String(u.email||'').trim().toLowerCase();if(email)unique[email]=true;});
+  var emails=Object.keys(unique);
+  if(!emails.length)return {sent:0,reason:'no_active_admin'};
+  var now=new Date().toISOString();
+  var payload=emails.map(function(email){return {
+    usuario_email:email,titulo:'Solicitação aguardando aprovação',
+    mensagem:'Nova solicitação de '+String(demand.department||'departamento')+' para aprovar: '+String(demand.title||''),
+    lida:false,created_at:now
+  };});
+  supabaseRequest_('/rest/v1/'+table_('TABLE_NOTIFICACOES','bacio_notificacoes'),'post',payload,'return=minimal');
+  return {sent:payload.length};
 }
 
 function notifyDemandPublished_(auth, demand) {
