@@ -352,7 +352,7 @@ function openCampaignModal(type,id){
   if(type==='campanha')document.getElementById('fRequestCategory').value='Campanha';syncRequestLegacyType();
   document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';document.getElementById('fAudienceGroup').value='lojas';renderAudienceRouting();
   setModelTab('manual');addManualQuestion('text','');renderStorePicker();toggleStorePicker();openModal('campaignModal');
-  if(id){google.script.run.withSuccessHandler(fillCampaignEdit).withFailureHandler(serverError).getDemandDetail(id);}
+  if(id){var editRun=google.script.run.withSuccessHandler(fillCampaignEdit).withFailureHandler(serverError);if(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')editRun.getPasswordDemandDetail(STORE_ACCESS_TOKEN,id);else editRun.getDemandDetail(id);}
 }
 function fillCampaignEdit(d){
   document.getElementById('fDepartment').value=requestDepartment(d);
@@ -735,7 +735,7 @@ function switchProfileLogin(){
 function backToCorporateSession(){
  sessionStorage.removeItem('bacio_force_password_login');
  clearStoreSession();
- google.script.run.withSuccessHandler(function(state){if(state&&state.bootstrap)startApp(state.bootstrap);else showStoreLogin();}).withFailureHandler(serverError).getEntryState();
+ google.script.run.withSuccessHandler(function(state){if(state&&state.bootstrap)startApp(state.bootstrap);else showStoreLogin();}).withFailureHandler(serverError).getBootstrapData();
 }
 function showStoreLogin(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='block';document.getElementById('passwordChangeBox').style.display='none';document.getElementById('storeLoginMessage').textContent='';}
 function showStorePasswordChange(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='none';document.getElementById('passwordChangeBox').style.display='block';}
