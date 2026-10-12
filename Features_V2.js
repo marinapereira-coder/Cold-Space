@@ -4997,6 +4997,12 @@ function notifyManagementV2_(
             u
           );
 
+        // Uma resposta enviada pela loja gera aviso somente para a gestão.
+        // Nunca notificar a própria loja de que ela mesma respondeu.
+        if (role === 'loja') {
+          return false;
+        }
+
         if (
           role ===
           'admin'
