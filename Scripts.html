@@ -234,7 +234,7 @@ var CAMPAIGN_WORKSPACE_VIEW='all';
 function setCampaignWorkspaceView(view){CAMPAIGN_WORKSPACE_VIEW=view;renderCampaignManagement();}
 function campaignWorkspaceTabs(){
  var role=CURRENT_ROLE,views=role==='loja'?[['all','Recebidas'],['pending','Para responder'],['finished','Respondidas']]:
- [['all','Todas'],['active','Em andamento'],['attention','Precisam de atenção'],['finished','Concluídas'],['draft','Rascunhos']];
+ [['all','Todas'],['pending_approval','Aguardando aprovação'],['active','Em andamento'],['attention','Precisam de atenção'],['finished','Concluídas'],['draft','Rascunhos']];
  var host=document.getElementById('campaignWorkspaceTabs');
  host.innerHTML=views.map(function(pair){return '<button type="button" class="btn '+(CAMPAIGN_WORKSPACE_VIEW===pair[0]?'primary':'soft')+'" onclick="setCampaignWorkspaceView(\''+pair[0]+'\')">'+pair[1]+'</button>';}).join('');
  var help=document.getElementById('campaignWorkspaceDescription');
@@ -250,9 +250,9 @@ function renderCampaignManagement(){
  var filtered=items.filter(function(i){
   var text=((i.title||'')+' '+(i.description||'')).toLowerCase(),st=String(i.timelineStatus||i.status||'');
   var view=CAMPAIGN_WORKSPACE_VIEW;
-  var matchesView=view==='all'||(view==='active'&&st==='active')||(view==='pending'&&st!=='completed'&&st!=='closed')||
+  var matchesView=view==='all'||(view==='pending_approval'&&st==='pending_approval')||(view==='active'&&st==='active')||(view==='pending'&&st!=='completed'&&st!=='closed')||
     (view==='attention'&&(st==='late'||st==='due_today'))||(view==='finished'&&(st==='completed'||st==='closed'))||
-    (view==='draft'&&st==='draft');
+    (view==='draft'&&(st==='draft'||st==='pending_approval'));
   return matchesView&&(!q||text.indexOf(q)>=0)&&(t==='all'||String(i.type)===t)&&
    (status==='all'||st===status)&&(depFilter==='all'||requestDepartment(i)===depFilter);
  });
