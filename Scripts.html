@@ -128,7 +128,7 @@ function startApp(data){
     document.getElementById('weather').textContent=(APP_DATA.weather||{}).city||'';
 
     document.getElementById('managementMenu').style.display=CURRENT_ROLE==='loja'?'none':'block';
-    document.getElementById('campaignAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
+    document.getElementById('campaignAdminActions').style.display=(CURRENT_ROLE==='admin'||['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0)?'flex':'none';
     document.getElementById('noticeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('storeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('accessNavBtn').style.display=CURRENT_ROLE==='admin'?'flex':'none';
@@ -224,6 +224,12 @@ function populateDepartmentFilter(){
  el.value=old;
 }
 
+function approveDepartmentRequest(id){
+ if(CURRENT_ROLE!=='admin')return;
+ if(!confirm('Aprovar e publicar esta solicitação para os destinatários?'))return;
+ google.script.run.withSuccessHandler(function(){showToast('Solicitação aprovada e publicada.');refreshBootstrap('campanhas');})
+ .withFailureHandler(serverError).setDemandStatus(id,'active');
+}
 var CAMPAIGN_WORKSPACE_VIEW='all';
 function setCampaignWorkspaceView(view){CAMPAIGN_WORKSPACE_VIEW=view;renderCampaignManagement();}
 function campaignWorkspaceTabs(){
@@ -271,7 +277,9 @@ function renderCampaignManagement(){
    ' · '+safe(item.description||'')+'</div></div><div class="muted">'+safe(typeLabel(item.type))+'</div><div><span class="status '+
    safe(st)+'">'+safe(item.timelineLabel||timelineLabel(st))+'</span></div><div class="muted">'+
    safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div><button class="btn soft" onclick="openDemandDetail(\''+
-   safeJs(item.id)+'\')">Ver detalhes · '+safe(item.progressLabel||'Acompanhar')+'</button></div></div>';
+   safeJs(item.id)+'\')">Ver detalhes · '+safe(item.progressLabel||'Acompanhar')+'</button>'+
+    (CURRENT_ROLE==='admin'&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
+    '<button class="btn primary" style="margin-left:6px" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>':'')+'</div></div>';
  }).join(''):'<div class="empty">Nenhuma solicitação encontrada com esses filtros.</div>');
 }
 
@@ -315,12 +323,13 @@ function markAllNotificationsRead(){
 }
 
 function openCampaignModal(type,id){
-  if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem criar ou editar campanhas e demandas.');return;}
+  if(CURRENT_ROLE!=='admin'&&['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)<0){showToast('Seu perfil não permite criar solicitações.');return;}
   CAMPAIGN_EDIT_ID=id||null;MODEL_TAB='manual';MANUAL_FIELDS=[];IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=false;
   document.getElementById('campaignModalTitle').textContent=id?'Editar solicitação':'Nova solicitação';
   populateRequestDepartments();
   document.getElementById('fType').value=type||'demanda';
-  document.getElementById('fDepartment').value='Operações';refreshRequestCategories();
+  document.getElementById('fDepartment').value=(CURRENT_ROLE==='admin'?'Operações':(APP_DATA.user||{}).departamento||CURRENT_ROLE);refreshRequestCategories();
+  document.getElementById('fDepartment').disabled=CURRENT_ROLE!=='admin';
   if(type==='campanha')document.getElementById('fRequestCategory').value='Campanha';syncRequestLegacyType();
   document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';document.getElementById('fAudienceGroup').value='lojas';renderAudienceRouting();
   setModelTab('manual');addManualQuestion('text','');renderStorePicker();toggleStorePicker();openModal('campaignModal');
@@ -428,7 +437,7 @@ function saveCampaign(){
   var selectedIds=routeMode==='lojas'?(document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[]):(APP_DATA.stores||[]).filter(function(store){return String(store[routeMode==='regional'?'regional':'consultor']||'').trim()===routeTarget;}).map(function(store){return String(store.id);});
   if(routeMode==='lojas'&&document.getElementById('fAudience').value==='selected'&&!selectedIds.length){showToast('Selecione pelo menos uma loja.');return;}
   if(routeMode!=='lojas'&&!selectedIds.length){showToast('Nenhuma loja associada a este destinatário.');return;}
-  var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:routeMode==='consultor'?'draft':document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{departamentoSolicitante:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,direcionamento:{modo:routeMode,valor:routeTarget},lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
+  var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:(CURRENT_ROLE!=='admin'||routeMode==='consultor')?'draft':document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{departamentoSolicitante:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,direcionamento:{modo:routeMode,valor:routeTarget},lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
   setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(response){setBusy('saveCampaignBtn',false,'Salvar');closeModal('campaignModal');showToast(response&&response.notificationError?'Solicitação salva, mas houve erro ao enviar notificações. Confira os registros.':'Conteúdo salvo.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);}).saveDemand(payload);
 }
 function renderStorePicker(selected){var host=document.getElementById('storePickerList'),q=(document.getElementById('storePickerSearch').value||'').toLowerCase().trim(),sel={};(selected||getSelectedStoreIds()).forEach(function(id){sel[String(id)]=1;});host.innerHTML=(APP_DATA.stores||[]).filter(function(s){var text=((s.codigo||'')+' '+(s.nome||'')+' '+(s.cidade||'')).toLowerCase();return !q||text.indexOf(q)>=0;}).map(function(s){return '<label class="store-option"><input class="store-check" type="checkbox" value="'+safe(s.id)+'" '+(sel[String(s.id)]?'checked':'')+'><span><strong>'+safe((s.codigo?s.codigo+' · ':'')+s.nome)+'</strong><br><span class="muted">'+safe((s.regional||'')+(s.consultor?' · '+s.consultor:''))+'</span></span></label>';}).join('');}
