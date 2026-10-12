@@ -427,7 +427,9 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
       timelineStatus: timeline.code,
       timelineLabel: timeline.label,
       timeline: timeline,
-      cronograma: normalizeJsonObject_(d.cronograma)
+      cronograma: normalizeJsonObject_(d.cronograma),
+      departamento: normalizeJsonObject_(d.cronograma).departamentoSolicitante || 'Operações',
+      tipoSolicitacao: normalizeJsonObject_(d.cronograma).tipoSolicitacao || ''
     };
   });
 
