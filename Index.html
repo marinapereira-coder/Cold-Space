@@ -1579,6 +1579,14 @@
           </div>
 
 
+          <div class="box" style="margin:16px 0 22px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--paper)">
+            <div class="row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div><h3 style="margin:0 0 5px">Acessos dos departamentos</h3><p class="muted" style="margin:0">Marketing, RH e outras áreas usam seu e-mail corporativo Google, sem vincular uma loja.</p></div>
+              <button id="newDepartmentAccessBtn" class="btn primary">+ Novo departamento</button>
+            </div>
+            <div id="departmentAccessList" style="margin-top:12px"></div>
+          </div>
+
           <div
             id="accessKpis"
             class="kpi-grid">
@@ -2301,6 +2309,24 @@
 
   </div>
 
+
+  <div id="departmentAccessModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-head"><div><span class="eyebrow">Usuários & Acessos</span><h3>Criar acesso de departamento</h3></div>
+        <button type="button" class="btn soft" onclick="closeModal('departmentAccessModal')">Fechar</button></div>
+      <div class="modal-body" style="display:grid;gap:14px">
+        <label class="label" for="departmentAccessName">Nome</label><input id="departmentAccessName" class="field" placeholder="Nome da pessoa">
+        <label class="label" for="departmentAccessEmail">E-mail corporativo</label><input id="departmentAccessEmail" class="field" type="email" placeholder="usuario@bdil.com.br">
+        <label class="label" for="departmentAccessDepartment">Departamento</label>
+        <select id="departmentAccessDepartment" class="select">
+          <option value="marketing">Marketing</option><option value="rh">RH</option><option value="qualidade">Qualidade</option>
+          <option value="treinamento">Treinamento</option><option value="comercial">Comercial</option><option value="growth">Growth</option><option value="ti">TI</option>
+        </select>
+        <p class="muted">O usuário entrará com sua conta Google corporativa. Nenhuma senha será criada aqui.</p>
+      </div>
+      <div class="modal-foot"><button class="btn" onclick="closeModal('departmentAccessModal')">Cancelar</button><button id="saveDepartmentAccessBtn" class="btn primary">Criar acesso</button></div>
+    </div>
+  </div>
 
   <!-- TOAST -->
 
