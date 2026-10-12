@@ -255,6 +255,8 @@ function renderCampaignManagement(){
  var items=(APP_DATA.managementItems||[]).filter(function(i){return String(i.type||'').toLowerCase()!=='comunicado';});
  var previewBar=document.getElementById('departmentPreviewBar');
  if(previewBar)previewBar.style.display=CURRENT_ROLE==='admin'?'block':'none';
+ var adminActions=document.getElementById('campaignAdminActions');
+ if(adminActions && CURRENT_ROLE==='admin')adminActions.style.display=CAMPAIGN_PREVIEW_DEPARTMENT?'none':'flex';
  campaignWorkspaceTabs();
  var q=(document.getElementById('campaignSearch').value||'').toLowerCase().trim(),t=document.getElementById('campaignTypeFilter').value;
  var status=document.getElementById('campaignStatusFilter').value,depFilter=document.getElementById('campaignDepartmentFilter').value;
