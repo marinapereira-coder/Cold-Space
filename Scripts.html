@@ -344,10 +344,29 @@ function renderStores(){
 
 function renderNotifications(){
   var list=APP_DATA.notifications||[],unread=list.filter(function(n){return !n.read;}).length,b=document.getElementById('notificationBadge');b.textContent=unread;b.style.display=unread?'flex':'none';
-  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){return '<div class="notification-item '+(!n.read?'unread':'')+'" data-notification="'+safe(n.id)+'" onclick="markNotificationRead(\''+safeJs(n.id)+'\')"><strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p><time>'+safe(formatDateTime(n.createdAt))+'</time></div>';}).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong><span>Nenhuma notificação por enquanto.</span></div>';
+  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){return '<div class="notification-item '+(!n.read?'unread':'')+'" data-notification="'+safe(n.id)+'" onclick="openNotificationDemand(\''+safeJs(n.id)+'\')"><strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p><time>'+safe(formatDateTime(n.createdAt))+'</time></div>';}).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong><span>Nenhuma notificação por enquanto.</span></div>';
 }
 function toggleNotificationPanel(){var p=document.getElementById('notificationPanel'),open=p.classList.toggle('open');document.getElementById('notificationButton').setAttribute('aria-expanded',open?'true':'false');if(open)renderNotifications();}
 function closeNotificationPanel(){document.getElementById('notificationPanel').classList.remove('open');document.getElementById('notificationButton').setAttribute('aria-expanded','false');}
+function openNotificationDemand(id){
+  var n=(APP_DATA.notifications||[]).find(function(x){return String(x.id)===String(id);});
+  if(!n)return;
+  if(!n.read)markNotificationRead(id);
+  closeNotificationPanel();
+  var items=(APP_DATA.campaigns||[]).concat(APP_DATA.managementItems||[]);
+  var targetId=n.demandId||n.demandaId||n.demanda_id||null;
+  var text=(String(n.title||'')+' '+String(n.message||'')).toLowerCase();
+  if(!targetId){
+    var matches=items.filter(function(x){
+      var name=String(x.title||'').toLowerCase().trim();
+      return name.length>5 && text.indexOf(name)>=0;
+    });
+    if(matches.length===1)targetId=matches[0].id;
+  }
+  if(targetId){openDemandDetail(targetId);return;}
+  showPage('campanhas');
+  showToast('Abra a demanda correspondente na lista. Esta notificação não possui vínculo direto.');
+}
 function markNotificationRead(id){
   var n=(APP_DATA.notifications||[]).find(function(x){return String(x.id)===String(id);});if(!n||n.read)return;
   var ok=function(){n.read=true;(APP_DATA.summary||{}).unread=Math.max(0,Number((APP_DATA.summary||{}).unread||0)-1);renderNotifications();renderHome();};
