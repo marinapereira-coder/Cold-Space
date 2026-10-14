@@ -430,7 +430,7 @@ function parseMultiSheetCampaign(file,done,fail){
   var wb=XLSX.read(e.target.result,{type:'array',raw:false});
   var perStore={},source=[];
   wb.SheetNames.forEach(function(name){
-   if(/base\\s*(lojas|adm)/i.test(name))return;
+   if(/base\s*(lojas|adm)/i.test(name))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
    var hi=-1,storeCol=-1;
    for(var h=0;h<Math.min(rows.length,8);h++){
@@ -447,7 +447,7 @@ function parseMultiSheetCampaign(file,done,fail){
    var count=0;
    for(var ri=hi+1;ri<rows.length;ri++){
     var row=rows[ri]||[],label=String(row[storeCol]||'').trim();
-    var codes=(label.match(/LJ\\s*0*\\d{1,5}/gi)||[]).map(function(v){var n=v.match(/\\d+/);return n?('0000'+String(Number(n[0]))).slice(-4):'';}).filter(Boolean);
+    var codes=(label.match(/LJ\s*0*\d{1,5}/gi)||[]).map(function(v){var n=v.match(/\d+/);return n?('0000'+String(Number(n[0]))).slice(-4):'';}).filter(Boolean);
     if(!codes.length)continue;
     var product=productCol>=0?String(row[productCol]||'').trim():'Bomba de recheio';
     var itemCode=codeCol>=0?String(row[codeCol]||'').trim():'';
