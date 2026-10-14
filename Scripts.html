@@ -344,10 +344,29 @@ function renderStores(){
 
 function renderNotifications(){
   var list=APP_DATA.notifications||[],unread=list.filter(function(n){return !n.read;}).length,b=document.getElementById('notificationBadge');b.textContent=unread;b.style.display=unread?'flex':'none';
-  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){return '<div class="notification-item '+(!n.read?'unread':'')+'" data-notification="'+safe(n.id)+'" onclick="markNotificationRead(\''+safeJs(n.id)+'\')"><strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p><time>'+safe(formatDateTime(n.createdAt))+'</time></div>';}).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong><span>Nenhuma notificação por enquanto.</span></div>';
+  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){return '<div class="notification-item '+(!n.read?'unread':'')+'" data-notification="'+safe(n.id)+'" onclick="openNotificationDemand(\''+safeJs(n.id)+'\')"><strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p><time>'+safe(formatDateTime(n.createdAt))+'</time></div>';}).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong><span>Nenhuma notificação por enquanto.</span></div>';
 }
 function toggleNotificationPanel(){var p=document.getElementById('notificationPanel'),open=p.classList.toggle('open');document.getElementById('notificationButton').setAttribute('aria-expanded',open?'true':'false');if(open)renderNotifications();}
 function closeNotificationPanel(){document.getElementById('notificationPanel').classList.remove('open');document.getElementById('notificationButton').setAttribute('aria-expanded','false');}
+function openNotificationDemand(id){
+  var n=(APP_DATA.notifications||[]).find(function(x){return String(x.id)===String(id);});
+  if(!n)return;
+  if(!n.read)markNotificationRead(id);
+  closeNotificationPanel();
+  var items=(APP_DATA.campaigns||[]).concat(APP_DATA.managementItems||[]);
+  var targetId=n.demandId||n.demandaId||n.demanda_id||null;
+  var text=(String(n.title||'')+' '+String(n.message||'')).toLowerCase();
+  if(!targetId){
+    var matches=items.filter(function(x){
+      var name=String(x.title||'').toLowerCase().trim();
+      return name.length>5 && text.indexOf(name)>=0;
+    });
+    if(matches.length===1)targetId=matches[0].id;
+  }
+  if(targetId){openDemandDetail(targetId);return;}
+  showPage('campanhas');
+  showToast('Abra a demanda correspondente na lista. Esta notificação não possui vínculo direto.');
+}
 function markNotificationRead(id){
   var n=(APP_DATA.notifications||[]).find(function(x){return String(x.id)===String(id);});if(!n||n.read)return;
   var ok=function(){n.read=true;(APP_DATA.summary||{}).unread=Math.max(0,Number((APP_DATA.summary||{}).unread||0)-1);renderNotifications();renderHome();};
@@ -409,47 +428,49 @@ function parseMultiSheetCampaign(file,done,fail){
  reader.onload=function(e){try{
   if(typeof XLSX==='undefined')throw new Error('Leitor XLSX indisponível');
   var wb=XLSX.read(e.target.result,{type:'array',raw:false});
-  var perStore={},sections=[],source=[],editableFields={},editableOrder=[];
+  var perStore={},source=[];
   wb.SheetNames.forEach(function(name){
    if(/base\s*(lojas|adm)/i.test(name))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
-   if(rows.length<4)return;
-   var titles=rows[1]||[],units=rows[2]||[],count=0;
-   var last=Math.max(titles.length,units.length);
-   for(var ri=3;ri<rows.length;ri++){
-    var row=rows[ri]||[],label=String(row[0]||'');
-    // Alguns modelos possuem colunas iniciais vazias/mescladas: localizar o código LJ nas primeiras colunas.
-    var storeCell=row.slice(0,Math.min(5,row.length)).map(function(v){return String(v==null?'':v);}).find(function(v){return /LJ\s*\d+/i.test(v);})||label;
-    var matches=storeCell.match(/LJ\s*\d{1,5}/gi)||[];
-    var codes=matches.map(function(value){var m=value.match(/LJ\s*0*(\d{1,5})/i);return m?('0000'+m[1]).slice(-4):'';}).filter(Boolean);
+   var hi=-1,storeCol=-1;
+   for(var h=0;h<Math.min(rows.length,8);h++){
+    var vals=(rows[h]||[]).map(function(v){return normalizeHeader(String(v||''));});
+    var idx=vals.findIndex(function(v){return v==='loja'||v==='centro de custo';});
+    if(idx>=0){hi=h;storeCol=idx;break;}
+   }
+   if(hi<0)return;
+   var headers=(rows[hi]||[]).map(function(v){return normalizeHeader(String(v||''));});
+   var findCol=function(pattern){return headers.findIndex(function(v){return pattern.test(v);});};
+   var productCol=findCol(/descricao|produto/),codeCol=findCol(/cod item|codigo item/);
+   var qtyCol=findCol(/qtd un|quantidade de envio|quantidade enviada/);
+   var masterCol=findCol(/quantidade master/),unitCol=findCol(/un medida|unidade/),pctCol=findCol(/atendido/);
+   var count=0;
+   for(var ri=hi+1;ri<rows.length;ri++){
+    var row=rows[ri]||[],label=String(row[storeCol]||'').trim();
+    var codes=(label.match(/LJ\s*0*\d{1,5}/gi)||[]).map(function(v){var n=v.match(/\d+/);return n?('0000'+String(Number(n[0]))).slice(-4):'';}).filter(Boolean);
     if(!codes.length)continue;
-    var fields=[];
-    for(var ci=1;ci<last;ci++){
-     var value=row[ci];
-     var labelText=String(titles[ci]||units[ci]||('Coluna '+(ci+1))).trim();
-     var isAnswerColumn=/plaquinhas|insumos recebidos|observac/.test(normalizeHeader(labelText));
-     if((value==null||String(value).trim()==='')&&!isAnswerColumn)continue;
-     if(!labelText)continue;
-     var normalized=normalizeHeader(labelText);
-     var editable=/plaquinhas|insumos recebidos|observac/.test(normalized);
-     var fieldId='import_'+normalizeHeader(name).replace(/ /g,'_')+'_'+ci;
-     if(editable){
-       if(!editableFields[fieldId]){
-         var isObs=/observac/.test(normalized);
-         editableFields[fieldId]={id:fieldId,label:name+' — '+labelText,type:isObs?'textarea':'boolean',required:false,options:[]};
-         editableOrder.push(fieldId);
-       }
-       // A resposta real da loja deve iniciar em branco, mesmo se a planilha possuir "Não".
-       fields.push({label:labelText,unit:'',value:String(value),editable:true,fieldId:fieldId});
-     }else fields.push({label:labelText,unit:String(units[ci]||'').trim(),value:String(value)});
-    }
-    codes.forEach(function(code){if(!perStore[code])perStore[code]=[];perStore[code].push({sheet:name,store:label,fields:fields});});
+    var product=productCol>=0?String(row[productCol]||'').trim():'Bomba de recheio';
+    var itemCode=codeCol>=0?String(row[codeCol]||'').trim():'';
+    var quantity=qtyCol>=0?String(row[qtyCol]||'').trim():'';
+    var unit=unitCol>=0?String(row[unitCol]||'').trim():'UN';
+    var fields=[
+      {label:'Código do item',value:itemCode,editable:false},
+      {label:'Produto',value:product,editable:false},
+      {label:'Unidade',value:unit,editable:false},
+      {label:'Quantidade enviada',value:quantity,editable:false}
+    ];
+    if(masterCol>=0)fields.push({label:'Quantidade master',value:String(row[masterCol]||''),editable:false});
+    if(pctCol>=0)fields.push({label:'Percentual atendido no envio',value:String(row[pctCol]||''),editable:false});
+    codes.forEach(function(code){
+      if(!perStore[code])perStore[code]=[];
+      perStore[code].push({sheet:name,store:label,code:itemCode,product:product,sentQuantity:quantity,unit:unit,sourceRow:ri+1,fields:fields});
+    });
     count++;
    }
-   if(count){source.push({sheet:name,rows:count});}
+   source.push({sheet:name,rows:count});
   });
-  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada. Abas lidas: '+wb.SheetNames.join(' / ')+'. Verifique se as lojas estão identificadas com LJ e se a planilha possui registros a partir da quarta linha.');
-  done({version:2,fileName:file.name,perStore:perStore,sheets:source,responseFields:editableOrder.map(function(id){return editableFields[id];})});
+  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas do arquivo.');
+  done({version:3,fileName:file.name,perStore:perStore,sheets:source,responseFields:[]});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
  reader.readAsArrayBuffer(file);
@@ -466,14 +487,28 @@ function renderReadonlyStoreSections(sections,host){
  host.innerHTML=(sections||[]).map(function(sec){return '<div class="detail-box" style="margin-top:12px"><h4>'+safe(sec.sheet)+'</h4><p class="helper">'+safe(sec.store)+'</p>'+
  sec.fields.filter(function(f){return !f.editable;}).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('')||'<div class="empty">Sem dados desta loja.</div>';
 }
-function storeTemplateSectionHtml(sections){return (sections||[]).map(function(sec){return '<div class="detail-box" style="margin-bottom:12px"><h4>'+safe(sec.sheet)+'</h4><p class="helper">'+safe(sec.store)+'</p>'+sec.fields.filter(function(f){return !f.editable;}).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(f.value)+(f.unit?' · '+safe(f.unit):'')+'</span></div>';}).join('')+'</div>';}).join('');}
+function storeTemplateSectionHtml(sections){
+  return (sections||[]).map(function(sec){
+    var rows=(sec.fields||[]).filter(function(f){return !f.editable;});
+    return '<section class="detail-box" style="margin-bottom:14px;overflow:hidden">'+
+      '<h4 style="margin-bottom:5px">'+safe(sec.sheet)+'</h4>'+
+      '<p class="helper">'+safe(sec.store)+'</p>'+
+      '<div style="overflow-x:auto;width:100%"><table style="width:100%;min-width:420px;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr style="background:#f4eee8"><th style="text-align:left;padding:10px;border-bottom:1px solid #ddd2c7">Produto / informação</th>'+
+      '<th style="text-align:left;padding:10px;border-bottom:1px solid #ddd2c7">Enviado / referência</th></tr></thead>'+
+      '<tbody>'+rows.map(function(f,i){return '<tr style="background:'+(i%2?'#fff':'#fffcf8')+'">'+
+      '<td style="padding:9px 10px;border-bottom:1px solid #eee7df">'+safe(f.label)+'</td>'+
+      '<td style="padding:9px 10px;border-bottom:1px solid #eee7df;font-weight:600">'+safe(f.value)+(f.unit?' <small>'+safe(f.unit)+'</small>':'')+'</td></tr>';}).join('')+
+      '</tbody></table></div></section>';
+  }).join('');
+}
 function handleFormSpreadsheet(e){var file=e.target.files&&e.target.files[0];if(!file)return;readSheetFile(file,function(rows,meta){if(meta.sheets&&meta.sheets.length>1){IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=true;parseMultiSheetCampaign(file,function(template){CAMPAIGN_STORE_TEMPLATE=template;IMPORTED_FIELDS=(template.responseFields||[]).concat([{id:'divergencia',label:'Outras divergências ou ajustes necessários',type:'textarea',required:false,options:[]}]);window.BACIO_IMPORT_REQUIRES_MAPPING=false;renderStoreTemplateInfo(template);showToast('Modelo por loja pronto para conferência.');},function(err){showToast('Não foi possível mapear a planilha: '+err.message);});return;}window.BACIO_IMPORT_REQUIRES_MAPPING=false;var headers=(rows[0]||[]).map(function(x){return String(x||'').trim();}).filter(Boolean);IMPORTED_FIELDS=headers.map(function(h,i){return {id:'q'+(i+1),label:h,type:inferFieldType(h,rows.slice(1,21).map(function(r){return r[i];})),required:false,options:[]};});renderImportedFields(meta);},function(err){showToast('Não consegui ler a planilha: '+err.message);});}
 function renderImportedFields(meta){var host=document.getElementById('formImportPreview');host.innerHTML='<div class="helper"><strong>'+IMPORTED_FIELDS.length+'</strong> campos encontrados em '+safe(meta.fileName||'arquivo')+'. Revise abaixo.</div>'+IMPORTED_FIELDS.map(function(f,i){return '<div class="question" data-type="'+safe(f.type)+'"><input class="field imp-label" data-i="'+i+'" value="'+safe(f.label)+'"><select class="select imp-type" data-i="'+i+'">'+questionTypeOptions(f.type)+'</select><label class="check"><input class="imp-required" data-i="'+i+'" type="checkbox">Obrigatória</label><span></span></div>';}).join('');host.querySelectorAll('.imp-label').forEach(function(el){el.oninput=function(){IMPORTED_FIELDS[+el.dataset.i].label=el.value;};});host.querySelectorAll('.imp-type').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].type=el.value;};});host.querySelectorAll('.imp-required').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].required=el.checked;};});}
 function saveCampaign(){
   if(MODEL_TAB==='import'&&window.BACIO_IMPORT_REQUIRES_MAPPING){showToast('Este modelo contém múltiplas abas e exige mapeamento por loja antes de publicar.');return;}
   var title=document.getElementById('fTitle').value.trim();if(!title){showToast('Informe um título.');return;}
   var fields=(MODEL_TAB==='import'?IMPORTED_FIELDS:MANUAL_FIELDS).filter(function(f){return String(f.label||'').trim();}).map(function(f,i){return {id:f.id||'q'+(i+1),label:String(f.label).trim(),type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});
-  if(document.getElementById('fRequired').value==='yes'&&!fields.length){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
+  if(document.getElementById('fRequired').value==='yes'&&!fields.length&&!(MODEL_TAB==='import'&&CAMPAIGN_STORE_TEMPLATE&&CAMPAIGN_STORE_TEMPLATE.perStore)){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
   var routeMode=document.getElementById('fAudienceGroup').value;
   var targetEl=document.getElementById('fRoutingTarget'),routeTarget=targetEl?targetEl.value:'';
   if(routeMode!=='lojas'&&!routeTarget){showToast('Selecione a regional ou o consultor.');return;}
@@ -516,7 +551,7 @@ function renderDemandDetail(d){
   var storeSections=(d.importMeta&&d.importMeta.storeSections)||null;
   var adminTemplateHtml=CURRENT_ROLE==='admin'?renderAdminStoreSimulator(d):'<div class="muted">As perguntas e respostas podem ser acompanhadas na área de Respostas das Lojas.</div>';
   var answers=(d.myResponse&&d.myResponse.answers)||{};var answerHtml=(d.modelFields||[]).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+(f.required?' *':'')+'</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('');
-  document.getElementById('detailBody').innerHTML='<div class="detail-grid"><div class="detail-box"><span class="eyebrow">'+safe(typeLabel(d.type))+' · '+safe((t.label||d.timelineLabel||''))+'</span><p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p><div class="timeline"><div><span>Publicada</span><strong>'+safe(formatDateTime(d.publicadaEm||t.publishedAt)||'—')+'</strong></div><div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm||t.startAt)||'Imediato')+'</strong></div><div><span>Prazo</span><strong>'+safe(formatDateTime(d.deadline||t.deadline)||'Sem prazo')+'</strong></div><div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm||t.endAt)||'Sem encerramento')+'</strong></div></div><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0"><div class="kpi"><strong>'+Number(d.totalStores||0)+'</strong><span>Lojas</span></div><div class="kpi"><strong>'+Number(d.answeredCount||0)+'</strong><span>Responderam</span></div><div class="kpi"><strong>'+Number(pct||0)+'%</strong><span>Conclusão</span></div></div></div><div class="detail-box"><h4>'+(CURRENT_ROLE==='loja'?'Sua resposta':'Modelo de resposta')+'</h4>'+(storeSections?storeTemplateSectionHtml(storeSections):'')+(CURRENT_ROLE==='loja'?renderStoreResponseSection(d,answerHtml):adminTemplateHtml)+'</div></div>';
+  document.getElementById('detailBody').innerHTML='<div class="detail-grid"><div class="detail-box"><span class="eyebrow">'+safe(typeLabel(d.type))+' · '+safe((t.label||d.timelineLabel||''))+'</span><p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p><div class="timeline"><div><span>Publicada</span><strong>'+safe(formatDateTime(d.publicadaEm||t.publishedAt)||'—')+'</strong></div><div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm||t.startAt)||'Imediato')+'</strong></div><div><span>Prazo</span><strong>'+safe(formatDateTime(d.deadline||t.deadline)||'Sem prazo')+'</strong></div><div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm||t.endAt)||'Sem encerramento')+'</strong></div></div><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0"><div class="kpi"><strong>'+Number(d.totalStores||0)+'</strong><span>Lojas</span></div><div class="kpi"><strong>'+Number(d.answeredCount||0)+'</strong><span>Responderam</span></div><div class="kpi"><strong>'+Number(pct||0)+'%</strong><span>Conclusão</span></div></div></div><div class="detail-box"><h4>'+(CURRENT_ROLE==='loja'?'Sua resposta':'Modelo de resposta')+'</h4>'+((storeSections&&CURRENT_ROLE!=='loja')?storeTemplateSectionHtml(storeSections):'')+(CURRENT_ROLE==='loja'?renderStoreResponseSection(d,answerHtml):adminTemplateHtml)+'</div></div>';
   var workflow=(d.cronograma||{}),decisionStatus=workflow.aprovacaoStatus||'';
   if(decisionStatus==='ajustes'||decisionStatus==='reprovada'){
     document.getElementById('detailBody').innerHTML+='<div class="detail-box"><h4>'+safe(decisionStatus==='ajustes'?'Ajustes solicitados':'Reprovação definitiva')+'</h4><p>'+safe(workflow.decisaoJustificativa||'Sem justificativa')+'</p><div class="muted">'+safe(workflow.decisaoPor||'')+' · '+safe(formatDateTime(workflow.decisaoEm)||'')+'</div></div>';
@@ -645,18 +680,60 @@ function renderAdministrativeResponsePreview(fields){
     }).join('')+
     '<div class="helper">Visualização administrativa — sem possibilidade de enviar resposta.</div>';
 }
+function bacioConferenciaKey(sec,i){
+  return 'conferencia_'+String(sec.sheet||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+i;
+}
+function bacioConferenciaRows(d,previous){
+  var sections=(d.importMeta&&d.importMeta.storeSections)||[];
+  if(!sections.length)return '';
+  return '<div class="bacio-conferencia-table" style="overflow-x:auto"><table style="width:100%;min-width:650px;border-collapse:collapse">'+
+   '<thead><tr><th>Aba / Produto</th><th>Enviado / referência</th><th>Recebimento</th><th>Qtd. recebida</th><th>Chamado MOKI</th></tr></thead><tbody>'+
+   sections.map(function(sec,si){
+     var key=bacioConferenciaKey(sec,si),p=previous[key]||{};
+     var fields=(sec.fields||[]).filter(function(x){return !x.editable;});
+     var label=sec.product?(String(sec.code||'')+' · '+String(sec.product||'')):fields.slice(0,3).map(function(x){return x.label+': '+x.value;}).join(' · ');
+     return '<tr data-conferencia="'+safe(key)+'">'+
+       '<td>'+safe(sec.sheet)+'<small style="display:block">'+safe(label||sec.store)+'</small></td>'+
+       '<td>'+safe(sec.sentQuantity!=null?(sec.sentQuantity+' '+(sec.unit||'')):fields.slice(3).map(function(x){return x.value}).filter(Boolean).join(' · ')||'Conferir documento')+'</td>'+
+       '<td><select class="select conf-status"><option value="">Selecione</option>'+
+       [['recebido','Recebido'],['parcial','Parcial'],['nao_recebido','Não recebido']].map(function(o){return '<option value="'+o[0]+'"'+(p.status===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></td>'+
+       '<td><input class="field conf-qtd" type="number" min="0" step="any" value="'+safe(p.quantidade==null?'':p.quantidade)+'"></td>'+
+       '<td><input class="field conf-moki" placeholder="Se divergente" value="'+safe(p.moki||'')+'"></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
 function renderStoreResponseSection(d,answerHtml){
   var current=d.myResponse||null,status=String((current||{}).status||'').toLowerCase();
   var canCorrect=current&&(status==='ajuste_necessario'||status==='reprovada');
   if(current&&!canCorrect){return '<div class="response-status-note '+safe(status||'respondido')+'">Resposta enviada em '+safe(formatDateTime(current.createdAt))+'.</div>'+answerHtml+'<div class="answer-line"><strong>Observação</strong><span>'+safe(current.observacao||'—')+'</span></div>';}
   var previousAnswers=(current&&current.answers)||{};
+  if(d.importMeta&&Array.isArray(d.importMeta.storeSections)&&d.importMeta.storeSections.length){
+    var note=current?'<p class="helper">Revise os itens e envie a correção.</p>':'';
+    return note+'<div id="storeResponseForm">'+bacioConferenciaRows(d,previousAnswers)+
+      '<div style="margin-top:12px"><label class="label">Observações gerais</label><textarea class="textarea" id="storeResponseObs">'+safe(current&&current.observacao||'')+'</textarea></div>'+
+      '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">Enviar conferência</button></div>';
+  }
   var notice=current?'<div class="response-status-note '+safe(status)+'">O escritório solicitou uma nova versão desta resposta. Revise os campos e envie novamente.</div>':'';
-  return notice+'<div id="storeResponseForm">'+requestFieldsForStore(d.modelFields||[],(d.importMeta&&d.importMeta.storeSections)||[]).map(function(f){return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,previousAnswers[f.id])+'</div>';}).join('')+'<div><label class="label">Observação</label><textarea id="storeResponseObs" class="textarea">'+safe(current?current.observacao||'':'')+'</textarea></div><button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
+    return notice+'<div id="storeResponseForm"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:440px">'+
+    '<thead><tr style="background:#f4eee8"><th style="padding:10px;text-align:left">Conferência / campo</th><th style="padding:10px;text-align:left">Resposta da loja</th></tr></thead><tbody>'+
+    requestFieldsForStore(d.modelFields||[],(d.importMeta&&d.importMeta.storeSections)||[]).map(function(f,i){
+      return '<tr style="background:'+(i%2?'#fff':'#fffcf8')+'"><td style="padding:10px;border-bottom:1px solid #eee7df;font-weight:600">'+safe(f.label)+(f.required?' *':'')+'</td>'+
+      '<td style="padding:10px;border-bottom:1px solid #eee7df">'+responseInput(f,previousAnswers[f.id])+'</td></tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<div style="margin-top:14px"><label class="label">Observação</label><textarea id="storeResponseObs" class="textarea">'+safe(current?current.observacao||'':'')+'</textarea></div>'+
+    '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
 }
 function responseInput(f,current){var req=f.required?' data-required="1"':'',val=current==null?'':String(current);if(f.type==='textarea')return '<textarea class="textarea answer-input" data-key="'+safe(f.id)+'"'+req+'>'+safe(val)+'</textarea>';if(f.type==='boolean')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option><option value="Sim" '+(val==='Sim'?'selected':'')+'>Sim</option><option value="Não" '+(val==='Não'?'selected':'')+'>Não</option></select>';if(f.type==='select')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option>'+(f.options||[]).map(function(o){return '<option value="'+safe(o)+'" '+(val===String(o)?'selected':'')+'>'+safe(o)+'</option>';}).join('')+'</select>';return '<input class="field answer-input" data-key="'+safe(f.id)+'"'+req+' type="'+(f.type==='number'?'number':f.type==='date'?'date':'text')+'" value="'+safe(val)+'">';}
 function submitStoreResponse(demandaId){
   var answers={},missing=false;
   document.querySelectorAll('#storeResponseForm .answer-input').forEach(function(el){answers[el.dataset.key]=el.value;if(el.getAttribute('data-required')==='1'&&!String(el.value||'').trim())missing=true;});
+  var confRows=document.querySelectorAll('#storeResponseForm tr[data-conferencia]');
+  for(var ci=0;ci<confRows.length;ci++){
+    var row=confRows[ci],key=row.getAttribute('data-conferencia');
+    var status=row.querySelector('.conf-status').value,qty=row.querySelector('.conf-qtd').value,moki=row.querySelector('.conf-moki').value.trim();
+    if(!status){showToast('Informe o recebimento de todos os itens.');return;}
+    if(status!=='recebido'&&(!moki||qty==='')){showToast('Em divergências, informe a quantidade e o chamado MOKI.');return;}
+    answers[key]={status:status,quantidade:qty===''?null:Number(qty),moki:moki};
+  }
   if(missing){showToast('Preencha todas as perguntas obrigatórias.');return;}
   var payload={demandaId:demandaId,lojaId:(APP_DATA.user||{}).lojaId,answers:answers,observacao:(document.getElementById('storeResponseObs')||{}).value||'',status:'respondido'};
   var ok=function(){showToast('Resposta enviada.');closeModal('detailModal');refreshBootstrap('campanhas');};
@@ -905,7 +982,7 @@ function serverError(error){
   showToast(msg);
 }
 
-function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
+function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
 function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';}
