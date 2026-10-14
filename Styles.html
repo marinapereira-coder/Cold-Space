@@ -2284,4 +2284,22 @@ body.dark-mode .campaign-dept-card span{color:#ddc3ae;}
 body.dark-mode .campaign-dept-card.selected{border-color:#d1a184;}
 @media(max-width:650px){.campaign-dept-card{min-width:calc(50% - 5px);flex:1;}}
 
+
+/* Conferências importadas: resumo superior e tabela em largura total. */
+#detailModal:has(.bacio-conferencia-table) .modal.wide{width:min(1500px,calc(100vw - 28px));max-width:none}
+#detailModal:has(.bacio-conferencia-table) .detail-grid{grid-template-columns:minmax(0,1fr)}
+#detailModal:has(.bacio-conferencia-table) .detail-grid>.detail-box{min-width:0}
+#detailModal:has(.bacio-conferencia-table) .detail-grid>.detail-box:first-child{padding:15px 20px}
+#detailModal:has(.bacio-conferencia-table) .timeline{margin-top:10px}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table{width:100%;max-width:100%}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table table{min-width:900px!important;table-layout:auto}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table th,
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table td{padding:11px 12px;text-align:left;vertical-align:middle;border-bottom:1px solid var(--line);font-size:13px;white-space:normal}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table th{background:var(--cream2);font-weight:700;position:sticky;top:0}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table th:first-child,
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table td:first-child{min-width:280px;width:36%}
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table .field,
+#detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table .select{min-width:120px;width:100%;box-sizing:border-box}
+@media(max-width:700px){#detailModal:has(.bacio-conferencia-table) .modal.wide{width:calc(100vw - 12px)}}
+
 </style>
