@@ -678,11 +678,38 @@ function renderAdministrativeResponsePreview(fields){
     }).join('')+
     '<div class="helper">Visualização administrativa — sem possibilidade de enviar resposta.</div>';
 }
+function bacioConferenciaKey(sec,i){
+  return 'conferencia_'+String(sec.sheet||'').replace(/[^a-zA-Z0-9]/g,'_')+'_'+i;
+}
+function bacioConferenciaRows(d,previous){
+  var sections=(d.importMeta&&d.importMeta.storeSections)||[];
+  if(!sections.length)return '';
+  return '<div class="bacio-conferencia-table" style="overflow-x:auto"><table style="width:100%;min-width:650px;border-collapse:collapse">'+
+   '<thead><tr><th>Aba / Produto</th><th>Enviado / referência</th><th>Recebimento</th><th>Qtd. recebida</th><th>Chamado MOKI</th></tr></thead><tbody>'+
+   sections.map(function(sec,si){
+     var key=bacioConferenciaKey(sec,si),p=previous[key]||{};
+     var fields=(sec.fields||[]).filter(function(x){return !x.editable;});
+     var label=fields.slice(0,3).map(function(x){return x.label+': '+x.value;}).join(' · ');
+     return '<tr data-conferencia="'+safe(key)+'">'+
+       '<td>'+safe(sec.sheet)+'<small style="display:block">'+safe(label||sec.store)+'</small></td>'+
+       '<td>'+safe(fields.slice(3).map(function(x){return x.value}).filter(Boolean).join(' · ')||'Conferir documento')+'</td>'+
+       '<td><select class="select conf-status"><option value="">Selecione</option>'+
+       [['recebido','Recebido'],['parcial','Parcial'],['nao_recebido','Não recebido']].map(function(o){return '<option value="'+o[0]+'"'+(p.status===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></td>'+
+       '<td><input class="field conf-qtd" type="number" min="0" step="any" value="'+safe(p.quantidade==null?'':p.quantidade)+'"></td>'+
+       '<td><input class="field conf-moki" placeholder="Se divergente" value="'+safe(p.moki||'')+'"></td></tr>';
+   }).join('')+'</tbody></table></div>';
+}
 function renderStoreResponseSection(d,answerHtml){
   var current=d.myResponse||null,status=String((current||{}).status||'').toLowerCase();
   var canCorrect=current&&(status==='ajuste_necessario'||status==='reprovada');
   if(current&&!canCorrect){return '<div class="response-status-note '+safe(status||'respondido')+'">Resposta enviada em '+safe(formatDateTime(current.createdAt))+'.</div>'+answerHtml+'<div class="answer-line"><strong>Observação</strong><span>'+safe(current.observacao||'—')+'</span></div>';}
   var previousAnswers=(current&&current.answers)||{};
+  if(d.importMeta&&Array.isArray(d.importMeta.storeSections)&&d.importMeta.storeSections.length){
+    var note=current?'<p class="helper">Revise os itens e envie a correção.</p>':'';
+    return note+'<div id="storeResponseForm">'+bacioConferenciaRows(d,previousAnswers)+
+      '<div style="margin-top:12px"><label class="label">Observações gerais</label><textarea class="textarea" id="storeResponseObs">'+safe(current&&current.observacao||'')+'</textarea></div>'+
+      '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\\')">Enviar conferência</button></div>';
+  }
   var notice=current?'<div class="response-status-note '+safe(status)+'">O escritório solicitou uma nova versão desta resposta. Revise os campos e envie novamente.</div>':'';
     return notice+'<div id="storeResponseForm"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:440px">'+
     '<thead><tr style="background:#f4eee8"><th style="padding:10px;text-align:left">Conferência / campo</th><th style="padding:10px;text-align:left">Resposta da loja</th></tr></thead><tbody>'+
@@ -697,6 +724,14 @@ function responseInput(f,current){var req=f.required?' data-required="1"':'',val
 function submitStoreResponse(demandaId){
   var answers={},missing=false;
   document.querySelectorAll('#storeResponseForm .answer-input').forEach(function(el){answers[el.dataset.key]=el.value;if(el.getAttribute('data-required')==='1'&&!String(el.value||'').trim())missing=true;});
+  var confRows=document.querySelectorAll('#storeResponseForm tr[data-conferencia]');
+  for(var ci=0;ci<confRows.length;ci++){
+    var row=confRows[ci],key=row.getAttribute('data-conferencia');
+    var status=row.querySelector('.conf-status').value,qty=row.querySelector('.conf-qtd').value,moki=row.querySelector('.conf-moki').value.trim();
+    if(!status){showToast('Informe o recebimento de todos os itens.');return;}
+    if(status!=='recebido'&&(!moki||qty==='')){showToast('Em divergências, informe a quantidade e o chamado MOKI.');return;}
+    answers[key]={status:status,quantidade:qty===''?null:Number(qty),moki:moki};
+  }
   if(missing){showToast('Preencha todas as perguntas obrigatórias.');return;}
   var payload={demandaId:demandaId,lojaId:(APP_DATA.user||{}).lojaId,answers:answers,observacao:(document.getElementById('storeResponseObs')||{}).value||'',status:'respondido'};
   var ok=function(){showToast('Resposta enviada.');closeModal('detailModal');refreshBootstrap('campanhas');};
