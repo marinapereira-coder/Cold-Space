@@ -2302,4 +2302,30 @@ body.dark-mode .campaign-dept-card.selected{border-color:#d1a184;}
 #detailModal:has(.bacio-conferencia-table) .bacio-conferencia-table .select{min-width:120px;width:100%;box-sizing:border-box}
 @media(max-width:700px){#detailModal:has(.bacio-conferencia-table) .modal.wide{width:calc(100vw - 12px)}}
 
+
+/* Visão administrativa da conferência: cabeçalho compacto e tabela ampla. */
+#detailModal:has(#campaignStoreSimulatorSelect) .modal.wide{width:min(1500px,calc(100vw - 28px));max-width:none}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid{grid-template-columns:minmax(0,1fr)}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box{min-width:0}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child{
+  display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:10px 22px;padding:14px 20px
+}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.eyebrow,
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.subtitle{grid-column:1/-1;margin:0!important}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.timeline{margin:0;align-self:stretch}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.kpi-grid{margin:0!important;gap:8px}
+#detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.kpi-grid .kpi{padding:10px 8px}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorSelect{max-width:550px}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody{min-width:0}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody .detail-box{min-width:0}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody table{width:100%;table-layout:auto}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody table th,
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody table td{padding:11px 13px;font-size:13px;vertical-align:top}
+#detailModal:has(#campaignStoreSimulatorSelect) #campaignStoreSimulatorBody .answer-line{font-size:13px}
+@media(max-width:900px){
+  #detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child{grid-template-columns:minmax(0,1fr)}
+  #detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.timeline,
+  #detailModal:has(#campaignStoreSimulatorSelect) .detail-grid>.detail-box:first-child>.kpi-grid{grid-column:1}
+}
+
 </style>
