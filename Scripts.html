@@ -428,47 +428,49 @@ function parseMultiSheetCampaign(file,done,fail){
  reader.onload=function(e){try{
   if(typeof XLSX==='undefined')throw new Error('Leitor XLSX indisponível');
   var wb=XLSX.read(e.target.result,{type:'array',raw:false});
-  var perStore={},sections=[],source=[],editableFields={},editableOrder=[];
+  var perStore={},source=[];
   wb.SheetNames.forEach(function(name){
-   if(/base\s*(lojas|adm)/i.test(name))return;
+   if(/base\\s*(lojas|adm)/i.test(name))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
-   if(rows.length<4)return;
-   var titles=rows[1]||[],units=rows[2]||[],count=0;
-   var last=Math.max(titles.length,units.length);
-   for(var ri=3;ri<rows.length;ri++){
-    var row=rows[ri]||[],label=String(row[0]||'');
-    // Alguns modelos possuem colunas iniciais vazias/mescladas: localizar o código LJ nas primeiras colunas.
-    var storeCell=row.slice(0,Math.min(5,row.length)).map(function(v){return String(v==null?'':v);}).find(function(v){return /LJ\s*\d+/i.test(v);})||label;
-    var matches=storeCell.match(/LJ\s*\d{1,5}/gi)||[];
-    var codes=matches.map(function(value){var m=value.match(/LJ\s*0*(\d{1,5})/i);return m?('0000'+m[1]).slice(-4):'';}).filter(Boolean);
+   var hi=-1,storeCol=-1;
+   for(var h=0;h<Math.min(rows.length,8);h++){
+    var vals=(rows[h]||[]).map(function(v){return normalizeHeader(String(v||''));});
+    var idx=vals.findIndex(function(v){return v==='loja'||v==='centro de custo';});
+    if(idx>=0){hi=h;storeCol=idx;break;}
+   }
+   if(hi<0)return;
+   var headers=(rows[hi]||[]).map(function(v){return normalizeHeader(String(v||''));});
+   var findCol=function(pattern){return headers.findIndex(function(v){return pattern.test(v);});};
+   var productCol=findCol(/descricao|produto/),codeCol=findCol(/cod item|codigo item/);
+   var qtyCol=findCol(/qtd un|quantidade de envio|quantidade enviada/);
+   var masterCol=findCol(/quantidade master/),unitCol=findCol(/un medida|unidade/),pctCol=findCol(/atendido/);
+   var count=0;
+   for(var ri=hi+1;ri<rows.length;ri++){
+    var row=rows[ri]||[],label=String(row[storeCol]||'').trim();
+    var codes=(label.match(/LJ\\s*0*\\d{1,5}/gi)||[]).map(function(v){var n=v.match(/\\d+/);return n?('0000'+String(Number(n[0]))).slice(-4):'';}).filter(Boolean);
     if(!codes.length)continue;
-    var fields=[];
-    for(var ci=1;ci<last;ci++){
-     var value=row[ci];
-     var labelText=String(titles[ci]||units[ci]||('Coluna '+(ci+1))).trim();
-     var isAnswerColumn=/plaquinhas|insumos recebidos|observac/.test(normalizeHeader(labelText));
-     if((value==null||String(value).trim()==='')&&!isAnswerColumn)continue;
-     if(!labelText)continue;
-     var normalized=normalizeHeader(labelText);
-     var editable=/plaquinhas|insumos recebidos|observac/.test(normalized);
-     var fieldId='import_'+normalizeHeader(name).replace(/ /g,'_')+'_'+ci;
-     if(editable){
-       if(!editableFields[fieldId]){
-         var isObs=/observac/.test(normalized);
-         editableFields[fieldId]={id:fieldId,label:name+' — '+labelText,type:isObs?'textarea':'boolean',required:false,options:[]};
-         editableOrder.push(fieldId);
-       }
-       // A resposta real da loja deve iniciar em branco, mesmo se a planilha possuir "Não".
-       fields.push({label:labelText,unit:'',value:String(value),editable:true,fieldId:fieldId});
-     }else fields.push({label:labelText,unit:String(units[ci]||'').trim(),value:String(value)});
-    }
-    codes.forEach(function(code){if(!perStore[code])perStore[code]=[];perStore[code].push({sheet:name,store:label,fields:fields});});
+    var product=productCol>=0?String(row[productCol]||'').trim():'Bomba de recheio';
+    var itemCode=codeCol>=0?String(row[codeCol]||'').trim():'';
+    var quantity=qtyCol>=0?String(row[qtyCol]||'').trim():'';
+    var unit=unitCol>=0?String(row[unitCol]||'').trim():'UN';
+    var fields=[
+      {label:'Código do item',value:itemCode,editable:false},
+      {label:'Produto',value:product,editable:false},
+      {label:'Unidade',value:unit,editable:false},
+      {label:'Quantidade enviada',value:quantity,editable:false}
+    ];
+    if(masterCol>=0)fields.push({label:'Quantidade master',value:String(row[masterCol]||''),editable:false});
+    if(pctCol>=0)fields.push({label:'Percentual atendido no envio',value:String(row[pctCol]||''),editable:false});
+    codes.forEach(function(code){
+      if(!perStore[code])perStore[code]=[];
+      perStore[code].push({sheet:name,store:label,code:itemCode,product:product,sentQuantity:quantity,unit:unit,sourceRow:ri+1,fields:fields});
+    });
     count++;
    }
-   if(count){source.push({sheet:name,rows:count});}
+   source.push({sheet:name,rows:count});
   });
-  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada. Abas lidas: '+wb.SheetNames.join(' / ')+'. Verifique se as lojas estão identificadas com LJ e se a planilha possui registros a partir da quarta linha.');
-  done({version:2,fileName:file.name,perStore:perStore,sheets:source,responseFields:editableOrder.map(function(id){return editableFields[id];})});
+  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas do arquivo.');
+  done({version:3,fileName:file.name,perStore:perStore,sheets:source,responseFields:[]});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
  reader.readAsArrayBuffer(file);
@@ -506,7 +508,7 @@ function saveCampaign(){
   if(MODEL_TAB==='import'&&window.BACIO_IMPORT_REQUIRES_MAPPING){showToast('Este modelo contém múltiplas abas e exige mapeamento por loja antes de publicar.');return;}
   var title=document.getElementById('fTitle').value.trim();if(!title){showToast('Informe um título.');return;}
   var fields=(MODEL_TAB==='import'?IMPORTED_FIELDS:MANUAL_FIELDS).filter(function(f){return String(f.label||'').trim();}).map(function(f,i){return {id:f.id||'q'+(i+1),label:String(f.label).trim(),type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});
-  if(document.getElementById('fRequired').value==='yes'&&!fields.length){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
+  if(document.getElementById('fRequired').value==='yes'&&!fields.length&&!(MODEL_TAB==='import'&&CAMPAIGN_STORE_TEMPLATE&&CAMPAIGN_STORE_TEMPLATE.perStore)){showToast('Adicione pelo menos uma pergunta ao formulário.');return;}
   var routeMode=document.getElementById('fAudienceGroup').value;
   var targetEl=document.getElementById('fRoutingTarget'),routeTarget=targetEl?targetEl.value:'';
   if(routeMode!=='lojas'&&!routeTarget){showToast('Selecione a regional ou o consultor.');return;}
@@ -689,10 +691,10 @@ function bacioConferenciaRows(d,previous){
    sections.map(function(sec,si){
      var key=bacioConferenciaKey(sec,si),p=previous[key]||{};
      var fields=(sec.fields||[]).filter(function(x){return !x.editable;});
-     var label=fields.slice(0,3).map(function(x){return x.label+': '+x.value;}).join(' · ');
+     var label=sec.product?(String(sec.code||'')+' · '+String(sec.product||'')):fields.slice(0,3).map(function(x){return x.label+': '+x.value;}).join(' · ');
      return '<tr data-conferencia="'+safe(key)+'">'+
        '<td>'+safe(sec.sheet)+'<small style="display:block">'+safe(label||sec.store)+'</small></td>'+
-       '<td>'+safe(fields.slice(3).map(function(x){return x.value}).filter(Boolean).join(' · ')||'Conferir documento')+'</td>'+
+       '<td>'+safe(sec.sentQuantity!=null?(sec.sentQuantity+' '+(sec.unit||'')):fields.slice(3).map(function(x){return x.value}).filter(Boolean).join(' · ')||'Conferir documento')+'</td>'+
        '<td><select class="select conf-status"><option value="">Selecione</option>'+
        [['recebido','Recebido'],['parcial','Parcial'],['nao_recebido','Não recebido']].map(function(o){return '<option value="'+o[0]+'"'+(p.status===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></td>'+
        '<td><input class="field conf-qtd" type="number" min="0" step="any" value="'+safe(p.quantidade==null?'':p.quantidade)+'"></td>'+
