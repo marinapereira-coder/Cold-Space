@@ -691,7 +691,7 @@ function renderStoreResponseSection(d,answerHtml){
       '<td style="padding:10px;border-bottom:1px solid #eee7df">'+responseInput(f,previousAnswers[f.id])+'</td></tr>';
     }).join('')+'</tbody></table></div>'+
     '<div style="margin-top:14px"><label class="label">Observação</label><textarea id="storeResponseObs" class="textarea">'+safe(current?current.observacao||'':'')+'</textarea></div>'+
-    '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\\''+safeJs(d.id)+'\\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
+    '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">'+(current?'Enviar correção':'Enviar resposta')+'</button></div>';
 }
 function responseInput(f,current){var req=f.required?' data-required="1"':'',val=current==null?'':String(current);if(f.type==='textarea')return '<textarea class="textarea answer-input" data-key="'+safe(f.id)+'"'+req+'>'+safe(val)+'</textarea>';if(f.type==='boolean')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option><option value="Sim" '+(val==='Sim'?'selected':'')+'>Sim</option><option value="Não" '+(val==='Não'?'selected':'')+'>Não</option></select>';if(f.type==='select')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option>'+(f.options||[]).map(function(o){return '<option value="'+safe(o)+'" '+(val===String(o)?'selected':'')+'>'+safe(o)+'</option>';}).join('')+'</select>';return '<input class="field answer-input" data-key="'+safe(f.id)+'"'+req+' type="'+(f.type==='number'?'number':f.type==='date'?'date':'text')+'" value="'+safe(val)+'">';}
 function submitStoreResponse(demandaId){
@@ -945,7 +945,7 @@ function serverError(error){
   showToast(msg);
 }
 
-function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
+function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
 function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';}
