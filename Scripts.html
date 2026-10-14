@@ -708,7 +708,7 @@ function renderStoreResponseSection(d,answerHtml){
     var note=current?'<p class="helper">Revise os itens e envie a correção.</p>':'';
     return note+'<div id="storeResponseForm">'+bacioConferenciaRows(d,previousAnswers)+
       '<div style="margin-top:12px"><label class="label">Observações gerais</label><textarea class="textarea" id="storeResponseObs">'+safe(current&&current.observacao||'')+'</textarea></div>'+
-      '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\\')">Enviar conferência</button></div>';
+      '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">Enviar conferência</button></div>';
   }
   var notice=current?'<div class="response-status-note '+safe(status)+'">O escritório solicitou uma nova versão desta resposta. Revise os campos e envie novamente.</div>':'';
     return notice+'<div id="storeResponseForm"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:440px">'+
