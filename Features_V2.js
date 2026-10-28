@@ -3958,7 +3958,7 @@ function getStoreAccessWorkspace() {
             lojaNome:
               store.nome ||
               '',
-            departamento: isDepartmentUser_(u)?departmentOfUser_(u):'',
+            departamento: roleOf_(u)==='admin'?'Operações':(isDepartmentUser_(u)?departmentOfUser_(u):''),
 
             ativo:
               u.ativo !==
@@ -4222,6 +4222,25 @@ function createUnifiedAccess(input) {
  requireAdmin_();
  var role=String(input.role||'').toLowerCase();
  if(role==='loja')return createStoreAccess(input);
+ // Office administrators use the existing corporate Google sign-in.
+ // Never create a separate password credential or elevate an existing profile silently.
+ if(role==='admin'){
+  var adminEmail=String(input.email||'').trim().toLowerCase();
+  var adminName=String(input.nome||'').trim();
+  if(!adminEmail||!adminName)throw new Error('Informe nome e e-mail corporativo.');
+  validateAllowedDomain_(adminEmail);
+  var adminTable=table_('TABLE_USUARIOS','bacio_usuarios');
+  var adminExisting=supabaseRequest_(
+   '/rest/v1/'+adminTable+'?select=id,role&email=eq.'+encodeURIComponent(adminEmail)+'&limit=1','get'
+  )||[];
+  if(adminExisting.length)throw new Error('Este e-mail já possui um cadastro. Verifique o perfil antes de alterar o acesso.');
+  var adminPayload={
+   email:adminEmail,nome:adminName,role:'admin',ativo:true,
+   auth_provider:'google',force_password_change:false,updated_at:new Date().toISOString()
+  };
+  var adminSaved=supabaseRequest_('/rest/v1/'+adminTable,'post',adminPayload,'return=representation');
+  return {ok:true,user:adminSaved&&adminSaved[0]||adminPayload};
+ }
  var allowed=['marketing','rh','qualidade','treinamento','comercial','growth','ti'];
  if(allowed.indexOf(role)<0)throw new Error('Selecione um perfil permitido.');
  var email=String(input.email||'').trim().toLowerCase();

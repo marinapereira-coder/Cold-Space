@@ -927,21 +927,82 @@ function loadDepartmentAccesses(){
  }).withFailureHandler(function(e){el.textContent='Não foi possível carregar os departamentos: '+String(e.message||e);}).getDepartmentAccessWorkspace();
 }
 function loadAccesses(){if(CURRENT_ROLE!=='admin')return;document.getElementById('accessTable').innerHTML='<div class="empty">Carregando acessos...</div>';google.script.run.withSuccessHandler(function(data){ACCESS_DATA=data||{items:[]};renderAccesses();}).withFailureHandler(serverError).getStoreAccessWorkspace();}
-function renderAccesses(){if(!ACCESS_DATA){loadAccesses();return;}var q=(document.getElementById('accessSearch').value||'').toLowerCase().trim(),f=document.getElementById('accessStatusFilter').value,items=(ACCESS_DATA.items||[]).filter(function(i){var text=((i.lojaCodigo||'')+' '+(i.lojaNome||'')+' '+(i.nome||'')+' '+(i.role||'')+' '+(i.email||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(f==='all'||(f==='active'&&i.ativo)||(f==='inactive'&&!i.ativo));});document.getElementById('accessKpis').innerHTML=[[(ACCESS_DATA.items||[]).length,'Acessos cadastrados'],[(ACCESS_DATA.items||[]).filter(function(i){return i.ativo;}).length,'Ativos'],[(ACCESS_DATA.items||[]).filter(function(i){return !i.ativo;}).length,'Inativos'],[(ACCESS_DATA.items||[]).filter(function(i){return i.forcePasswordChange;}).length,'Senha temporária']].map(kpiHtml).join('');document.getElementById('accessTable').innerHTML='<div class="row header"><div>Usuário / Perfil</div><div>Login</div><div>Status</div><div>Senha</div><div>Ações</div></div>'+(items.map(function(i){return '<div class="row actions-row"><div><h4>'+safe((i.lojaCodigo?i.lojaCodigo+' · ':'')+(i.lojaNome||i.nome||'Usuário'))+'</h4><div class="muted">'+safe((i.role||'').toUpperCase())+'</div></div><div class="muted">'+safe(i.email)+'</div><div><span class="access-pill '+(i.ativo?'active':'inactive')+'">'+(i.ativo?'Ativo':'Inativo')+'</span></div><div class="muted">'+(i.forcePasswordChange?'Temporária':'Definida')+'</div><div class="actions"><button class="btn soft" onclick="openResetAccessPassword(\''+safeJs(i.authUserId)+'\')">Redefinir senha</button><button class="btn '+(i.ativo?'danger':'soft')+'" onclick="toggleAccess(\''+safeJs(i.id)+'\','+(!i.ativo)+')">'+(i.ativo?'Desativar':'Ativar')+'</button></div></div>';}).join('')||'<div class="empty">Nenhum acesso cadastrado.</div>');}
-function openUnifiedAccess(){
- var options=(APP_DATA.stores||[]).map(function(st){return '<option value="'+safe(st.id)+'">'+safe((st.codigo?st.codigo+' · ':'')+st.nome)+'</option>';}).join('');
- var body='<div><label class="label">Perfil de acesso</label><select id="accessRole" class="select" onchange="document.getElementById(\'accessStoreGroup\').style.display=this.value===\'loja\'?\'block\':\'none\';document.getElementById(\'accessNameGroup\').style.display=this.value===\'loja\'?\'none\':\'block\'"><option value="loja">Loja</option><option value="marketing">Marketing</option><option value="rh">RH</option><option value="qualidade">Qualidade</option><option value="treinamento">Treinamento</option><option value="comercial">Comercial</option><option value="growth">Growth</option><option value="ti">TI</option></select></div>'+
- '<div id="accessStoreGroup" style="margin-top:12px"><label class="label">Loja</label><select id="accessStore" class="select"><option value="">Selecione</option>'+options+'</select></div>'+
- '<div id="accessNameGroup" style="display:none;margin-top:12px"><label class="label">Nome do usuário</label><input id="accessName" class="field"></div>'+
- '<div style="margin-top:12px"><label class="label">E-mail de login</label><input id="accessEmail" class="field" type="email"></div>'+
- '<div style="margin-top:12px"><label class="label">Senha temporária</label><input id="accessPassword" class="field" type="password" placeholder="Mínimo de 8 caracteres"><div class="temporary-password-note">O usuário deverá alterar a senha no primeiro acesso.</div></div>';
- openGeneric('Usuários & Acessos','Criar usuário',body,function(){
-  var payload={role:document.getElementById('accessRole').value,lojaId:document.getElementById('accessStore').value,nome:document.getElementById('accessName').value.trim(),email:document.getElementById('accessEmail').value.trim(),password:document.getElementById('accessPassword').value};
-  if(!payload.email||payload.password.length<8||(payload.role==='loja'?!payload.lojaId:!payload.nome)){showToast('Preencha todos os campos obrigatórios.');return;}
-  setBusy('genericSaveBtn',true,'Criando...');
-  google.script.run.withSuccessHandler(function(){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast('Usuário criado.');loadAccesses();})
-  .withFailureHandler(function(err){setBusy('genericSaveBtn',false,'Salvar');serverError(err);}).createUnifiedAccess(payload);
+function renderAccesses(){
+ if(!ACCESS_DATA){loadAccesses();return;}
+ var q=(document.getElementById('accessSearch').value||'').toLowerCase().trim();
+ var f=document.getElementById('accessStatusFilter').value;
+ var items=(ACCESS_DATA.items||[]).filter(function(i){
+  var label=i.role==='admin'?'Operações Administrador':(i.departamento||'');
+  var searchable=[i.lojaCodigo,i.lojaNome,i.nome,i.role,label,i.email].join(' ').toLowerCase();
+  return (!q||searchable.indexOf(q)>=0)&&(f==='all'||(f==='active'&&i.ativo)||(f==='inactive'&&!i.ativo));
  });
+ document.getElementById('accessKpis').innerHTML=[
+  [(ACCESS_DATA.items||[]).length,'Acessos cadastrados'],
+  [(ACCESS_DATA.items||[]).filter(function(i){return i.ativo;}).length,'Ativos'],
+  [(ACCESS_DATA.items||[]).filter(function(i){return !i.ativo;}).length,'Inativos'],
+  [(ACCESS_DATA.items||[]).filter(function(i){return i.forcePasswordChange;}).length,'Senha temporária']
+ ].map(kpiHtml).join('');
+ var header='<div class="row header"><div>Usuário / Perfil</div><div>Login</div><div>Status</div><div>Senha</div><div>Ações</div></div>';
+ var rows=items.map(function(i){
+  var corporate=i.authProvider==='google'||(i.role==='admin'&&!i.authUserId);
+  var roleLabel=i.role==='admin'?'ADMINISTRADOR · OPERAÇÕES':String(i.role||'').toUpperCase();
+  var passwordLabel=corporate?'Google corporativo':(i.forcePasswordChange?'Temporária':'Definida');
+  var resetButton=corporate?'':('<button class="btn soft" onclick="openResetAccessPassword(\''+safeJs(i.authUserId)+'\')">Redefinir senha</button>');
+  return '<div class="row actions-row">'+
+   '<div><h4>'+safe((i.lojaCodigo?i.lojaCodigo+' · ':'')+(i.lojaNome||i.nome||'Usuário'))+'</h4><div class="muted">'+safe(roleLabel)+'</div></div>'+
+   '<div class="muted">'+safe(i.email)+'</div>'+
+   '<div><span class="access-pill '+(i.ativo?'active':'inactive')+'">'+(i.ativo?'Ativo':'Inativo')+'</span></div>'+
+   '<div class="muted">'+passwordLabel+'</div>'+
+   '<div class="actions">'+resetButton+
+    '<button class="btn '+(i.ativo?'danger':'soft')+'" onclick="toggleAccess(\''+safeJs(i.id)+'\','+(!i.ativo)+')">'+(i.ativo?'Desativar':'Ativar')+'</button></div></div>';
+ }).join('');
+ document.getElementById('accessTable').innerHTML=header+(rows||'<div class="empty">Nenhum acesso cadastrado.</div>');
+}
+
+function updateUnifiedAccessFields(){
+ var role=document.getElementById('accessRole').value;
+ document.getElementById('accessStoreGroup').style.display=role==='loja'?'block':'none';
+ document.getElementById('accessNameGroup').style.display=role==='loja'?'none':'block';
+ document.getElementById('accessPasswordGroup').style.display=role==='admin'?'none':'block';
+ document.getElementById('accessCorporateNote').style.display=role==='admin'?'block':'none';
+}
+function openUnifiedAccess(){
+ var options=(APP_DATA.stores||[]).map(function(st){
+  return '<option value="'+safe(st.id)+'">'+safe((st.codigo?st.codigo+' · ':'')+st.nome)+'</option>';
+ }).join('');
+ var body=
+  '<div><label class="label">Perfil de acesso</label><select id="accessRole" class="select" onchange="updateUnifiedAccessFields()">'+
+   '<option value="loja">Loja</option>'+
+   '<option value="admin">Operações — Administrador (Google corporativo)</option>'+
+   '<option value="marketing">Marketing</option><option value="rh">RH</option>'+
+   '<option value="qualidade">Qualidade</option><option value="treinamento">Treinamento</option>'+
+   '<option value="comercial">Comercial</option><option value="growth">Growth</option>'+
+   '<option value="ti">TI</option></select></div>'+
+  '<div id="accessStoreGroup" style="margin-top:12px"><label class="label">Loja</label><select id="accessStore" class="select"><option value="">Selecione</option>'+options+'</select></div>'+
+  '<div id="accessNameGroup" style="display:none;margin-top:12px"><label class="label">Nome do usuário</label><input id="accessName" class="field"></div>'+
+  '<div style="margin-top:12px"><label class="label">E-mail de login</label><input id="accessEmail" class="field" type="email"></div>'+
+  '<div id="accessPasswordGroup" style="margin-top:12px"><label class="label">Senha temporária</label><input id="accessPassword" class="field" type="password" placeholder="Mínimo de 8 caracteres"><div class="temporary-password-note">O usuário deverá alterar a senha no primeiro acesso.</div></div>'+
+  '<div id="accessCorporateNote" class="temporary-password-note" style="display:none;margin-top:12px">Administradores de Operações entram com o e-mail e a senha da conta Google corporativa (@bdil.com.br). Não é criada uma senha separada.</div>';
+ openGeneric('Usuários & Acessos','Criar usuário',body,function(){
+  var payload={
+   role:document.getElementById('accessRole').value,
+   lojaId:document.getElementById('accessStore').value,
+   nome:document.getElementById('accessName').value.trim(),
+   email:document.getElementById('accessEmail').value.trim(),
+   password:document.getElementById('accessPassword').value
+  };
+  if(!payload.email||(payload.role==='loja'?!payload.lojaId:!payload.nome)||(payload.role!=='admin'&&payload.password.length<8)){
+   showToast('Preencha todos os campos obrigatórios.');return;
+  }
+  setBusy('genericSaveBtn',true,'Criando...');
+  google.script.run.withSuccessHandler(function(){
+   setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');
+   showToast('Usuário criado.');loadAccesses();
+  }).withFailureHandler(function(err){
+   setBusy('genericSaveBtn',false,'Salvar');serverError(err);
+  }).createUnifiedAccess(payload);
+ });
+ updateUnifiedAccessFields();
 }
 function openResetAccessPassword(authUserId){if(!authUserId){showToast('Este acesso ainda não possui usuário Auth vinculado.');return;}var body='<label class="label">Nova senha temporária</label><input id="resetAccessPassword" class="field" type="password" placeholder="Mínimo de 8 caracteres"><div class="temporary-password-note">A loja precisará trocar essa senha no próximo acesso.</div>';openGeneric('Acessos','Redefinir senha',body,function(){var password=document.getElementById('resetAccessPassword').value;if(password.length<8){showToast('A senha deve ter pelo menos 8 caracteres.');return;}setBusy('genericSaveBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast('Senha temporária redefinida.');loadAccesses();}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).resetStoreAccessPassword({authUserId:authUserId,password:password});});}
 function toggleAccess(userId,ativo){var label=ativo?'ativar':'desativar';if(!confirm('Deseja '+label+' este acesso?'))return;google.script.run.withSuccessHandler(function(){showToast('Acesso atualizado.');loadAccesses();}).withFailureHandler(serverError).setStoreAccessActive({userId:userId,ativo:ativo});}
