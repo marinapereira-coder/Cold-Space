@@ -2396,21 +2396,21 @@ body{background:var(--cream)}
 }
 .app-shell .subtitle,.app-shell .section-head p{font-size:12px;color:var(--brown2)}
 .app-shell .eyebrow{font-size:10px;letter-spacing:1.35px;font-weight:700;color:var(--caramel)}
-.app-shell .page-home .hero{
+.app-shell #page-home .hero{
   position:relative;overflow:hidden;
   padding:31px 34px 33px;border-radius:22px;
   background:linear-gradient(114deg,#73472d,#5f3726);
   box-shadow:0 12px 32px rgba(100,58,35,.15);
 }
-.app-shell .page-home .hero:after{
+.app-shell #page-home .hero:after{
   content:"";position:absolute;right:-38px;top:-62px;width:215px;height:215px;
   border:1px solid rgba(255,255,255,.11);border-radius:50%;
   box-shadow:0 0 0 33px rgba(255,255,255,.035),0 0 0 68px rgba(255,255,255,.025);
   pointer-events:none;
 }
-.app-shell .page-home .hero .eyebrow{color:#ebd7c4}
-.app-shell .page-home .hero h2{font-size:36px;color:#fff9f2;margin:10px 0 8px}
-.app-shell .page-home .hero p{font-size:13px;color:#f3e3d6;max-width:680px}
+.app-shell #page-home .hero .eyebrow{color:#ebd7c4}
+.app-shell #page-home .hero h2{font-size:36px;color:#fff9f2;margin:10px 0 8px}
+.app-shell #page-home .hero p{font-size:13px;color:#f3e3d6;max-width:680px}
 .app-shell #homeSummary{
   background:var(--paper);border:1px solid var(--line);
   border-radius:20px;padding:8px 23px;margin:17px 0 26px;
@@ -2418,16 +2418,16 @@ body{background:var(--cream)}
 }
 .app-shell #homeSummary .summary-number{color:var(--brown);font-size:28px}
 .app-shell #homeSummary .summary-text{font-size:11px;color:var(--brown2)}
-.app-shell .page-home .section{
+.app-shell #page-home .section{
   background:var(--paper);border:1px solid var(--line);border-radius:22px;
   box-shadow:var(--shadow);padding:23px 27px;margin-top:19px;
 }
-.app-shell .page-home .section .section-head h3{font-size:25px;font-weight:600;margin-top:6px}
-.app-shell .page-home .section .section-head{margin-bottom:17px}
-.app-shell .page-home .section .task-list{border-color:var(--line)}
-.app-shell .page-home .section .task{min-height:84px}
-.app-shell .page-home .section .task h4,.app-shell .announcement h4{font-size:13px}
-.app-shell .page-home .section .task p,.app-shell .announcement p{font-size:11px;line-height:1.5}
+.app-shell #page-home .section .section-head h3{font-size:25px;font-weight:600;margin-top:6px}
+.app-shell #page-home .section .section-head{margin-bottom:17px}
+.app-shell #page-home .section .task-list{border-color:var(--line)}
+.app-shell #page-home .section .task{min-height:84px}
+.app-shell #page-home .section .task h4,.app-shell .announcement h4{font-size:13px}
+.app-shell #page-home .section .task p,.app-shell .announcement p{font-size:11px;line-height:1.5}
 .app-shell .campaign-card{border-radius:17px;min-height:200px;transition:box-shadow .18s ease,transform .18s ease}
 .app-shell .campaign-card:hover{transform:translateY(-2px);box-shadow:0 18px 32px rgba(83,45,29,.16)}
 .app-shell .campaign-card h4{font-size:23px}
@@ -2482,9 +2482,9 @@ body.dark-mode .app-shell .topbar{background:#2e211b;border-color:#514034}
 body.dark-mode .app-shell .topbar-title,body.dark-mode .app-shell .topbar #topName{color:#f5eadf}
 body.dark-mode .app-shell .topbar .theme-toggle{background:rgba(255,255,255,.08);color:#f5eadf}
 body.dark-mode .app-shell .page-title{color:#f5eadf}
-body.dark-mode .app-shell .page-home .hero{background:linear-gradient(114deg,#6b432e,#3b2921)}
+body.dark-mode .app-shell #page-home .hero{background:linear-gradient(114deg,#6b432e,#3b2921)}
 body.dark-mode .app-shell #homeSummary,
-body.dark-mode .app-shell .page-home .section,
+body.dark-mode .app-shell #page-home .section,
 body.dark-mode .app-shell .kpi,body.dark-mode .app-shell .central-quick-card,
 body.dark-mode .app-shell .central-department-card,body.dark-mode .app-shell .central-info-panel,
 body.dark-mode .app-shell .central-governance-note,body.dark-mode .app-shell .central-approval-grid div,
@@ -2509,12 +2509,12 @@ body.dark-mode .app-shell .notification-item.unread{background:#302822}
   .app-shell .topbar-left,.app-shell .topbar-right{gap:8px;min-width:0}
   .app-shell .topbar-title{font-size:18px}
   .app-shell .content{padding:22px 13px 65px}
-  .app-shell .page-home .hero{padding:25px 22px;border-radius:19px}
-  .app-shell .page-home .hero h2{font-size:29px}
+  .app-shell #page-home .hero{padding:25px 22px;border-radius:19px}
+  .app-shell #page-home .hero h2{font-size:29px}
   .app-shell #homeSummary{padding:6px 16px}
   .app-shell #homeSummary .summary-item{padding:13px 14px 13px 0;margin-right:12px}
-  .app-shell .page-home .section{padding:20px 17px}
-  .app-shell .page-home .section .section-head h3{font-size:23px}
+  .app-shell #page-home .section{padding:20px 17px}
+  .app-shell #page-home .section .section-head h3{font-size:23px}
   .app-shell .page-title{font-size:28px}
   .app-shell .table .row{padding:14px}
   .app-shell .topbar .weather{display:none}
@@ -2524,7 +2524,7 @@ body.dark-mode .app-shell .notification-item.unread{background:#302822}
   .app-shell .topbar .theme-toggle{padding:0 6px}
   .app-shell .topbar .theme-toggle-label{display:none}
   .app-shell .topbar #topName{max-width:82px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .app-shell .page-home .hero:after{opacity:.5}
+  .app-shell #page-home .hero:after{opacity:.5}
   .app-shell #homeSummary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
   .app-shell #homeSummary .summary-item{margin-right:0;padding:13px 10px 13px 0}
   .app-shell #homeSummary .summary-item+.summary-item{border-left:0;padding-left:0}
