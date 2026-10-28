@@ -159,6 +159,21 @@ function requireAdmin_() {
   return auth;
 }
 
+function operationDirectoryKey_(value) {
+ return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// Operations are linked by the actual names in the store master until the
+// import supplies separate regional/consultant IDs. Never match an empty key.
+function operationScopeMatchesStore_(loja, role, scopeId) {
+ var target=operationDirectoryKey_(scopeId);
+ if(!target)return false;
+ var extras=parseJsonObject_(loja.dados_extras);
+ var rawId=String(role==='consultor'?loja.consultor_id||'':loja.regional_id||'');
+ var rawName=String(role==='consultor'?extras.consultor||'':extras.regional||'');
+ return operationDirectoryKey_(rawId)===target||operationDirectoryKey_(rawName)===target;
+}
+
 function getVisibleStores_(user) {
   var role = roleOf_(user);
   var lojasTable = table_('TABLE_LOJAS', 'bacio_lojas');
@@ -171,11 +186,10 @@ function getVisibleStores_(user) {
     if (loja.ativa === false) return false;
     if (role === 'admin') return true;
     if (role === 'regional') {
-      return String(loja.regional_id || '') === String(user.regional_id || '');
+      return operationScopeMatchesStore_(loja,'regional',user.regional_id);
     }
     if (role === 'consultor') {
-      var consultorId = user.consultor_id || user.id;
-      return String(loja.consultor_id || '') === String(consultorId || '');
+      return operationScopeMatchesStore_(loja,'consultor',user.consultor_id || user.id);
     }
     if (role === 'loja') {
       return String(loja.id || '') === String(user.loja_id || user.lojaId || '');

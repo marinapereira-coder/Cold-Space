@@ -128,7 +128,9 @@ function storeChangePassword(accessToken, newPassword) {
 
 function getStoreBootstrap(accessToken) {
   var ctx = getStoreAuthContext_(accessToken);
-  return isDepartmentUser_(ctx.user) ? getRealBootstrap_(ctx.email,ctx) : buildStoreBootstrapV2_(ctx);
+  var role=roleOf_(ctx.user);
+  return (isDepartmentUser_(ctx.user)||role==='consultor'||role==='regional')
+    ? getRealBootstrap_(ctx.email,ctx) : buildStoreBootstrapV2_(ctx);
 }
 
 
@@ -179,7 +181,8 @@ function getStoreAuthContext_(accessToken) {
     throw new Error('Este acesso está desativado.');
   }
 
-  if (roleOf_(user) !== 'loja' && !isDepartmentUser_(user)) {
+  var passwordRole=roleOf_(user);
+  if (['loja','consultor','regional'].indexOf(passwordRole)<0 && !isDepartmentUser_(user)) {
     throw new Error('Este perfil ainda não está habilitado para login por senha.');
   }
   if (roleOf_(user) === 'loja' && !user.loja_id) {
@@ -3857,7 +3860,7 @@ function validateChatContextV2_(
 // Token-authenticated request operations; never trust client-supplied role or department.
 function getPasswordDemandDetail(token,id) {
  var ctx=getStoreAuthContext_(token);
- if(!isDepartmentUser_(ctx.user))throw new Error('Acesso não permitido.');
+ if(!isDepartmentUser_(ctx.user)&&['consultor','regional'].indexOf(roleOf_(ctx.user))<0)throw new Error('Acesso não permitido.');
  return getDemandDetail(id,ctx);
 }
 function savePasswordDepartmentDemand(token,input) {
@@ -3867,8 +3870,36 @@ function savePasswordDepartmentDemand(token,input) {
 }
 function getPasswordResponsesWorkspace(token) {
  var ctx=getStoreAuthContext_(token);
- if(!isDepartmentUser_(ctx.user))throw new Error('Acesso não permitido.');
+ if(!isDepartmentUser_(ctx.user)&&['consultor','regional'].indexOf(roleOf_(ctx.user))<0)throw new Error('Acesso não permitido.');
  return buildResponsesWorkspaceV2_(ctx.user);
+}
+
+// The master store base contains the names of consultants and regional managers.
+// Known emails are linked only to existing accounts; no email is guessed.
+function buildOperationsAccessDirectory_(stores,users){
+ var directory={consultores:[],regionais:[]};
+ var byRole={consultor:{},regional:{}};
+ (users||[]).forEach(function(user){
+  var role=roleOf_(user);
+  if(!byRole[role])return;
+  var key=operationDirectoryKey_(role==='consultor'?user.consultor_id:user.regional_id);
+  if(key&&user.ativo!==false)byRole[role][key]=String(user.email||'');
+ });
+ var seen={consultor:{},regional:{}};
+ (stores||[]).forEach(function(store){
+  if(store.ativa===false)return;
+  var extras=parseJsonObject_(store.dados_extras);
+  [['consultor','consultores'],['regional','regionais']].forEach(function(pair){
+   var role=pair[0],name=String(extras[role]||'').trim(),key=operationDirectoryKey_(name);
+   if(!key||['encerrado','nao definido','não definido','-'].indexOf(key)>=0||seen[role][key])return;
+   seen[role][key]=true;
+   directory[pair[1]].push({nome:name,scopeId:name,email:byRole[role][key]||''});
+  });
+ });
+ Object.keys(directory).forEach(function(key){
+  directory[key].sort(function(a,b){return a.nome.localeCompare(b.nome,'pt-BR');});
+ });
+ return directory;
 }
 
 function getStoreAccessWorkspace() {
@@ -3917,6 +3948,7 @@ function getStoreAccessWorkspace() {
   );
 
   return {
+    directory: buildOperationsAccessDirectory_(stores,users),
     items:
       users.map(
         function (u) {
@@ -3958,7 +3990,8 @@ function getStoreAccessWorkspace() {
             lojaNome:
               store.nome ||
               '',
-            departamento: roleOf_(u)==='admin'?'Operações':(isDepartmentUser_(u)?departmentOfUser_(u):''),
+            departamento: ['admin','loja','consultor','regional'].indexOf(roleOf_(u))>=0?'Operações':(isDepartmentUser_(u)?departmentOfUser_(u):''),
+            scopeName: roleOf_(u)==='consultor' ? u.consultor_id||'' : (roleOf_(u)==='regional'?u.regional_id||'':''),
 
             ativo:
               u.ativo !==
@@ -4222,6 +4255,38 @@ function createUnifiedAccess(input) {
  requireAdmin_();
  var role=String(input.role||'').toLowerCase();
  if(role==='loja')return createStoreAccess(input);
+ // Consultants and regionals use existing store-master names as scope IDs.
+ // Validate on the server to prevent choosing arbitrary / elevated scopes.
+ if(role==='consultor'||role==='regional'){
+  var scopeName=String(input.scopeId||'').trim();
+  var email=String(input.email||'').trim().toLowerCase();
+  var password=String(input.password||'');
+  if(!scopeName||!email||password.length<8)throw new Error('Selecione a pessoa e informe e-mail e senha temporária (mínimo de 8 caracteres).');
+  validateAllowedDomain_(email);
+  var usuariosTable=table_('TABLE_USUARIOS','bacio_usuarios');
+  var lojaTable=table_('TABLE_LOJAS','bacio_lojas');
+  var known=supabaseRequest_('/rest/v1/'+lojaTable+'?select=dados_extras,ativa,consultor_id,regional_id&limit=5000','get')||[];
+  if(!known.some(function(store){return store.ativa!==false && operationScopeMatchesStore_(store,role,scopeName);}))
+   throw new Error('Pessoa não encontrada na base de lojas. Atualize a base antes de criar o acesso.');
+  var existing=supabaseRequest_('/rest/v1/'+usuariosTable+'?select=id&email=eq.'+encodeURIComponent(email)+'&limit=1','get')||[];
+  if(existing.length)throw new Error('Este e-mail já possui cadastro. Nenhum acesso foi alterado.');
+  var created=supabaseAuthRequestV2_('/auth/v1/admin/users','post',{
+   email:email,password:password,email_confirm:true,
+   user_metadata:{nome:scopeName,origem:'bacio_conecta'}
+  });
+  var authUser=created&&created.user?created.user:created;
+  if(!authUser||!authUser.id)throw new Error('Falha ao criar a autenticação.');
+  var now=new Date().toISOString();
+  var payload={
+   email:email,nome:scopeName,role:role,ativo:true,
+   auth_user_id:String(authUser.id),auth_provider:'password',force_password_change:true,
+   updated_at:now
+  };
+  if(role==='consultor')payload.consultor_id=scopeName;
+  if(role==='regional')payload.regional_id=scopeName;
+  var inserted=supabaseRequest_('/rest/v1/'+usuariosTable,'post',payload,'return=representation');
+  return {ok:true,user:inserted&&inserted[0]||payload};
+ }
  // Office administrators use the existing corporate Google sign-in.
  // Never create a separate password credential or elevate an existing profile silently.
  if(role==='admin'){
