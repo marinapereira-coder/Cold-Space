@@ -2535,4 +2535,45 @@ body.dark-mode .app-shell .notification-item.unread{background:#302822}
   .app-shell .campaign-card:hover,.app-shell .central-quick-card:hover,.app-shell .central-department-card:hover{transform:none}
 }
 
+
+/* Links por departamento: extensão apenas da Central de Operações. */
+#page-central .central-department-card{cursor:pointer;outline-offset:3px;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+#page-central .central-department-card:focus-visible{outline:3px solid var(--caramel)}
+#page-central .central-department-card.selected{border-color:#875536;box-shadow:0 0 0 2px rgba(135,85,54,.12),0 10px 25px rgba(86,54,34,.11)}
+#page-central .central-department-card:hover{border-color:#ba947d;transform:translateY(-2px)}
+#page-central .central-department-count{display:inline-flex;margin-top:12px;padding:6px 10px;background:#f3e8dd;color:#77513e;border-radius:999px;font-size:10px;font-weight:700;line-height:1.2}
+#page-central .central-links-section{margin-top:32px;scroll-margin-top:96px;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:26px 28px;box-shadow:var(--shadow)}
+#page-central .central-links-head{margin-bottom:17px;align-items:center}
+#page-central .central-links-head h3{font:600 27px Georgia,"Times New Roman",serif;margin:8px 0;color:var(--brown)}
+#page-central .central-links-head p{margin:6px 0;font-size:12px;line-height:1.4;color:var(--brown2)}
+#page-central .central-all-btn{white-space:nowrap}
+#page-central .central-links-department+.central-links-department{margin-top:24px;border-top:1px solid var(--line);padding-top:22px}
+#page-central .central-links-dept-title{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:0 0 12px}
+#page-central .central-links-dept-title h4{font:600 20px Georgia,"Times New Roman",serif;margin:0}
+#page-central .central-links-dept-title span{font-size:11px;color:var(--brown2)}
+#page-central .central-link-subgroup+.central-link-subgroup{margin-top:19px}
+#page-central .central-link-subhead{font-size:10px;letter-spacing:1.1px;font-weight:800;color:var(--caramel);text-transform:uppercase;margin-bottom:10px}
+#page-central .central-link-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#page-central .central-link-item{min-width:0;display:flex;align-items:center;gap:10px;padding:13px 12px;border:1px solid var(--line);border-radius:13px;background:var(--cream);color:var(--brown);text-decoration:none;transition:background .15s ease,border-color .15s ease}
+#page-central .central-link-item:hover,#page-central .central-link-item:focus-visible{background:#eee1d5;border-color:#c8aa96;outline-offset:2px}
+#page-central .central-link-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;background:#70462e;color:#fff;font-size:15px}
+#page-central .central-link-body{display:flex;flex-direction:column;min-width:0;flex:1;gap:4px}
+#page-central .central-link-body strong{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+#page-central .central-link-meta{font-size:10px;line-height:1.4;color:var(--brown2);overflow-wrap:anywhere}
+#page-central .central-link-open{font-size:10px;color:var(--caramel);font-weight:700;white-space:nowrap}
+#page-central .central-links-access-note{font-size:11px;line-height:1.5;color:var(--brown2);margin:19px 0 0}
+#page-central .central-links-empty{display:flex;flex-direction:column;gap:7px;padding:28px 12px;text-align:center;border:1px dashed var(--line);border-radius:14px;font-size:12px;color:var(--brown2)}
+#page-central .central-links-empty strong{font-size:14px;color:var(--brown)}
+#page-central .central-quick-card{cursor:pointer}
+#page-central .central-quick-card:focus-visible{outline:3px solid var(--caramel);outline-offset:3px}
+body.dark-mode #page-central .central-links-section{background:#29231f;border-color:#443a33}
+body.dark-mode #page-central .central-department-card.selected{border-color:#c99b7b;box-shadow:0 0 0 2px rgba(201,155,123,.22)}
+body.dark-mode #page-central .central-department-count{background:#3d2d24;color:#edd0b9}
+body.dark-mode #page-central .central-link-item{background:#211c19;border-color:#443a33;color:#f5eadf}
+body.dark-mode #page-central .central-link-item:hover{background:#352820;border-color:#977255}
+body.dark-mode #page-central .central-link-subhead{color:#ddb391}
+body.dark-mode #page-central .central-link-icon{background:#6c4430}
+@media(max-width:1100px){#page-central .central-link-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){#page-central .central-links-section{padding:20px 16px}#page-central .central-link-grid{grid-template-columns:1fr}#page-central .central-links-head{align-items:start;flex-wrap:wrap}#page-central .central-link-open{font-size:10px}}
+
 </style>

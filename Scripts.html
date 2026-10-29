@@ -107,6 +107,7 @@ function bindEvents(){
   document.getElementById('newStoreAccessBtn').onclick=openUnifiedAccess;
   document.getElementById('refreshChatBtn').onclick=loadChatWorkspace;
   document.getElementById('chatThreadSearch').oninput=renderChatThreads;
+  bindCentralLinks_();
   document.getElementById('sendChatBtn').onclick=sendChatMessage;
   document.getElementById('chatText').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
 }
@@ -1091,5 +1092,122 @@ function serverError(error){
 function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
-function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';}
+function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';renderCentralLinks_();}
+
+/* Central de Operações · catálogo extraído da página Links Úteis.
+   Mantenha os links externos como referência; não concede acesso aos destinos. */
+var CENTRAL_LINKS_CATALOG=[{"name":"Budget x Tendência","url":"https://lookerstudio.google.com/reporting/f12b2c49-cc2e-41ff-9699-b30ddc064484/page/p_w080xrduid","department":"operacoes","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"Mix de Produtos","url":"https://lookerstudio.google.com/s/j3QOz6jkn_w","department":"operacoes","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"Hora Pico","url":"https://datastudio.google.com/u/0/reporting/8b6d9297-b6a3-48de-aebf-03277a11776f/page/T0t7F","department":"operacoes","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"CMV + NFs","url":"https://lookerstudio.google.com/u/0/reporting/ffb86669-4955-49e1-a382-b2ed3d7b1e81/page/UuTiC","department":"financeiro","group":"Financeiro e CMV","type":"Dashboard","source":"DashBoards"},{"name":"Diferença de Quilos de Gelato","url":"https://lookerstudio.google.com/u/0/reporting/2393d9be-6d00-480f-aac5-82a6ee071eb7/page/tEnnC","department":"operacoes","group":"Estoque e Logística","type":"Dashboard","source":"DashBoards"},{"name":"Gestão de Cardápio","url":"https://datastudio.google.com/u/0/reporting/65ed7ebf-bd2d-46e3-9b70-b55112ae6132/page/page_12345","department":"delivery","group":"Delivery e Cardápio","type":"Dashboard","source":"DashBoards"},{"name":"Monitoramento SmartPOS","url":"https://lookerstudio.google.com/reporting/f135f877-34e1-477e-a9f5-af68fc546885/page/nhuZD","department":"operacoes","group":"Sistemas e Tecnologia","type":"Dashboard","source":"DashBoards"},{"name":"Meio de Pagamento","url":"https://lookerstudio.google.com/s/lzIcXi-iRds","department":"financeiro","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"Perda de Faturamento","url":"https://datastudio.google.com/u/0/reporting/65ed7ebf-bd2d-46e3-9b70-b55112ae6132/page/p_m987nrmq1d","department":"operacoes","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"Experiência do Cliente","url":"https://datastudio.google.com/u/0/reporting/7f07f42e-ecf5-4555-8b58-382be15e700b/page/b8yiC","department":"operacoes","group":"Experiência do Cliente","type":"Dashboard","source":"DashBoards"},{"name":"Produtividade","url":"https://lookerstudio.google.com/u/0/reporting/de905b97-3064-4b9d-9705-6309e0a4ca42/page/p_otarq8gvod","department":"operacoes","group":"Vendas e Performance","type":"Dashboard","source":"DashBoards"},{"name":"Drive de Gestão de Lojas","url":"https://drive.google.com/drive/u/0/folders/0AFeXwNv33ZtfUk9PVA","department":"operacoes","group":"Gestão de Lojas","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"Base Lojas","url":"https://docs.google.com/spreadsheets/d/15T0VJ788cIJGwMAvgx411BvbwG7hdGyP-muPChEn8Ps/edit?usp=sharing","department":"operacoes","group":"Gestão de Lojas","type":"Planilha","source":"Sistemas e Planilhas"},{"name":"Sistema Gestor","url":"https://comunidadebdil.com.br/pt-BR/store/login","department":"operacoes","group":"Sistemas e Tecnologia","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Tomticket","url":"https://painel.tomticket.com/login.html","department":"manutencao","group":"Sistemas e Tecnologia","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Protheus — TOTVS","url":"https://ssnp9k-prod-protheus.totvscloud.com.br:11016/webapp/","department":"operacoes","group":"Sistemas e Tecnologia","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Moki","url":"https://moki.app/pt/login","department":"operacoes","group":"Sistemas e Tecnologia","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Stoq","url":"https://preview.stoq.link/login","department":"operacoes","group":"Estoque e Logística","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"VExpenses","url":"https://app.vexpenses.com/login","department":"financeiro","group":"Financeiro e CMV","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Gimba","url":"https://gimbaempresas.com.br/","department":"operacoes","group":"Compras e Fornecedores","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Spartan","url":"https://www.supplymanager.com.br/app/Login/Index?ReturnUrl=%2Fapp%2FRelatorio%2FUsuarioDetalhe%2F364898","department":"operacoes","group":"Compras e Fornecedores","type":"Sistema externo","source":"Sistemas e Planilhas"},{"name":"Validador de Diária 2026","url":"https://script.google.com/a/macros/bdil.com.br/s/AKfycbxnO7m5N37UXprsiY58kPelgNbeJElQ5IpFM9vpZB4tRV67rWox4mSCdXFdG8MT-B7Gvw/exec","department":"operacoes","group":"Gestão de Lojas","type":"Aplicativo (Apps Script)","source":"Sistemas e Planilhas"},{"name":"Valor Kilo Gelato","url":"https://drive.google.com/drive/folders/1fWfs_9W4V8xffpgWTuNeSO0JPBvnX9sE?usp=drive_link","department":"financeiro","group":"Financeiro e CMV","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"Planilha de KPIs","url":"https://drive.google.com/drive/folders/1MS1mYCUj7SDKY3tw8ZovoKMVtiYW6GBu?usp=drive_link","department":"operacoes","group":"Vendas e Performance","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"P&L","url":"https://drive.google.com/drive/folders/1lCdM3B6i3r6aoI3F27YLmsyuRDGs4Hwo?usp=drive_link","department":"financeiro","group":"Financeiro e CMV","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"CMV Teórico","url":"https://drive.google.com/drive/folders/1rede548lvT3gCu9syyCLLQ6uSLH0JdS1?usp=drive_link","department":"financeiro","group":"Financeiro e CMV","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"CMV Contábil","url":"https://drive.google.com/drive/folders/1H5jmi8lOcqsGAwCJuQ7Sjp57sOPtk2Uq?usp=drive_link","department":"financeiro","group":"Financeiro e CMV","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"Controle Descarte","url":"https://drive.google.com/drive/folders/1qX4SEGU1E4WKGzRFatfKNv9nl5eukl-V?usp=drive_link","department":"operacoes","group":"Estoque e Logística","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"Lista Contagem","url":"https://drive.google.com/drive/folders/1FKMtFx5DgdHwwU-l113QeYy6G9BeuEb0?usp=drive_link","department":"operacoes","group":"Estoque e Logística","type":"Pasta no Drive","source":"Sistemas e Planilhas"},{"name":"Base Dash NFs","url":"https://docs.google.com/spreadsheets/d/1Ug4nNaemB4tdrfbKTKfABcZBsfHUnjsBbjWAifeAKiM/edit?gid=2135688512#gid=2135688512","department":"financeiro","group":"Financeiro e CMV","type":"Planilha","source":"Sistemas e Planilhas"},{"name":"Plano de Operações","url":"https://drive.google.com/drive/folders/1X0dskxhiqBNoubICqb0GSsP6rE1_Qauj?usp=drive_link","department":"treinamento","group":"Gestão de Lojas","type":"Pasta no Drive","source":"Treinamento"},{"name":"Layout de Freezers","url":"https://drive.google.com/file/d/1X4jpAozwnYVG7hjp31GYceOMgBT1c4F0/view?usp=sharing","department":"treinamento","group":"Gestão de Lojas","type":"Arquivo no Drive","source":"Treinamento"},{"name":"UNIBACIO","url":"https://drive.google.com/a/bdil.com.br/open?id=1OQWJ7B2uwvRQeAsLDwLNquiFnVmQ2QNv","department":"treinamento","group":"Treinamento","type":"Recurso no Drive","source":"Treinamento"},{"name":"Configuração TVs","url":"https://drive.google.com/file/d/1MMPcHa88N5ud3M_BJ0ukIA0wEn07t4HJ/view","department":"treinamento","group":"Sistemas e Tecnologia","type":"Arquivo no Drive","source":"Treinamento"},{"name":"UniBacio - Trilhas","url":"https://datastudio.google.com/u/0/reporting/43304f03-6a8d-4bcc-acc0-ca6bcbafb2cc/page/p_ngxkhhzaxd","department":"treinamento","group":"Treinamento","type":"Dashboard","source":"Treinamento"},{"name":"Pedidos ao CD","url":"https://drive.google.com/file/d/1KgTreQ1FGFkac_IpItg4jxuZb6jT5aUg/view?usp=sharing","department":"operacoes","group":"Estoque e Logística","type":"Arquivo no Drive","source":"Treinamento"}];
+var CENTRAL_DEPARTMENT_LABELS={
+ operacoes:'Operações',rh:'RH & Pessoas',qualidade:'Qualidade',
+ manutencao:'Manutenção',treinamento:'Treinamento',marketing:'Marketing & Growth',
+ delivery:'Delivery',financeiro:'Financeiro'
+};
+var CENTRAL_DEPARTMENT_ORDER=['operacoes','rh','qualidade','manutencao','treinamento','marketing','delivery','financeiro'];
+var CENTRAL_SELECTED_DEPARTMENT='all';
+
+function centralNormalize_(value){
+ return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+}
+function centralSafeUrl_(url){
+ var text=String(url||'').trim();
+ return /^https:\/\/[a-z0-9.-]+(?::[0-9]+)?(?:[/?#]|$)/i.test(text)?text:'';
+}
+function bindCentralLinks_(){
+ var search=document.getElementById('centralSearch');
+ var grid=document.getElementById('centralDepartmentGrid');
+ var all=document.getElementById('centralViewAllBtn');
+ if(search)search.addEventListener('input',function(){CENTRAL_SELECTED_DEPARTMENT='all';renderCentralLinks_();});
+ if(grid){
+  grid.addEventListener('click',function(event){
+   var card=event.target.closest('[data-central-department]');
+   if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
+  });
+  grid.addEventListener('keydown',function(event){
+   if(event.key!=='Enter'&&event.key!==' ')return;
+   var card=event.target.closest('[data-central-department]');
+   if(card){event.preventDefault();selectCentralDepartment_(card.getAttribute('data-central-department'));}
+  });
+ }
+ if(all)all.onclick=function(){
+  CENTRAL_SELECTED_DEPARTMENT='all';
+  var input=document.getElementById('centralSearch');if(input)input.value='';
+  renderCentralLinks_();
+ };
+ document.querySelectorAll('[data-central-quick]').forEach(function(button){
+  button.onclick=function(){
+   var name=button.getAttribute('data-central-quick');
+   var link=CENTRAL_LINKS_CATALOG.find(function(item){return item.name===name;});
+   var url=link&&centralSafeUrl_(link.url);
+   if(!url){showToast('Este atalho não foi encontrado na biblioteca.');return;}
+   window.open(url,'_blank','noopener,noreferrer');
+  };
+ });
+}
+function selectCentralDepartment_(dept){
+ if(!Object.prototype.hasOwnProperty.call(CENTRAL_DEPARTMENT_LABELS,dept))return;
+ CENTRAL_SELECTED_DEPARTMENT=dept;
+ var input=document.getElementById('centralSearch');if(input)input.value='';
+ renderCentralLinks_();
+ var panel=document.getElementById('centralLinksArea');
+ if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function centralLinkItemHtml_(item){
+ var url=centralSafeUrl_(item.url);
+ if(!url)return'';
+ var domain='';
+ try{domain=new URL(url).hostname.replace(/^www\./,'');}catch(e){domain='Link externo';}
+ return '<a class="central-link-item" href="'+safe(url)+'" target="_blank" rel="noopener noreferrer" title="Abrir '+safe(item.name)+' em nova guia">'+
+   '<span class="central-link-icon" aria-hidden="true">↗</span>'+
+   '<span class="central-link-body"><strong>'+safe(item.name)+'</strong>'+
+   '<span class="central-link-meta">'+safe(item.type)+' · '+safe(domain)+'</span></span>'+
+   '<span class="central-link-open" aria-hidden="true">Abrir ↗</span></a>';
+}
+function renderCentralLinks_(){
+ var host=document.getElementById('centralLinksList');
+ if(!host)return;
+ var input=document.getElementById('centralSearch');
+ var query=centralNormalize_(input?input.value:'');
+ var dept=CENTRAL_SELECTED_DEPARTMENT;
+ var listed=CENTRAL_LINKS_CATALOG.filter(function(item){
+  var search=[item.name,item.group,item.type,item.department,item.source,CENTRAL_DEPARTMENT_LABELS[item.department]].join(' ');
+  return (dept==='all'||item.department===dept)&&(!query||centralNormalize_(search).indexOf(query)>=0);
+ });
+ var title=document.getElementById('centralLinksTitle');
+ var subtitle=document.getElementById('centralLinksSubtitle');
+ var allBtn=document.getElementById('centralViewAllBtn');
+ if(title)title.textContent=dept==='all'?'Links por departamento':'Links · '+CENTRAL_DEPARTMENT_LABELS[dept];
+ if(subtitle)subtitle.textContent=listed.length+' '+(listed.length===1?'atalho encontrado':'atalhos encontrados')+(query?' para “'+(input?input.value:'')+'”':'');
+ if(allBtn)allBtn.style.display=dept==='all'?'none':'inline-flex';
+ document.querySelectorAll('[data-central-department]').forEach(function(card){
+  var key=card.getAttribute('data-central-department');
+  var count=CENTRAL_LINKS_CATALOG.filter(function(item){return item.department===key;}).length;
+  var counter=card.querySelector('.central-department-count');
+  if(!counter){counter=document.createElement('span');counter.className='central-department-count';card.appendChild(counter);}
+  counter.textContent=count?count+' '+(count===1?'link disponível':'links disponíveis'):'Aguardando links';
+  card.classList.toggle('selected',dept===key);
+  card.setAttribute('aria-pressed',dept===key?'true':'false');
+ });
+ if(!listed.length){
+  host.innerHTML='<div class="central-links-empty"><strong>Nenhum link encontrado</strong>'+
+   '<span>'+(query?'Tente outra palavra-chave.':'Ainda não há links desta área na página importada.')+'</span></div>';
+  return;
+ }
+ var grouped={};
+ listed.forEach(function(item){
+  if(!grouped[item.department])grouped[item.department]=[];
+  grouped[item.department].push(item);
+ });
+ host.innerHTML=CENTRAL_DEPARTMENT_ORDER.filter(function(key){return grouped[key]&&grouped[key].length;}).map(function(key){
+  var items=grouped[key], byGroup={};
+  items.forEach(function(item){var group=item.group||'Outros';if(!byGroup[group])byGroup[group]=[];byGroup[group].push(item);});
+  var groups=Object.keys(byGroup).map(function(group){
+   return '<div class="central-link-subgroup"><div class="central-link-subhead">'+safe(group)+'</div>'+
+     '<div class="central-link-grid">'+byGroup[group].map(centralLinkItemHtml_).join('')+'</div></div>';
+  }).join('');
+  return '<section class="central-links-department" aria-label="'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'">'+
+   (dept==='all'?'<div class="central-links-dept-title"><h4>'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'</h4><span>'+items.length+' links</span></div>':'')+
+   groups+'</section>';
+ }).join('');
+}
+
 </script>
