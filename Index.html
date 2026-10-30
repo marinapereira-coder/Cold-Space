@@ -1152,7 +1152,7 @@
               </h2>
 
               <p class="subtitle">
-                Converse com o escritório por campanha ou demanda.
+                Selecione uma pessoa, loja ou demanda para começar a conversa.
               </p>
 
             </div>
@@ -1185,16 +1185,15 @@
 
 
             <div class="chat-list">
-
-              <input
-                id="chatThreadSearch"
-                class="field chat-search"
-                type="search"
-                placeholder="Buscar conversa...">
-
-
-              <div id="chatThreads"></div>
-
+              <div class="chat-list-heading"><strong>Contatos e conversas</strong><span id="chatContactsCount"></span></div>
+              <div id="chatTabs" class="chat-contact-tabs" role="group" aria-label="Tipo de conversa">
+                <button type="button" class="chat-contact-tab active" data-chat-tab="pessoas">Pessoas</button>
+                <button type="button" class="chat-contact-tab" data-chat-tab="lojas">Lojas</button>
+                <button type="button" class="chat-contact-tab" data-chat-tab="demandas">Demandas</button>
+              </div>
+              <input id="chatThreadSearch" class="field chat-search" type="search"
+                     placeholder="Buscar contato ou conversa..." aria-label="Buscar contatos">
+              <div id="chatThreads" class="chat-contact-directory"></div>
             </div>
 
 
@@ -1205,7 +1204,7 @@
                 <div>
 
                   <strong id="chatTitle">
-                    Conversa
+                    Selecione um contato
                   </strong>
 
                   <div
@@ -1229,12 +1228,14 @@
                 <input
                   id="chatText"
                   class="field"
-                  placeholder="Escreva uma mensagem...">
+                  disabled
+                  placeholder="Selecione um contato para conversar...">
 
 
                 <button
                   id="sendChatBtn"
-                  class="btn primary">
+                  class="btn primary"
+                  disabled>
 
                   Enviar
 

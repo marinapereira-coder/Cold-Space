@@ -9,6 +9,8 @@ var IMPORTED_FIELDS=[];
 var RESPONSES_DATA=null;
 var CHAT_DATA=null;
 var CHAT_THREAD_ID=null;
+var CHAT_SELECTED=null;
+var CHAT_TAB='pessoas';
 var STORE_IMPORT_ROWS=[];
 var STORE_IMPORT_PREVIEW=null;
 var AUTH_MODE='';
@@ -107,6 +109,15 @@ function bindEvents(){
   document.getElementById('newStoreAccessBtn').onclick=openUnifiedAccess;
   document.getElementById('refreshChatBtn').onclick=loadChatWorkspace;
   document.getElementById('chatThreadSearch').oninput=renderChatThreads;
+  document.getElementById('chatTabs').addEventListener('click',function(ev){
+    var b=ev.target.closest('[data-chat-tab]');if(!b)return;
+    CHAT_TAB=b.getAttribute('data-chat-tab');renderChatThreads();
+  });
+  document.getElementById('chatThreads').addEventListener('click',function(ev){
+    var b=ev.target.closest('[data-chat-kind]');if(!b)return;
+    var kind=b.getAttribute('data-chat-kind'),id=b.getAttribute('data-chat-value');
+    if(kind==='pessoa')openChatDirect(id);else openChatThread(id);
+  });
   bindCentralLinks_();
   document.getElementById('sendChatBtn').onclick=sendChatMessage;
   document.getElementById('chatText').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
@@ -146,7 +157,7 @@ function startApp(data){
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;EVALUATION_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     renderAllCore();
   }catch(error){showError('Erro ao montar a interface: '+error.message);}
 }
@@ -164,6 +175,8 @@ function showPage(page){
   if(page==='acessos'&&CURRENT_ROLE!=='admin'){showToast('Área exclusiva para administradores.');return;}
   if(page==='respostas'&&CURRENT_ROLE==='loja'){showToast('Esta área é da gestão.');return;}
   CURRENT_PAGE=page;
+  var contentRoot=document.querySelector('.app-shell .content');
+  if(contentRoot)contentRoot.classList.toggle('cronograma-expanded',page==='cronograma');
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
   var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
@@ -770,42 +783,157 @@ function openEvaluation(responseId){
 }
 
 function loadChatWorkspace(){
-  document.getElementById('chatLoading').style.display='block';document.getElementById('chatShell').style.display='none';
-  var ok=function(data){CHAT_DATA=data||{threads:[]};document.getElementById('chatLoading').style.display='none';document.getElementById('chatShell').style.display='grid';renderChatThreads();if((CHAT_DATA.threads||[]).length)openChatThread((CHAT_DATA.threads||[])[0].id);else document.getElementById('chatMessages').innerHTML='<div class="empty">Nenhuma conversa disponível.</div>';};
-  var fail=function(e){document.getElementById('chatLoading').innerHTML='<strong>Não foi possível carregar o chat.</strong><br>'+safe(e&&e.message?e.message:String(e));};
+  var loader=document.getElementById('chatLoading'),shell=document.getElementById('chatShell');
+  loader.innerHTML='Carregando contatos e conversas...';
+  loader.style.display='block';shell.style.display='none';
+  var ok=function(data){
+    CHAT_DATA=data||{};
+    CHAT_DATA.threads=CHAT_DATA.threads||[];
+    CHAT_DATA.peopleContacts=CHAT_DATA.peopleContacts||[];
+    CHAT_DATA.storeContacts=CHAT_DATA.storeContacts||[];
+    loader.style.display='none';shell.style.display='grid';
+    // Preserva a seleção após atualizar; oferece um contato imediatamente.
+    if(CHAT_TAB==='pessoas'&&!CHAT_DATA.peopleContacts.length&&CHAT_DATA.storeContacts.length)CHAT_TAB='lojas';
+    renderChatThreads();
+    if(CHAT_SELECTED){
+      if(CHAT_SELECTED.mode==='direct'&&CHAT_DATA.peopleContacts.some(function(p){return p.email===CHAT_SELECTED.email;})){
+        openChatDirect(CHAT_SELECTED.email);return;
+      }
+      if(CHAT_SELECTED.mode==='store'&&CHAT_DATA.threads.some(function(t){return String(t.id)===String(CHAT_THREAD_ID);})){
+        openChatThread(CHAT_THREAD_ID);return;
+      }
+    }
+    CHAT_SELECTED=null;CHAT_THREAD_ID=null;
+    document.getElementById('chatTitle').textContent='Selecione um contato';
+    document.getElementById('chatSubtitle').textContent='Escolha uma pessoa, loja ou demanda no painel à esquerda.';
+    document.getElementById('chatMessages').innerHTML='<div class="empty"><strong>Comece uma conversa</strong>Selecione um contato para enviar a primeira mensagem.</div>';
+    chatComposerEnabled(false);
+  };
+  var fail=function(err){
+    loader.style.display='block';shell.style.display='none';
+    loader.innerHTML='<div class="chat-error"><strong>Não foi possível carregar os contatos.</strong><p>'+
+      safe(err&&err.message?err.message:String(err))+
+      '</p><button type="button" class="btn soft" onclick="loadChatWorkspace()">Tentar novamente</button></div>';
+  };
   var run=google.script.run.withSuccessHandler(ok).withFailureHandler(fail);
   if(AUTH_MODE==='store')run.getStoreChatWorkspace(STORE_ACCESS_TOKEN);else run.getChatWorkspace();
 }
-
-function renderChatThreads(){var q=(document.getElementById('chatThreadSearch').value||'').toLowerCase().trim(),list=((CHAT_DATA||{}).threads||[]).filter(function(t){return !q||((t.title||'')+' '+(t.subtitle||'')).toLowerCase().indexOf(q)>=0;});document.getElementById('chatThreads').innerHTML=list.map(function(t){return '<div class="chat-thread '+(String(t.id)===String(CHAT_THREAD_ID)?'active':'')+'" onclick="openChatThread(\''+safeJs(t.id)+'\')"><strong>'+safe(t.title)+'</strong><span>'+safe(t.subtitle||'')+'</span></div>';}).join('')||'<div class="empty">Nenhuma conversa.</div>';}
-function openChatThread(id){
-  CHAT_THREAD_ID=id;var t=((CHAT_DATA||{}).threads||[]).find(function(x){return String(x.id)===String(id);})||{};
-  document.getElementById('chatTitle').textContent=t.title||'Conversa';document.getElementById('chatSubtitle').textContent=t.subtitle||'';renderChatThreads();document.getElementById('chatMessages').innerHTML='<div class="empty">Carregando mensagens...</div>';
-  var payload={storeId:t.storeId||'',demandId:t.demandId||''};
-  if(AUTH_MODE!=='store'&&!payload.storeId){
-    document.getElementById('chatMessages').innerHTML='<div class="chat-error"><strong>Conversa sem loja vinculada.</strong><p>Esta conversa não possui uma loja de destino. Selecione uma conversa vinculada a uma loja para continuar.</p></div>';
-    return;
-  }
-  var threadId=id;
-  var run=google.script.run.withSuccessHandler(function(messages){if(String(CHAT_THREAD_ID)===String(threadId))renderChatMessages(messages||[]);})
-    .withFailureHandler(function(error){
-      if(String(CHAT_THREAD_ID)!==String(threadId))return;
-      var message=error&&error.message?error.message:String(error);
-      document.getElementById('chatMessages').innerHTML='<div class="chat-error" role="alert"><strong>Não foi possível carregar as mensagens.</strong><p>'+safe(message)+'</p><button type="button" class="btn soft" onclick="openChatThread(CHAT_THREAD_ID)">Tentar novamente</button></div>';
-      showToast('Falha ao carregar as mensagens do chat.');
-    });
-  if(AUTH_MODE==='store')run.getStoreChatMessages(STORE_ACCESS_TOKEN,payload);else run.getChatMessages(payload);
+function chatComposerEnabled(enabled){
+  var send=document.getElementById('sendChatBtn'),input=document.getElementById('chatText');
+  send.disabled=!enabled;input.disabled=!enabled;
+  input.placeholder=enabled?'Escreva uma mensagem...':'Selecione um contato para conversar...';
 }
-
-function renderChatMessages(messages){var me=((APP_DATA||{}).user||{}).email||'';document.getElementById('chatMessages').innerHTML=messages.length?messages.map(function(m){var mine=String(m.email||'').toLowerCase()===String(me).toLowerCase();return '<div class="bubble '+(mine?'me':'')+'">'+safe(m.message)+'<small>'+safe(m.name||m.email||'')+' · '+safe(formatDateTime(m.createdAt))+'</small></div>';}).join(''):'<div class="empty"><strong>Comece a conversa</strong>Nenhuma mensagem neste contexto.</div>';var box=document.getElementById('chatMessages');box.scrollTop=box.scrollHeight;}
+function renderChatThreads(){
+  var host=document.getElementById('chatThreads');
+  if(!host||!CHAT_DATA)return;
+  var people=CHAT_DATA.peopleContacts||[],stores=CHAT_DATA.storeContacts||[],
+    demands=(CHAT_DATA.threads||[]).filter(function(t){return !!t.demandId;});
+  var countNode=document.getElementById('chatContactsCount');
+  countNode.textContent=people.length+' pessoas · '+stores.length+' lojas';
+  document.querySelectorAll('#chatTabs [data-chat-tab]').forEach(function(btn){
+    btn.classList.toggle('active',btn.getAttribute('data-chat-tab')===CHAT_TAB);
+    btn.setAttribute('aria-pressed',btn.classList.contains('active')?'true':'false');
+  });
+  var source=CHAT_TAB==='pessoas'?people:(CHAT_TAB==='lojas'?stores:demands);
+  var q=(document.getElementById('chatThreadSearch').value||'').toLowerCase().trim();
+  var list=source.filter(function(item){return !q||((item.title||'')+' '+(item.subtitle||'')+' '+(item.email||'')).toLowerCase().indexOf(q)>=0;});
+  var kind=CHAT_TAB==='pessoas'?'pessoa':'loja';
+  host.innerHTML=list.map(function(item){
+    var id=kind==='pessoa'?item.email:item.id;
+    var active=kind==='pessoa'&&CHAT_SELECTED&&CHAT_SELECTED.mode==='direct'
+      ? CHAT_SELECTED.email===item.email
+      : String(item.id)===String(CHAT_THREAD_ID);
+    var initials=String(item.title||'?').trim().slice(0,1).toUpperCase();
+    return '<button type="button" class="chat-thread '+(active?'active':'')+
+      '" data-chat-kind="'+kind+'" data-chat-value="'+safe(id)+'">'+
+      '<div class="chat-thread-contact"><span class="chat-contact-initials">'+safe(initials)+'</span>'+
+      '<span class="chat-contact-text"><strong>'+safe(item.title||'Contato')+'</strong>'+
+      '<small>'+safe(item.subtitle||item.email||'')+'</small></span></div></button>';
+  }).join('')||'<div class="chat-empty-state">'+
+      (q?'Nenhum contato encontrado para esta pesquisa.':
+       CHAT_TAB==='pessoas'?'Nenhum outro usuário ativo disponível para conversa.':
+       CHAT_TAB==='lojas'?(CHAT_DATA.emptyReason||'Nenhuma loja disponível para este perfil.'):
+       'Nenhuma conversa vinculada a uma demanda.')+'</div>';
+}
+function openChatDirect(email){
+  var item=((CHAT_DATA||{}).peopleContacts||[]).find(function(x){return x.email===email;});
+  if(!item){showToast('Contato não disponível. Atualize a lista.');return;}
+  CHAT_SELECTED={mode:'direct',email:email};
+  CHAT_THREAD_ID='pessoa:'+email;
+  document.getElementById('chatTitle').textContent=item.title||'Contato';
+  document.getElementById('chatSubtitle').textContent=(item.subtitle||'Equipe')+' · '+email;
+  chatComposerEnabled(true);
+  renderChatThreads();
+  document.getElementById('chatMessages').innerHTML='<div class="empty">Carregando mensagens...</div>';
+  var activeId=CHAT_THREAD_ID;
+  var run=google.script.run.withSuccessHandler(function(messages){
+    if(CHAT_THREAD_ID===activeId)renderChatMessages(messages||[]);
+  }).withFailureHandler(function(err){chatErrorLoading(activeId,err);});
+  var payload={recipientEmail:email};
+  if(AUTH_MODE==='store')run.getStoreChatDirectMessages(STORE_ACCESS_TOKEN,payload);
+  else run.getChatDirectMessages(payload);
+}
+function chatErrorLoading(activeId,err){
+  if(CHAT_THREAD_ID!==activeId)return;
+  document.getElementById('chatMessages').innerHTML='<div class="chat-error"><strong>Não foi possível carregar as mensagens.</strong>'+
+    '<p>'+safe(err&&err.message?err.message:String(err))+'</p>'+
+    '<button type="button" class="btn soft" onclick="reloadCurrentChat()">Tentar novamente</button></div>';
+}
+function reloadCurrentChat(){
+  if(!CHAT_SELECTED)return;
+  if(CHAT_SELECTED.mode==='direct')openChatDirect(CHAT_SELECTED.email);
+  else openChatThread(CHAT_THREAD_ID);
+}
+function openChatThread(id){
+  var t=((CHAT_DATA||{}).threads||[]).find(function(x){return String(x.id)===String(id);});
+  if(!t){showToast('Conversa não disponível. Atualize a lista.');return;}
+  CHAT_THREAD_ID=id;CHAT_SELECTED={mode:'store',storeId:t.storeId||'',demandId:t.demandId||''};
+  document.getElementById('chatTitle').textContent=t.title||'Conversa';
+  document.getElementById('chatSubtitle').textContent=t.subtitle||'';
+  chatComposerEnabled(!!t.storeId);renderChatThreads();
+  document.getElementById('chatMessages').innerHTML='<div class="empty">Carregando mensagens...</div>';
+  if(!t.storeId){chatErrorLoading(id,{message:'Esta conversa não possui loja vinculada.'});return;}
+  var activeId=id;
+  var run=google.script.run.withSuccessHandler(function(messages){
+    if(String(CHAT_THREAD_ID)===String(activeId))renderChatMessages(messages||[]);
+  }).withFailureHandler(function(err){chatErrorLoading(activeId,err);});
+  var payload={storeId:t.storeId,demandId:t.demandId||''};
+  if(AUTH_MODE==='store')run.getStoreChatMessages(STORE_ACCESS_TOKEN,payload);
+  else run.getChatMessages(payload);
+}
+function renderChatMessages(messages){
+  var me=((APP_DATA||{}).user||{}).email||'';
+  document.getElementById('chatMessages').innerHTML=messages.length?
+    messages.map(function(m){
+      var mine=String(m.email||'').toLowerCase()===String(me).toLowerCase();
+      return '<div class="bubble '+(mine?'me':'')+'">'+safe(m.message)+
+        '<small>'+safe(m.name||m.email||'')+' · '+safe(formatDateTime(m.createdAt))+'</small></div>';
+    }).join(''):
+    '<div class="empty"><strong>Comece a conversa</strong>Nenhuma mensagem ainda. Escreva abaixo para iniciar.</div>';
+  var box=document.getElementById('chatMessages');box.scrollTop=box.scrollHeight;
+}
 function sendChatMessage(){
-  var input=document.getElementById('chatText'),text=input.value.trim();if(!text||!CHAT_THREAD_ID)return;
-  var t=((CHAT_DATA||{}).threads||[]).find(function(x){return String(x.id)===String(CHAT_THREAD_ID);})||{};
-  var payload={storeId:t.storeId||'',demandId:t.demandId||'',message:text};setBusy('sendChatBtn',true,'Enviando...');
-  var ok=function(){setBusy('sendChatBtn',false,'Enviar');input.value='';openChatThread(CHAT_THREAD_ID);};
-  var fail=function(e){setBusy('sendChatBtn',false,'Enviar');serverError(e);};
+  var input=document.getElementById('chatText'),message=input.value.trim();
+  if(!message||!CHAT_SELECTED)return;
+  if(message.length>4000){showToast('Mensagem muito longa (máximo 4.000 caracteres).');return;}
+  var current=CHAT_SELECTED;
+  setBusy('sendChatBtn',true,'Enviando...');
+  var ok=function(){
+    setBusy('sendChatBtn',false,'Enviar');input.value='';reloadCurrentChat();
+  };
+  var fail=function(err){
+    setBusy('sendChatBtn',false,'Enviar');serverError(err);chatComposerEnabled(true);
+  };
   var run=google.script.run.withSuccessHandler(ok).withFailureHandler(fail);
-  if(AUTH_MODE==='store')run.sendStoreContextChatMessage(STORE_ACCESS_TOKEN,payload);else run.sendContextChatMessage(payload);
+  if(current.mode==='direct'){
+    var v={recipientEmail:current.email,message:message};
+    if(AUTH_MODE==='store')run.sendStoreChatDirectMessage(STORE_ACCESS_TOKEN,v);
+    else run.sendChatDirectMessage(v);
+  }else{
+    var payload={storeId:current.storeId,demandId:current.demandId||'',message:message};
+    if(AUTH_MODE==='store')run.sendStoreContextChatMessage(STORE_ACCESS_TOKEN,payload);
+    else run.sendContextChatMessage(payload);
+  }
 }
 function openStoreModal(){if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem cadastrar lojas.');return;}var body='<div class="form-grid"><div><label class="label">Código</label><input id="gStoreCode" class="field" placeholder="LJ 0000"></div><div><label class="label">Cidade</label><input id="gStoreCity" class="field"></div><div class="full"><label class="label">Centro de Custo / Nome</label><input id="gStoreName" class="field"></div><div><label class="label">E-mail</label><input id="gStoreEmail" class="field"></div><div><label class="label">Regional</label><input id="gStoreRegional" class="field"></div><div><label class="label">Consultor</label><input id="gStoreConsultor" class="field"></div><div><label class="label">Estado</label><input id="gStoreState" class="field"></div><div><label class="label">Formato</label><input id="gStoreFormat" class="field"></div></div>';openGeneric('Estrutura','Nova loja',body,function(){var name=document.getElementById('gStoreName').value.trim(),code=document.getElementById('gStoreCode').value.trim();if(!name||!code){showToast('Preencha código e nome.');return;}setBusy('genericSaveBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast('Loja salva.');refreshBootstrap('lojas');}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).saveStoreManual({codigo:code,nome:name,cidade:document.getElementById('gStoreCity').value.trim(),email:document.getElementById('gStoreEmail').value.trim(),regional:document.getElementById('gStoreRegional').value.trim(),consultor:document.getElementById('gStoreConsultor').value.trim(),estado:document.getElementById('gStoreState').value.trim(),formato:document.getElementById('gStoreFormat').value.trim()});});}
 function openStoreImportModal(){if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem importar a base.');return;}STORE_IMPORT_ROWS=[];STORE_IMPORT_PREVIEW=null;document.getElementById('storesSpreadsheet').value='';document.getElementById('storeImportContent').innerHTML='';document.getElementById('applyStoreImportBtn').disabled=true;openModal('storeImportModal');}

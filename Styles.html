@@ -2536,6 +2536,42 @@ body.dark-mode .app-shell .notification-item.unread{background:#302822}
 }
 
 
+/* Cronograma: ocupa toda a largura útil da área principal; demais páginas intactas. */
+.app-shell .content.cronograma-expanded{
+  width:100%;max-width:none;margin:0;
+  padding:22px clamp(14px,1.7vw,30px) 58px;
+  min-width:0;
+}
+.app-shell #page-cronograma{width:100%;min-width:0;max-width:100%}
+.app-shell #page-cronograma .bc-sched{width:100%;max-width:100%;min-width:0;margin:0}
+.app-shell #page-cronograma .bc-sched-card{min-width:0;max-width:100%}
+.app-shell #page-cronograma .bc-sched-days{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden}
+.app-shell #page-cronograma .bc-sched-scroll{max-width:100%;overflow-x:auto}
+@media(max-width:760px){.app-shell .content.cronograma-expanded{padding:14px 12px 45px}}
+
+/* Chat: seleção clara de contatos e conversas, sem alterar o histórico. */
+.chat-list-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;color:var(--brown)}
+.chat-list-heading strong{font-size:13px}
+.chat-list-heading span{font-size:10px;color:var(--brown2)}
+.chat-contact-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-bottom:11px}
+.chat-contact-tab{background:#fffdf9;border:1px solid var(--line);border-radius:8px;padding:9px 3px;color:var(--brown);font-size:10px;font-weight:700}
+.chat-contact-tab.active{background:#70492f;border-color:#70492f;color:#fff}
+.chat-contact-directory{max-height:590px;overflow-y:auto}
+.chat-thread{display:block;width:100%;text-align:left;border:1px solid transparent;color:var(--brown)}
+.chat-thread small{display:block;margin-top:5px;font-size:10px;color:var(--brown2);overflow-wrap:anywhere}
+.chat-thread:focus-visible{outline:2px solid #a47c60}
+.chat-empty-state{padding:25px 12px;color:var(--brown2);font-size:12px;line-height:1.6;text-align:center}
+.chat-contact-initials{display:inline-grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#e7d8ca;color:#68452e;font-weight:700;font-size:12px}
+.chat-thread-contact{display:flex;align-items:center;gap:10px}
+.chat-thread-contact .chat-contact-text{min-width:0;flex:1}
+.chat-thread-contact strong{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+.chat-head strong{font-size:15px}
+.chat-input input:disabled,.chat-input button:disabled{opacity:.55;cursor:not-allowed}
+body.dark-mode .chat-contact-tab{background:#2a211c;color:#f5eadf}
+body.dark-mode .chat-contact-tab.active{background:#a57854;color:#fff}
+body.dark-mode .chat-list-heading,body.dark-mode .chat-thread{color:#f5eadf}
+body.dark-mode .chat-thread small,body.dark-mode .chat-list-heading span{color:#d2b7a2}
+
 /* Links por departamento: extensão apenas da Central de Operações. */
 #page-central .central-department-card{cursor:pointer;outline-offset:3px;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
 #page-central .central-department-card:focus-visible{outline:3px solid var(--caramel)}
