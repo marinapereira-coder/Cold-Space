@@ -133,8 +133,8 @@ function startApp(data){
     document.getElementById('managementMenu').style.display=CURRENT_ROLE==='loja'?'none':'block';
     document.querySelectorAll('.nav-btn[data-page]').forEach(function(nav){
       var page=nav.getAttribute('data-page');
-      if(passwordDepartment)nav.style.display=['home','campanhas','respostas'].indexOf(page)>=0?'':'none';
-      else nav.style.display='';
+      if(passwordDepartment)nav.style.display=['home','campanhas','respostas','cronograma'].indexOf(page)>=0?'':'none';
+      else nav.style.display=page==='cronograma'&&CURRENT_ROLE==='loja'?'none':'';
     });
     document.getElementById('switchProfileLoginBtn').style.display=CURRENT_ROLE==='admin'?'inline-flex':'none';
     document.getElementById('campaignAdminActions').style.display=(CURRENT_ROLE==='admin'||['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0)?'flex':'none';
@@ -156,16 +156,17 @@ function renderAllCore(){
 }
 
 function showPage(page){
-  if(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja'&&['home','campanhas','respostas'].indexOf(page)<0){
+  if(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja'&&['home','campanhas','respostas','cronograma'].indexOf(page)<0){
     showToast('Essa área ainda não está habilitada para o perfil de departamento.');return;
   }
   var target=document.getElementById('page-'+page);if(!target)return;
+  if(page==='cronograma'&&CURRENT_ROLE==='loja'){showToast('Cronograma disponível para a gestão.');return;}
   if(page==='acessos'&&CURRENT_ROLE!=='admin'){showToast('Área exclusiva para administradores.');return;}
   if(page==='respostas'&&CURRENT_ROLE==='loja'){showToast('Esta área é da gestão.');return;}
   CURRENT_PAGE=page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
-  var titles={home:'Bacio Conecta',agenda:'Agenda',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
+  var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
   if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();if(page==='respostas')renderTestResponses();
@@ -173,7 +174,7 @@ function showPage(page){
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
   if(page==='acessos'&&CURRENT_ROLE==='admin'&&!ACCESS_DATA)loadAccesses();
-  if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='comunicados')renderNotices();if(page==='central')renderCentralOperations();
+  if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='cronograma'&&typeof renderConectaCronograma==='function')renderConectaCronograma();if(page==='comunicados')renderNotices();if(page==='central')renderCentralOperations();
   window.scrollTo(0,0);
 }
 

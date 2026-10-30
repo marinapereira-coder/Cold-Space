@@ -538,6 +538,8 @@ function buildManagementItems_(demandas, respostas, lojas) {
     var targetIds = getTargetStoreIds_(d, visibleLojaIds);
     var latest = latestResponsesByStore_(id, respostas);
     var answered = targetIds.filter(function (lojaId) { return Boolean(latest[lojaId]); }).length;
+    // Resposta válida: usa a mesma regra das cobranças e notificações existentes.
+    var completed = targetIds.filter(function (lojaId) { return responseCountsAsCompleteV2_(latest[lojaId]); }).length;
     var progress = targetIds.length ? Math.round((answered / targetIds.length) * 100) : 0;
     var savedStatus = String(d.status || 'active').toLowerCase();
     var timeline = timelineInfo_(d, answered, targetIds.length, new Date());
@@ -551,6 +553,10 @@ function buildManagementItems_(demandas, respostas, lojas) {
       deadline: d.prazo_sla || '',
       deadlineLabel: formatDeadline_(d.prazo_sla ? new Date(d.prazo_sla) : null),
       progress: progress,
+      answeredCount: answered,
+      completedCount: completed,
+      totalStores: targetIds.length,
+      targetStoreIds: targetIds,
       progressLabel: targetIds.length
         ? answered + ' de ' + targetIds.length + ' lojas responderam'
         : 'Sem lojas vinculadas',

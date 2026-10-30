@@ -202,6 +202,11 @@
 
       </button>
 
+      <button class="nav-btn" data-page="cronograma">
+        <span class="nav-dot"></span>
+        Cronograma de demandas
+      </button>
+
 
       <button
         class="nav-btn"
@@ -687,6 +692,11 @@
 
           <div id="agendaList"></div>
 
+        </section>
+
+        <!-- NOVO CRONOGRAMA: não substitui a Agenda existente -->
+        <section id="page-cronograma" class="page">
+          <div id="conectaCronogramaApp"></div>
         </section>
 
 
@@ -2350,6 +2360,7 @@
   <!-- JAVASCRIPT DO PROJETO -->
 
  <?!= include('Scripts'); ?>
+<?!= include('Cronograma'); ?>
 <?!= include('AutoRefresh'); ?>
 
 </body>
