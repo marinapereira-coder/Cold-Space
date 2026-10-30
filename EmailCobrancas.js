@@ -62,7 +62,7 @@ function bacioResumoPendenciasEmail_(dryRun) {
       });
     });
   });
-  var report={ok:true,pendencias:unresolved,totalEntregas:totalTargets,concluidas:Math.max(0,totalTargets-unresolved),destinatarios:Object.keys(recipients).length,semEnvio:!!dryRun,porDestinatario:Object.keys(recipients).map(function(k){
+  var report={ok:true,envioAtivo:props.getProperty('EMAIL_COBRANCAS_ATIVAS')==='true',pendencias:unresolved,totalEntregas:totalTargets,concluidas:Math.max(0,totalTargets-unresolved),destinatarios:Object.keys(recipients).length,semEnvio:!!dryRun,porDestinatario:Object.keys(recipients).map(function(k){
     return {email:k,quantidade:recipients[k].count,perfis:Object.keys(recipients[k].roles)};
   })};
   if(dryRun)return report;
@@ -152,4 +152,14 @@ function bacioEmailRelatorioHtml_(rec,unresolved,totalTargets,portal){
     '<div style="padding:25px 0;text-align:center;">'+action+'</div>'+
     '<p style="font-size:12px;color:#8f7968;line-height:1.5;">Esta comunicação é automática. Quando a resposta válida for registrada, a pendência deixa de ser cobrada nos próximos envios.</p>'+
     '</div><div style="padding:13px 26px;text-align:center;background:#f4e8d8;color:#806955;font-size:10px;">Equipe de Gestão de Performance — Bacio di Latte</div></div></body></html>';
+}
+
+/** Configuração idempotente, exclusiva do administrador. Não envia e-mails ao ativar. */
+function configurarCobrancasEmailConecta(ativar) {
+  requireAdmin_();
+  if (ativar !== true && ativar !== false) throw new Error('Informe ativar ou pausar.');
+  var props = PropertiesService.getScriptProperties();
+  if (ativar) instalarGatilhoResumoPendenciasEmail();
+  props.setProperty('EMAIL_COBRANCAS_ATIVAS', ativar ? 'true' : 'false');
+  return {ok:true,ativo:ativar,proximoCiclo:'Execução diária, aproximadamente às 10h (São Paulo)'};
 }

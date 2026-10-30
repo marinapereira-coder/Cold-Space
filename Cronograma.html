@@ -119,8 +119,18 @@
     else if(b.dataset.scOpen){if(typeof openDemandDetail==='function')openDemandDetail(b.dataset.scOpen);}
     else if(b.dataset.scPreview){
      var h=document.getElementById('bcSchedPreview');h.innerHTML='<div class="bc-sched-preview">Consultando pendências; nenhum e-mail será enviado...</div>';
-     google.script.run.withSuccessHandler(function(r){h.innerHTML='<div class="bc-sched-preview"><b>Prévia sem envio</b><p>'+e(r.pendencias||0)+' pendências para '+e(r.destinatarios||0)+' destinatário(s).</p><small>Envio real exige ativação no Apps Script.</small></div>';})
-      .withFailureHandler(function(err){h.textContent='Não foi possível consultar: '+String(err.message||err);}).testarResumoPendenciasEmail();
+     google.script.run.withSuccessHandler(function(r){
+      h.innerHTML='<div class="bc-sched-preview"><b>Prévia sem envio</b><p>'+e(r.pendencias||0)+' pendências para '+e(r.destinatarios||0)+' destinatário(s).</p>'+
+       '<p>Envio automático: <b>'+(r.envioAtivo?'Ativo':'Pausado')+'</b> · frequência diária às 10h (São Paulo).</p>'+
+       '<button type="button" class="bc-sched-action" data-sc-toggle="'+(r.envioAtivo?'0':'1')+'">'+(r.envioAtivo?'Pausar cobranças':'Ativar cobranças diárias')+'</button></div>';
+     }).withFailureHandler(function(err){h.textContent='Não foi possível consultar: '+String(err.message||err);}).testarResumoPendenciasEmail();
+    }else if(b.dataset.scToggle){
+     var ativar=b.dataset.scToggle==='1',msg=ativar?'Ativar envios automáticos diários para todas as lojas e consultores com pendências? Nenhum e-mail será enviado agora.':'Pausar todos os próximos e-mails automáticos de cobrança?';
+     if(!window.confirm(msg))return;
+     var h2=document.getElementById('bcSchedPreview');h2.textContent='Atualizando configuração...';
+     google.script.run.withSuccessHandler(function(r){
+      h2.innerHTML='<div class="bc-sched-preview">Cobranças '+(r.ativo?'ativadas':'pausadas')+' com sucesso. '+e(r.proximoCiclo||'')+'. <button class="bc-sched-action" data-sc-preview="1">Atualizar prévia</button></div>';
+     }).withFailureHandler(function(err){h2.textContent='Falha ao atualizar a configuração: '+String(err.message||err);}).configurarCobrancasEmailConecta(ativar);
     }
    });
    root.addEventListener('change',function(ev){var el=ev.target;
