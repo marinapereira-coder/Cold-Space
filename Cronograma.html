@@ -75,14 +75,14 @@
    if(cfg.mine&&owner.toLowerCase().indexOf(String(((window.APP_DATA||{}).user||{}).email||'').toLowerCase())<0)return false;
    if(cfg.consultor){var ids=x.targetStoreIds||[];if(!stores().some(function(z){return ids.indexOf(String(z.id))>=0&&z.consultor===cfg.consultor;}))return false;}
    if(cfg.status==='all')return true;
-   if(cfg.status==='pending')return count(x)>done(x)&&!['closed','draft','completed'].includes(s);
+   if(cfg.status==='pending')return count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s);
    return s===cfg.status;
   });
   var eligible=monthItems.filter(function(x){return !['draft','closed','pending_approval','rejected','needs_revision'].includes(state(x));});
   var total=0,completed=0,expected=0;eligible.forEach(function(x){var n=count(x)||1;total+=n;completed+=Math.min(n,count(x)?done(x):(complete(x)?1:0));if(due(x)&&due(x)<=today)expected+=n;});
   var exp=total?Math.round(100*expected/total):0,real=total?Math.round(100*completed/total):0;
   var vals={all:monthItems.length,late:0,due_today:0,upcoming:0,completed:0,pending:0,pending_approval:0};
-  monthItems.forEach(function(x){var s=state(x);if(vals[s]!==undefined)vals[s]++;if(count(x)>done(x)&&!['closed','draft','completed'].includes(s))vals.pending++;});
+  monthItems.forEach(function(x){var s=state(x);if(vals[s]!==undefined)vals[s]++;if(count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s))vals.pending++;});
   var area=Array.from(new Set(monthItems.map(dept))).sort(),owners=Array.from(new Set(monthItems.map(function(x){return x.owner||'';}).filter(Boolean))).sort();
   var consultors=Array.from(new Set(stores().map(function(x){return x.consultor||'';}).filter(Boolean))).sort();
   var from=cfg.month===today.slice(0,7)?today:cfg.month+'-01';var d0=new Date(from+'T12:00:00');

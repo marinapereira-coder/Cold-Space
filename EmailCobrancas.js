@@ -18,7 +18,7 @@ function bacioResumoPendenciasEmail_(dryRun) {
     var status=String(d.status||'active').toLowerCase();
     var start=validDateV2_(d.publicada_em);
     var end=validDateV2_(d.encerramento_em);
-    return status!=='draft'&&status!=='closed'&&(!start||start<=now)&&(!end||end>=now);
+    return status!=='draft'&&status!=='closed'&&d.resposta_obrigatoria!==false&&(!start||start<=now)&&(!end||end>=now);
   });
   var people = {};
   usuarios.forEach(function(u){if(u.id)people[String(u.id)]=u;});
