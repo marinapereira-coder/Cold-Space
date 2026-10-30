@@ -3208,183 +3208,76 @@ function getStoreChatWorkspace(
 }
 
 
-function buildChatWorkspaceV2_(
-  user,
-  storeMode
-) {
-
-  var stores =
-    getVisibleStores_(
-      user
-    );
-
-  var visibleStoreIds =
-    stores.map(
-      function (s) {
-
-        return String(
-          s.id
-        );
-
-      }
-    );
-
-  var demandas =
-    safeSupabaseSelect_(
-      '/rest/v1/' +
-        table_(
-          'TABLE_DEMANDAS',
-          'bacio_demandas'
-        ) +
-        '?select=*&ativa=eq.true&order=created_at.desc&limit=1000',
-      []
-    )
-    .filter(
-      function (d) {
-
-        if (
-          String(
-            d.status ||
-            'active'
-          )
-          .toLowerCase() ===
-          'draft'
-        ) {
-
-          return false;
-
-        }
-
-        return demandaVisivelNoEscopo_(
-          d,
-          visibleStoreIds
-        );
-
-      }
-    )
-    .filter(
-      function (d) {
-
-        return (
-          String(
-            d.tipo ||
-            ''
-          )
-          .toLowerCase() !==
-          'comunicado'
-        );
-
-      }
-    );
-
-  var threads = [];
-
-  stores.forEach(
-    function (store) {
-
-      var storeId =
-        String(
-          store.id
-        );
-
-      var label =
-        storeLabelV2_(
-          store
-        );
-
-      threads.push(
-        {
-          id:
-            'geral:' +
-            storeId,
-
-          storeId:
-            storeId,
-
-          demandId:
-            '',
-
-          title:
-            storeMode
-              ? 'Escritório'
-              : label,
-
-          subtitle:
-            storeMode
-              ? 'Conversa geral com o escritório'
-              : 'Conversa geral'
-        }
-      );
-
-      demandas.forEach(
-        function (d) {
-
-          var targetIds =
-            getTargetStoreIds_(
-              d,
-              visibleStoreIds
-            );
-
-          if (
-            targetIds.indexOf(
-              storeId
-            ) < 0
-          ) {
-
-            return;
-
-          }
-
-          threads.push(
-            {
-              id:
-                'demanda:' +
-                String(
-                  d.id
-                ) +
-                ':' +
-                storeId,
-
-              storeId:
-                storeId,
-
-              demandId:
-                String(
-                  d.id
-                ),
-
-              title:
-                d.titulo ||
-                'Demanda',
-
-              subtitle:
-                storeMode
-                  ? (
-                      String(
-                        d.tipo ||
-                        'demanda'
-                      )
-                      .toLowerCase() ===
-                      'campanha'
-                        ? 'Campanha'
-                        : 'Demanda'
-                    )
-                  : label
-            }
-          );
-
-        }
-      );
-
-    }
-  );
-
-  return {
-    threads:
-      threads
-  };
+function getChatVisibleStoresV2_(user) {
+  var normal=getVisibleStores_(user);
+  if(!isDepartmentUser_(user))return normal;
+  // Departamentos podem conversar com lojas vinculadas às demandas de sua área.
+  var all=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+
+    '?select=*&ativa=eq.true&limit=5000',[]);
+  var ids=all.map(function(s){return String(s.id);});
+  var requests=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=*&ativa=eq.true&limit=3000',[]);
+  var allowed={};
+  requests.forEach(function(d){
+    if(!mayReadDepartmentDemand_(user,d)||String(d.status||'active').toLowerCase()==='draft')return;
+    getTargetStoreIds_(d,ids).forEach(function(id){allowed[String(id)]=true;});
+  });
+  return all.filter(function(store){return allowed[String(store.id)]===true;});
 }
 
+function chatPeopleDirectoryV2_(user) {
+  var role=roleOf_(user),own=String(user.email||'').trim().toLowerCase();
+  var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+
+    '?select=email,nome,role,ativo&ativo=eq.true&limit=3000',[]);
+  return users.filter(function(u){
+    var addr=String(u.email||'').trim().toLowerCase();
+    return addr&&addr!==own&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)&&
+      !(role==='loja'&&roleOf_(u)==='loja');
+  }).map(function(u){
+    return {id:'pessoa:'+String(u.email).trim().toLowerCase(),
+      email:String(u.email).trim().toLowerCase(),
+      title:u.nome||String(u.email).split('@')[0],
+      subtitle:roleOf_(u)==='admin'?'Escritório':roleOf_(u)==='loja'?'Loja':roleOf_(u)||'Equipe'};
+  }).sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
+}
+
+function buildChatWorkspaceV2_(user,storeMode) {
+  var stores=getChatVisibleStoresV2_(user),visibleIds=stores.map(function(s){return String(s.id);});
+  var isStore=roleOf_(user)==='loja';
+  var demands=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=*&ativa=eq.true&order=created_at.desc&limit=1000',[]).filter(function(d){
+      return String(d.status||'active').toLowerCase()!=='draft' &&
+        String(d.tipo||'').toLowerCase()!=='comunicado' &&
+        (!isDepartmentUser_(user)||mayReadDepartmentDemand_(user,d)) &&
+        demandaVisivelNoEscopo_(d,visibleIds);
+    });
+  // Evita recalcular os destinatários para cada combinação loja/demanda.
+  var targets={};
+  demands.forEach(function(d){targets[String(d.id)]=getTargetStoreIds_(d,visibleIds);});
+  var storeContacts=stores.map(function(store){
+    var extras=parseJsonObject_(store.dados_extras);
+    return {id:'geral:'+String(store.id),storeId:String(store.id),
+      title:isStore?'Escritório':storeLabelV2_(store),
+      subtitle:isStore?'Conversa geral com o escritório':
+        [extras.consultor||'',extras.regional||'',store.email||''].filter(Boolean).join(' · ')||'Conversa geral'};
+  });
+  storeContacts.sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
+  var threads=[];
+  stores.forEach(function(store){
+    var sid=String(store.id),label=storeLabelV2_(store);
+    threads.push({id:'geral:'+sid,storeId:sid,demandId:'',
+      title:isStore?'Escritório':label,
+      subtitle:isStore?'Conversa geral com o escritório':'Conversa geral'});
+    demands.forEach(function(d){
+      if(targets[String(d.id)].indexOf(sid)<0)return;
+      threads.push({id:'demanda:'+String(d.id)+':'+sid,storeId:sid,
+        demandId:String(d.id),title:d.titulo||'Demanda',
+        subtitle:isStore?(String(d.tipo||'').toLowerCase()==='campanha'?'Campanha':'Demanda'):label});
+    });
+  });
+  return {threads:threads,storeContacts:storeContacts,peopleContacts:chatPeopleDirectoryV2_(user),
+    emptyReason:stores.length?'':'Nenhuma loja vinculada a este perfil. Confira o cadastro e os vínculos de acesso.'};
+}
 
 function getChatMessages(
   input
@@ -3433,11 +3326,7 @@ function getStoreChatMessages(
       accessToken
     );
 
-  var storeId =
-    String(
-      ctx.user.loja_id ||
-      ''
-    );
+  var storeId=String(roleOf_(ctx.user)==='loja'?(ctx.user.loja_id||''):(input.storeId||''));
 
   var demandId =
     String(
@@ -3611,11 +3500,7 @@ function sendStoreContextChatMessage(
       accessToken
     );
 
-  var storeId =
-    String(
-      ctx.user.loja_id ||
-      ''
-    );
+  var storeId=String(roleOf_(ctx.user)==='loja'?(ctx.user.loja_id||''):(input.storeId||''));
 
   var demandId =
     String(
@@ -3769,9 +3654,7 @@ function validateChatContextV2_(
   }
 
   var visibleStores =
-    getVisibleStores_(
-      user
-    );
+    getChatVisibleStoresV2_(user);
 
   var visibleIds =
     visibleStores.map(
@@ -6228,4 +6111,61 @@ function storeLabelByIdV2_(
         storeId ||
         'Loja'
       );
+}
+/* Chat direto: contatos cadastrados, sem usar o contexto da loja. */
+function chatDirectRecipientV2_(user,recipientEmail){
+  var email=String(recipientEmail||'').trim().toLowerCase();
+  if(!email||email===String(user.email||'').trim().toLowerCase())throw new Error('Escolha outro contato.');
+  var allowed=chatPeopleDirectoryV2_(user).some(function(p){return p.email===email;});
+  if(!allowed)throw new Error('Contato indisponível para este perfil.');
+  return email;
+}
+function chatDirectKeyV2_(first,second){
+  return [String(first||'').trim().toLowerCase(),String(second||'').trim().toLowerCase()].sort().join('|');
+}
+function readChatDirectMessagesV2_(user,email,recipient){
+  var to=chatDirectRecipientV2_(user,recipient);
+  var key=chatDirectKeyV2_(email,to);
+  var rows=supabaseRequest_('/rest/v1/'+table_('TABLE_CHAT','bacio_chat_mensagens')+
+    '?select=*&conversa_usuario_chave=eq.'+encodeURIComponent(key)+'&order=created_at.asc&limit=500','get')||[];
+  return rows.map(function(r){
+    return {id:String(r.id||''),email:r.usuario_email||'',name:r.usuario_nome||'',
+      role:r.role||'',message:r.mensagem||'',createdAt:r.created_at||''};
+  });
+}
+function getChatDirectMessages(input){
+  var auth=getCurrentAuthContext_();
+  return readChatDirectMessagesV2_(auth.user,auth.email,(input||{}).recipientEmail);
+}
+function getStoreChatDirectMessages(token,input){
+  var ctx=getStoreAuthContext_(token);
+  return readChatDirectMessagesV2_(ctx.user,ctx.email,(input||{}).recipientEmail);
+}
+function writeChatDirectMessageV2_(user,email,recipient,message){
+  var to=chatDirectRecipientV2_(user,recipient);
+  var text=String(message||'').trim();
+  if(!text)throw new Error('Digite uma mensagem.');
+  if(text.length>4000)throw new Error('A mensagem excede 4.000 caracteres.');
+  var key=chatDirectKeyV2_(email,to);
+  var rows=supabaseRequest_('/rest/v1/'+table_('TABLE_CHAT','bacio_chat_mensagens'),'post',{
+    usuario_email:String(email).trim().toLowerCase(),
+    usuario_nome:user.nome||v2NiceNameFromEmail_(email),
+    role:roleOf_(user),
+    loja_id:user.loja_id||null,
+    conversa_loja_id:null,
+    demanda_id:null,
+    destinatario_email:to,
+    conversa_usuario_chave:key,
+    mensagem:text,
+    created_at:new Date().toISOString()
+  },'return=representation');
+  return {ok:true,row:rows&&rows[0]||null};
+}
+function sendChatDirectMessage(input){
+  var auth=getCurrentAuthContext_(),v=input||{};
+  return writeChatDirectMessageV2_(auth.user,auth.email,v.recipientEmail,v.message);
+}
+function sendStoreChatDirectMessage(token,input){
+  var ctx=getStoreAuthContext_(token),v=input||{};
+  return writeChatDirectMessageV2_(ctx.user,ctx.email,v.recipientEmail,v.message);
 }
