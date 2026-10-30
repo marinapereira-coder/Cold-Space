@@ -1,0 +1,141 @@
+<style>
+.bc-sched{color:var(--brown,#593d2b);display:grid;gap:15px}
+.bc-sched *{box-sizing:border-box}
+.bc-sched-card{background:var(--paper,#fffdfa);border:1px solid var(--line,#e9ddd1);border-radius:15px;padding:18px}
+.bc-sched-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.bc-sched h2{font:400 25px Georgia,serif;margin:0}.bc-sched h3{font:400 21px Georgia,serif;margin:0}
+.bc-sched-note{color:#927c6c;font-size:11px;line-height:1.5;margin:5px 0}
+.bc-sched-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bc-sched input,.bc-sched select{border:1px solid #e5d8cc;border-radius:9px;background:#fff;padding:10px;color:#53392a;max-width:100%;font-size:12px}
+.bc-sched input[type=search]{min-width:230px}
+.bc-sched-overview{display:grid;grid-template-columns:1fr 1.5fr auto;gap:20px;align-items:center}
+.bc-sched-progress{display:grid;grid-template-columns:90px 1fr 44px;gap:10px;align-items:center;font-size:12px;margin:9px 0}
+.bc-sched-track{height:10px;border-radius:12px;background:#eee7e1;overflow:hidden}
+.bc-sched-fill{display:block;height:100%;border-radius:12px;background:#be9b7c}.bc-sched-fill.done{background:#69432f}
+.bc-sched-pill{display:inline-block;border-radius:8px;padding:9px 12px;background:#e7f3e9;color:#37713f;font-weight:700;font-size:12px}
+.bc-sched-pill.warn{background:#ffeedc;color:#975c1b}
+.bc-sched-days{display:flex;gap:8px;overflow:auto;padding:10px 0;scrollbar-width:thin}
+.bc-sched-day{border:1px solid #e7dcd2;background:#fff;border-radius:11px;min-width:122px;padding:12px;cursor:pointer;text-align:left;color:#674633}
+.bc-sched-day strong,.bc-sched-day small{display:block}.bc-sched-day small{font-size:11px;color:#9a8070;margin:8px 0}
+.bc-sched-day.selected,.bc-sched-day:hover{border-color:#ae7956;background:#fff8f1}
+.bc-sched-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.bc-sched-tab,.bc-sched-action{border:1px solid #e7d9cc;background:#fff;color:#654532;border-radius:9px;padding:9px 11px;font-size:12px;cursor:pointer}
+.bc-sched-tab.active{background:#65412b;color:#fff;border-color:#65412b}
+.bc-sched-filters{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0}
+.bc-sched-check{font-size:12px;display:flex;align-items:center;gap:5px}
+.bc-sched-check input{accent-color:#65412b}
+.bc-sched-scroll{overflow:auto;border:1px solid #e9dfd6;border-radius:10px}
+.bc-sched-table{width:100%;min-width:850px;border-collapse:collapse;font-size:12px}
+.bc-sched-table th{text-align:left;background:#faf7f2;padding:12px;color:#715b48;font-size:11px}
+.bc-sched-table td{padding:12px;border-top:1px solid #ece4dc;vertical-align:middle}
+.bc-sched-table td small{display:block;color:#928071;margin-top:5px;font-size:10px}
+.bc-sched-badge{border-radius:7px;background:#f3e9df;color:#926442;padding:7px;white-space:nowrap}
+.bc-sched-badge.late{background:#fce8e8;color:#aa2929}
+.bc-sched-badge.completed{background:#e9f5e9;color:#25743b}
+.bc-sched-badge.pending_approval{background:#fff3d7;color:#916019}
+.bc-sched-count{display:flex;align-items:center;gap:8px}
+.bc-sched-count .bc-sched-track{width:65px;height:7px}
+.bc-sched-preview{background:#faf1e8;border-radius:9px;padding:13px;margin-top:12px;font-size:12px}
+@media(max-width:950px){.bc-sched-overview{grid-template-columns:1fr}.bc-sched-controls{width:100%}}
+@media(max-width:600px){.bc-sched-card{padding:12px}.bc-sched input[type=search]{min-width:100px;flex:1}}
+</style>
+<script>
+/* Somente dados já filtrados por permissão no bootstrap do Conecta. */
+(function(){
+ var cfg={month:'',status:'all',day:'',q:'',area:'',owner:'',consultor:'',mine:false};
+ var TZ='America/Sao_Paulo';
+ function e(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+ function key(d){var p=new Intl.DateTimeFormat('en-US',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d),x={};p.forEach(function(z){x[z.type]=z.value;});return x.year+'-'+x.month+'-'+x.day;}
+ function due(x){var v=String((x.timeline||{}).deadline||x.deadline||'');if(!v)return '';if(/^\d{4}-\d\d-\d\d$/.test(v))return v;var d=new Date(v);return isNaN(d.getTime())?'':key(d);}
+ function items(){return ((window.APP_DATA||{}).managementItems||[]).slice();}
+ function stores(){return ((window.APP_DATA||{}).stores||[]);}
+ function count(x){return Math.max(0,Number(x.totalStores||0));}
+ function done(x){return Math.max(0,Number(x.completedCount!=null?x.completedCount:x.answeredCount||0));}
+ function complete(x){return count(x)?done(x)>=count(x):x.timelineStatus==='completed';}
+ function state(x){
+  var s=x.timelineStatus||'active';if(['draft','pending_approval','needs_revision','rejected','closed'].indexOf(s)>=0)return s;
+  if(complete(x))return 'completed';
+  var d=due(x),now=key(new Date());if(d&&d<now)return 'late';if(d===now)return 'due_today';if(d>now)return 'upcoming';
+  return s==='completed'?'active':s;
+ }
+ function label(s){return ({draft:'Rascunho',pending_approval:'Aguardando aprovação',needs_revision:'Ajustes solicitados',rejected:'Reprovada',closed:'Encerrada',completed:'Concluída',late:'Em atraso',due_today:'Vence hoje',upcoming:'A vencer',active:'Em andamento',scheduled:'Agendada'})[s]||'Em andamento';}
+ function dept(x){return typeof requestDepartment==='function'?requestDepartment(x):'Operações';}
+ function track(n,cl){return '<div class="bc-sched-track"><span class="bc-sched-fill '+(cl||'')+'" style="width:'+Math.max(0,Math.min(100,n))+'%"></span></div>';}
+ function select(vals,value,placeholder){return '<option value="">'+e(placeholder)+'</option>'+vals.map(function(v){return '<option '+(v===value?'selected':'')+' value="'+e(v)+'">'+e(v)+'</option>';}).join('');}
+ function render(){
+  var root=document.getElementById('conectaCronogramaApp');if(!root||!window.APP_DATA)return;
+  var today=key(new Date());if(!cfg.month)cfg.month=today.slice(0,7);
+  var monthItems=items().filter(function(x){return due(x).slice(0,7)===cfg.month;});
+  var visible=monthItems.filter(function(x){
+   var d=due(x),s=state(x),owner=String(x.owner||'');
+   if(cfg.q&&((x.title||'')+' '+(x.description||'')+' '+dept(x)+' '+owner).toLowerCase().indexOf(cfg.q.toLowerCase())<0)return false;
+   if(cfg.day&&d!==cfg.day)return false;
+   if(cfg.area&&dept(x)!==cfg.area)return false;
+   if(cfg.owner&&owner!==cfg.owner)return false;
+   if(cfg.mine&&owner.toLowerCase().indexOf(String(((window.APP_DATA||{}).user||{}).email||'').toLowerCase())<0)return false;
+   if(cfg.consultor){var ids=x.targetStoreIds||[];if(!stores().some(function(z){return ids.indexOf(String(z.id))>=0&&z.consultor===cfg.consultor;}))return false;}
+   if(cfg.status==='all')return true;
+   if(cfg.status==='pending')return count(x)>done(x)&&!['closed','draft','completed'].includes(s);
+   return s===cfg.status;
+  });
+  var eligible=monthItems.filter(function(x){return !['draft','closed','pending_approval','rejected','needs_revision'].includes(state(x));});
+  var total=0,completed=0,expected=0;eligible.forEach(function(x){var n=count(x)||1;total+=n;completed+=Math.min(n,count(x)?done(x):(complete(x)?1:0));if(due(x)&&due(x)<=today)expected+=n;});
+  var exp=total?Math.round(100*expected/total):0,real=total?Math.round(100*completed/total):0;
+  var vals={all:monthItems.length,late:0,due_today:0,upcoming:0,completed:0,pending:0,pending_approval:0};
+  monthItems.forEach(function(x){var s=state(x);if(vals[s]!==undefined)vals[s]++;if(count(x)>done(x)&&!['closed','draft','completed'].includes(s))vals.pending++;});
+  var area=Array.from(new Set(monthItems.map(dept))).sort(),owners=Array.from(new Set(monthItems.map(function(x){return x.owner||'';}).filter(Boolean))).sort();
+  var consultors=Array.from(new Set(stores().map(function(x){return x.consultor||'';}).filter(Boolean))).sort();
+  var from=cfg.month===today.slice(0,7)?today:cfg.month+'-01';var d0=new Date(from+'T12:00:00');
+  var days=[];for(var i=0;i<14;i++){
+   var dt=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+i,12),k=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+   var hits=items().filter(function(x){return due(x)===k;}),all=0,ok=0;
+   hits.forEach(function(x){var n=count(x)||1;all+=n;ok+=Math.min(n,count(x)?done(x):(complete(x)?1:0));});
+   days.push('<button type="button" class="bc-sched-day '+(cfg.day===k?'selected':'')+'" data-sc-day="'+k+'"><strong>'+(k===today?'HOJE':'D+'+i)+' · '+dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+'</strong><small>'+hits.length+' demanda(s) · '+ok+'/'+all+' entregas</small>'+track(all?Math.round(ok*100/all):0)+'</button>');
+  }
+  var tabs=[['all','Todas'],['late','Em atraso'],['pending','Aguardando lojas'],['due_today','Vence hoje'],['upcoming','A vencer'],['completed','Concluídas'],['pending_approval','Aprovações']];
+  root.className='bc-sched';
+  root.innerHTML='<div class="bc-sched-card bc-sched-head"><div><h2>Cronograma de demandas</h2><p class="bc-sched-note">Acompanhamento das demandas e respostas por loja, área e consultor.</p></div><div class="bc-sched-controls"><input id="bcSchedMonth" aria-label="Mês" type="month" value="'+e(cfg.month)+'"><input id="bcSchedSearch" type="search" placeholder="Buscar demanda ou responsável" value="'+e(cfg.q)+'"></div></div>'+
+   '<div class="bc-sched-card bc-sched-overview"><div><h3>Andamento do ciclo</h3><p class="bc-sched-note">'+e(new Date(cfg.month+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))+'<br>Comparativo realizado x esperado até hoje.</p></div><div>'+
+   '<div class="bc-sched-progress"><span>Esperado</span>'+track(exp)+'<b>'+exp+'%</b></div><div class="bc-sched-progress"><span>Realizado</span>'+track(real,'done')+'<b>'+real+'%</b></div><p class="bc-sched-note">'+completed+' de '+total+' entregas concluídas</p></div>'+
+   '<span class="bc-sched-pill '+(real<exp?'warn':'')+'">'+(total===0?'Sem entregas':real>=exp?'No ritmo':'Atenção ao prazo')+'</span></div>'+
+   '<div class="bc-sched-card"><div class="bc-sched-head"><h3>Próximos prazos</h3><button class="bc-sched-action" data-sc-reset="1">Todos os dias</button></div><div class="bc-sched-days">'+days.join('')+'</div><p class="bc-sched-note">Selecione um dia para filtrar. Indicador: respostas concluídas / entregas previstas.</p></div>'+
+   '<div class="bc-sched-card"><div class="bc-sched-head"><h3>Prioridades</h3>'+((((window.APP_DATA||{}).user||{}).role)==='admin'?'<button class="bc-sched-action" data-sc-preview="1">Prévia das cobranças por e-mail</button>':'')+'</div>'+
+   '<div class="bc-sched-tabs">'+tabs.map(function(t){return '<button type="button" class="bc-sched-tab '+(cfg.status===t[0]?'active':'')+'" data-sc-tab="'+t[0]+'">'+t[1]+' <b>'+vals[t[0]]+'</b></button>';}).join('')+'</div>'+
+   '<div class="bc-sched-filters"><select id="bcSchedArea">'+select(area,cfg.area,'Todas as áreas')+'</select><select id="bcSchedOwner">'+select(owners,cfg.owner,'Todos os responsáveis')+'</select><select id="bcSchedConsultor">'+select(consultors,cfg.consultor,'Todos os consultores')+'</select>'+
+   '<label class="bc-sched-check"><input id="bcSchedMine" type="checkbox" '+(cfg.mine?'checked':'')+'> Minhas demandas</label></div>'+
+   '<p class="bc-sched-note">'+visible.length+' demanda(s) encontrada(s) neste período. Progresso considera apenas respostas válidas.</p>'+
+   '<div class="bc-sched-scroll"><table class="bc-sched-table"><thead><tr><th>ID</th><th>Etapa</th><th>Área / responsável</th><th>Prazo</th><th>Lojas</th><th>Status</th><th></th></tr></thead><tbody>'+
+   (visible.length?visible.sort(function(a,b){return (due(a)||'9999').localeCompare(due(b)||'9999');}).map(function(x){
+    var s=state(x),n=count(x),v=done(x),p=n?Math.round(v*100/n):0,k=due(x);
+    return '<tr><td>'+e(String(x.id||'').slice(0,8))+'</td><td><strong>'+e(x.title||'Demanda')+'</strong><small>'+e(String(x.description||'').slice(0,115))+'</small></td><td>'+e(dept(x))+'<small>'+e(x.owner||'Não informado')+'</small></td><td>'+(k?e(k.split('-').reverse().join('/')):'Sem prazo')+'</td><td><div class="bc-sched-count">'+track(p,'done')+'<b>'+(n?v+'/'+n:'—')+'</b></div></td><td><span class="bc-sched-badge '+e(s)+'">'+e(label(s))+'</span></td><td><button class="bc-sched-action" data-sc-open="'+e(x.id)+'">Abrir</button></td></tr>';
+   }).join(''):'<tr><td colspan="7" style="text-align:center;padding:28px">Nenhuma demanda para estes filtros.</td></tr>')+
+   '</tbody></table></div><div id="bcSchedPreview" aria-live="polite"></div></div>';
+  if(!root.dataset.bound){
+   root.dataset.bound='1';
+   root.addEventListener('click',function(ev){var b=ev.target.closest('button');if(!b)return;
+    if(b.dataset.scTab){cfg.status=b.dataset.scTab;render();}
+    else if(b.dataset.scDay){cfg.day=cfg.day===b.dataset.scDay?'':b.dataset.scDay;if(cfg.day)cfg.month=cfg.day.slice(0,7);render();}
+    else if(b.dataset.scReset){cfg.day='';render();}
+    else if(b.dataset.scOpen){if(typeof openDemandDetail==='function')openDemandDetail(b.dataset.scOpen);}
+    else if(b.dataset.scPreview){
+     var h=document.getElementById('bcSchedPreview');h.innerHTML='<div class="bc-sched-preview">Consultando pendências; nenhum e-mail será enviado...</div>';
+     google.script.run.withSuccessHandler(function(r){h.innerHTML='<div class="bc-sched-preview"><b>Prévia sem envio</b><p>'+e(r.pendencias||0)+' pendências para '+e(r.destinatarios||0)+' destinatário(s).</p><small>Envio real exige ativação no Apps Script.</small></div>';})
+      .withFailureHandler(function(err){h.textContent='Não foi possível consultar: '+String(err.message||err);}).testarResumoPendenciasEmail();
+    }
+   });
+   root.addEventListener('change',function(ev){var el=ev.target;
+    if(el.id==='bcSchedMonth'){cfg.month=el.value||key(new Date()).slice(0,7);cfg.day='';}
+    else if(el.id==='bcSchedArea')cfg.area=el.value;
+    else if(el.id==='bcSchedOwner')cfg.owner=el.value;
+    else if(el.id==='bcSchedConsultor')cfg.consultor=el.value;
+    else if(el.id==='bcSchedMine')cfg.mine=el.checked;
+    else return;render();
+   });
+   root.addEventListener('input',function(ev){if(ev.target.id==='bcSchedSearch')cfg.q=ev.target.value;});
+   root.addEventListener('keydown',function(ev){if(ev.target.id==='bcSchedSearch'&&ev.key==='Enter'){ev.preventDefault();render();}});
+   root.addEventListener('search',function(ev){if(ev.target.id==='bcSchedSearch'){cfg.q=ev.target.value;render();}});
+  }
+ }
+ window.renderConectaCronograma=render;
+})();
+</script>
