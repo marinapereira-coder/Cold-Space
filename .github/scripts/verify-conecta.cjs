@@ -128,4 +128,71 @@ function checkOrder(sourceOrder) {
 
 assert.equal(checkOrder(['legacy','modern']),269);
 assert.equal(checkOrder(['modern','legacy']),269);
-console.log('OK — Banco de Regras: chat V2, ADM, histórico, envio, escopo, menu e duas ordens de carga.');
+// Solicitações: exclusão lógica, planilhas operacionais, abas auxiliares e privacidade.
+const sqlSource=read('Supabase.js');
+const styleSource=read('Styles.html');
+new vm.Script(sqlSource,{filename:'Supabase.js'});
+assert.ok(scripts.includes('function deleteDemandItem(id,title)'), 'Excluir solicitação exige confirmação por nome');
+assert.ok(scripts.includes('CURRENT_ROLE===\'admin\'&&!CAMPAIGN_PREVIEW_DEPARTMENT'), 'Ação da lista deve ser só admin');
+const softDeleteSource=sqlSource.slice(sqlSource.indexOf('function deleteDemand(demandaId)'),
+  sqlSource.indexOf('function scopedCampaignImportMeta_',sqlSource.indexOf('function deleteDemand(demandaId)')));
+assert.ok(softDeleteSource.includes('requireAdmin_()'), 'Excluir exige autorização no servidor');
+assert.ok(softDeleteSource.includes('ativa: false'), 'Excluir é lógico, sem apagar históricos');
+assert.ok(!softDeleteSource.includes("'delete'"), 'Nunca usar delete físico');
+assert.ok(index.includes('id="newDemandBtn"'), 'Criar nova solicitação deve continuar presente');
+assert.ok(styleSource.includes('bacio-sheet-grid'), 'A visualização deve ter tabela estilo planilha');
+for(const rule of ['BR-011','BR-012','BR-013','BR-014','BR-015','BR-016','BR-017','BR-018']){
+ assert.ok(rules.includes(rule), 'Regra não documentada: '+rule);
+}
+const start=scripts.indexOf('function parseMultiSheetCampaign(file,done,fail){');
+const stop=scripts.indexOf('function renderStoreTemplateInfo(template){',start);
+assert.ok(start>0&&stop>start,'Importador multiabas precisa existir');
+const browserImportCode=scripts.slice(start,stop);
+new vm.Script(browserImportCode,{filename:'campaign-import.js'});
+const requestRow=[['','','','','ATENÇÃO: PEDIDO LOJA LCP'],
+ ['Crema Positano','','','','Forecast 5%','Gema de ovo'],
+ ['Loja','UF','Produção','Tipo Op','','Caixa c/ 12'],
+ ['LJ 0006 - SHOP PATIO PAULISTA','SP','LCP','Loja','147','1'],
+ ['LJ 0007 - SHOP MORUMBI + LJ 3031 QUIOSQUE','SP','LCP','Loja','588','3']];
+const auxiliary=[['Loja','Cód.'],['LJ 0006 - SHOP PATIO PAULISTA','6']];
+const fakeSheets={
+ 'Para loja pedir - LCP e Op. Dup':requestRow,
+ 'Respostas Lojas':auxiliary,'Base lojas':auxiliary,'Base Adm':auxiliary,
+ 'Pendências Lançamento':auxiliary,'Histórico Lançamento':auxiliary,
+ 'Log de Envios':auxiliary
+};
+const Reader=function(){this.readAsArrayBuffer=()=>this.onload({target:{result:'fixture'}});};
+const xlsxMock={
+ read:()=>({SheetNames:Object.keys(fakeSheets),Sheets:fakeSheets}),
+ utils:{sheet_to_json:value=>value}
+};
+const importCtx=vm.createContext({
+ FileReader:Reader,XLSX:xlsxMock,CURRENT_ROLE:'admin',
+ normalizeHeader:v=>String(v||'').trim().toLowerCase(),
+ storeCodeFromText:v=>{let m=String(v).match(/LJ\\s*0*(\\d+)/i);
+  return m?('0000'+String(Number(m[1]))).slice(-4):'';},
+ safe:v=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+});
+vm.runInContext(browserImportCode,importCtx);
+let workbookMeta=null,importError=null;
+importCtx.parseMultiSheetCampaign({name:'Crema Positano.xlsx'},data=>workbookMeta=data,err=>importError=err);
+assert.ifError(importError);
+assert.ok(workbookMeta,'Importação deve gerar um modelo');
+assert.equal(workbookMeta.sheets.length,1,'Abas administrativas não podem entrar na demanda');
+assert.equal(workbookMeta.sheetLayouts[0].headerRows.length,3,'Cabeçalho original multinível');
+assert.equal(workbookMeta.sheetLayouts[0].rows.length,2,'Linhas operacionais');
+assert.equal(workbookMeta.sheetLayouts[0].rows[0].cells[5],'1','Quantidade original mantida');
+assert.ok(workbookMeta.perStore['0006'],'Código normalizado 0006');
+assert.ok(workbookMeta.perStore['3031'],'Operação dupla inclui o quiosque');
+const viewerHtml=importCtx.campaignSheetTableHtml(workbookMeta.sheetLayouts[0]);
+assert.ok(viewerHtml.includes('Gema de ovo')&&viewerHtml.includes('SHOP PATIO PAULISTA'));
+const scopeCode=sqlSource.slice(sqlSource.indexOf('function scopedCampaignImportMeta_('),
+ sqlSource.indexOf('function getDemandDetail(',sqlSource.indexOf('function scopedCampaignImportMeta_(')));
+const scopeCtx=vm.createContext({normalizeJsonObject_:v=>v||{}});
+vm.runInContext(scopeCode,scopeCtx);
+const scoped=scopeCtx.scopedCampaignImportMeta_(workbookMeta,[{codigo:'6',nome:'LJ 0006 - SHOP PATIO PAULISTA'}]);
+assert.ok(scoped.perStore['0006']);
+assert.ok(!scoped.perStore['3031']);
+assert.ok(!('sheetLayouts' in scoped),'Perfil não-admin não recebe a planilha global');
+console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
+
