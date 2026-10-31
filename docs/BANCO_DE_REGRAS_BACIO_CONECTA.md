@@ -72,7 +72,17 @@ Versão inicial: 31/10/2026 · Repositório: `marinapereira-coder/Cold-Space`
 - [ ] A execução de publicação foi verificada no GitHub Actions e erros informados, sem anunciar como publicado antes da confirmação.
 - [ ] Solicitações não relacionadas continuam intactas.
 
-## 7. Evolução controlada deste banco
+## 7. Regras aprovadas — exclusão e visualização de planilhas (31/10/2026)
+- **BR-011 — Exclusão administrativa de solicitações:** somente `admin` pode usar o botão **Excluir** na Central ou nos detalhes. A operação exige confirmação com nome da solicitação e é **exclusão lógica** (`bacio_demandas.ativa=false`) feita pela função `deleteDemand` com `requireAdmin_`. Não executar `DELETE` físico, nem eliminar respostas, notificações ou histórico. Nenhuma solicitação existente deve ser inativada automaticamente durante implementação/testes.
+- **BR-012 — Recriação do zero:** depois de excluir logicamente, permitir `+ Nova solicitação` normalmente; não reaproveitar ou sobrescrever a solicitação anterior sem ação expressa.
+- **BR-013 — Planilha na solicitação:** importação de planilhas operacionais multiabas deve manter **nome das abas, cabeçalhos de vários níveis, ordem das colunas, código/descrição de produtos, unidades, valores por loja, insumos recebidos, plaquinhas, observações e linhas de origem**. Exibir uma grade visual somente leitura, com abas e rolagem horizontal/vertical. **Não modificar valores ou fórmulas de origem.** A aplicação exibe os valores de células (não executa macros/fórmulas de Excel).
+- **BR-014 — Abas protegidas:** abas `Base lojas`, `Base Adm`, `Respostas Lojas`, `Pendências Lançamento`, `Histórico Lançamento`, `Log de Envios` são auxiliares, não devem integrar o modelo de campanha nem ficar visíveis a lojas.
+- **BR-015 — Escopo por usuário:** administradores podem ver toda a grade importada; lojas somente os próprios dados/linhas (inclusive operação dupla quando cabível); consultores, regionais e departamentos respeitam a autorização do servidor. Não usar somente filtro visual para proteger dados.
+- **BR-016 — Compatibilidade de importação:** modelos antigos continuam legíveis pelo visualizador anterior. Nenhum banco de dados/schema precisa ser recriado; o detalhe enriquecido fica em `bacio_demandas.import_meta`. Não remover os fluxos de conferência, resposta, avaliação e simulação já existentes.
+- **BR-017 — Exemplo de aceite:** arquivo `Campanha Crema Positano - Itens que são pedido de loja e envio automático.xlsx` possui as abas operacionais **Para loja pedir - LCP e Op. Dup**, **Para loja pedir - LSP e Op. Dup** e **ITENS DE ENVIO AUTOMÁTICO**. Na importação, a visão precisa corresponder às três grades, sem incluir abas auxiliares.
+- **BR-018 — Testes de regressão:** o workflow antes do deploy deve validar a separação de abas privadas, operação dupla, código de loja de 4 dígitos, conservação de cabeçalhos/valores, proteção da exclusão e presença dos links/botões existentes. Se algum teste falhar, impedir a publicação.
+
+## 8. Evolução controlada deste banco
 Toda regra nova aprovada entra aqui com data, alcance e teste correspondente. Se existir conflito com regra anterior, obter autorização para a substituição e registrar a alteração. **Nenhuma regra anterior é descartada apenas porque uma solicitação nova não a menciona.**
 
 *Este arquivo documenta o contrato do produto e orienta testes. Não substitui autorização efetiva no servidor nem garante ausência absoluta de regressões.*
