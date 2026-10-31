@@ -3182,13 +3182,17 @@ function deleteCalendarEvent(
  * ====================================================================== */
 
 function getChatWorkspace() {
-  var auth =
-    getCurrentAuthContext_();
+  var auth=getCurrentAuthContext_();
+  return buildChatWorkspaceV2_(auth.user,false);
+}
 
-  return buildChatWorkspaceV2_(
-    auth.user,
-    false
-  );
+// Confere o papel no cadastro real (não depende de uma cópia antiga do bootstrap).
+// As funções de gestão mantêm sua própria verificação requireAdmin_ no servidor.
+function getConectaCurrentCapabilities() {
+  var auth=getCurrentAuthContext_();
+  var role=roleOf_(auth.user);
+  return {role:role,isAdmin:role==='admin',active:auth.user.ativo!==false,
+    directoryVersion:'2026-10-31-repair'};
 }
 
 
@@ -3209,9 +3213,10 @@ function getStoreChatWorkspace(
 
 
 function getChatVisibleStoresV2_(user) {
-  // O chat usa a base de lojas, independente de demandas ou campanhas.
-  // Os escopos de consultores, regionais e lojas continuam sendo validados.
-  if(isDepartmentUser_(user)){
+  var role=roleOf_(user);
+  // Administradores e departamentos usam o diretório completo da base de lojas,
+  // independente das demandas; outras funções preservam seus escopos existentes.
+  if(role==='admin'||isDepartmentUser_(user)){
     return supabaseRequest_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+
       '?select=*&ativa=eq.true&order=nome.asc&limit=5000','get')||[];
   }
@@ -3259,8 +3264,10 @@ function buildChatWorkspaceV2_(user,storeMode) {
     return {id:store.id,storeId:store.storeId,demandId:'',
       title:store.title,subtitle:store.subtitle};
   });
+  var people=chatPeopleDirectoryV2_(user);
   return {threads:threads,storeContacts:storeContacts,
-    peopleContacts:chatPeopleDirectoryV2_(user),
+    peopleContacts:people,version:'chat-directory-2026-10-31b',
+    role:roleOf_(user),storeCount:storeContacts.length,admCount:people.length,
     emptyReason:stores.length?'':'Nenhuma loja disponível para este perfil.'};
 }
 
