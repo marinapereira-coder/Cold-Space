@@ -467,10 +467,12 @@ function parseMultiSheetCampaign(file,done,fail){
  var reader=new FileReader();
  reader.onload=function(e){try{
   if(typeof XLSX==='undefined')throw new Error('Leitor XLSX indisponível');
-  var wb=XLSX.read(e.target.result,{type:'array',raw:false});
-  var perStore={},source=[];
+  var wb=XLSX.read(e.target.result,{type:'array',raw:false,cellDates:false});
+  var perStore={},source=[],sheetLayouts=[],maxRows=800,maxCols=35,used=0;
   wb.SheetNames.forEach(function(name){
-   if(/base\s*(lojas|adm)/i.test(name))return;
+   var key=String(name||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+   // Nunca enviar bases de apoio/adm, respostas ou logs como modelo operacional.
+   if(/base\\s*(lojas|adm)|respostas|pendencias|historico|log\\s*de\\s*envios/.test(key))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
    var hi=-1,storeCol=-1;
    for(var h=0;h<Math.min(rows.length,8);h++){
@@ -479,38 +481,41 @@ function parseMultiSheetCampaign(file,done,fail){
     if(idx>=0){hi=h;storeCol=idx;break;}
    }
    if(hi<0)return;
-   var headers=(rows[hi]||[]).map(function(v){return normalizeHeader(String(v||''));});
-   var findCol=function(pattern){return headers.findIndex(function(v){return pattern.test(v);});};
-   var productCol=findCol(/descricao|produto/),codeCol=findCol(/cod item|codigo item/);
-   var qtyCol=findCol(/qtd un|quantidade de envio|quantidade enviada/);
-   var masterCol=findCol(/quantidade master/),unitCol=findCol(/un medida|unidade/),pctCol=findCol(/atendido/);
-   var count=0;
-   for(var ri=hi+1;ri<rows.length;ri++){
+   var width=Math.min(maxCols,Math.max.apply(null,rows.slice(0,hi+1).map(function(row){return row.length;}).concat([1])));
+   var headers=rows.slice(0,hi+1).map(function(row){return Array.from({length:width},function(_,i){return String(row[i]==null?'':row[i]).trim();});});
+   var tableRows=[],seen={};
+   for(var ri=hi+1;ri<rows.length&&ri<maxRows;ri++){
     var row=rows[ri]||[],label=String(row[storeCol]||'').trim();
-    var codes=(label.match(/LJ\s*0*\d{1,5}/gi)||[]).map(function(v){var n=v.match(/\d+/);return n?('0000'+String(Number(n[0]))).slice(-4):'';}).filter(Boolean);
+    var codes=(label.match(/LJ\\s*0*\\d{1,5}/gi)||[]).map(function(value){
+      var m=value.match(/\\d+/);return m?('0000'+String(Number(m[0]))).slice(-4):'';
+    }).filter(Boolean);
+    if(!codes.length){var code=storeCodeFromText(label);if(code)codes=[code];}
     if(!codes.length)continue;
-    var product=productCol>=0?String(row[productCol]||'').trim():'Bomba de recheio';
-    var itemCode=codeCol>=0?String(row[codeCol]||'').trim():'';
-    var quantity=qtyCol>=0?String(row[qtyCol]||'').trim():'';
-    var unit=unitCol>=0?String(row[unitCol]||'').trim():'UN';
-    var fields=[
-      {label:'Código do item',value:itemCode,editable:false},
-      {label:'Produto',value:product,editable:false},
-      {label:'Unidade',value:unit,editable:false},
-      {label:'Quantidade enviada',value:quantity,editable:false}
-    ];
-    if(masterCol>=0)fields.push({label:'Quantidade master',value:String(row[masterCol]||''),editable:false});
-    if(pctCol>=0)fields.push({label:'Percentual atendido no envio',value:String(row[pctCol]||''),editable:false});
+    var cells=Array.from({length:width},function(_,i){return String(row[i]==null?'':row[i]).trim();});
+    var fields=cells.map(function(value,i){
+      var heading=String((headers[Math.max(0,hi-1)]||[])[i]||'').trim();
+      var unit=String((headers[hi]||[])[i]||'').trim();
+      return {label:heading&&unit&&heading!==unit?heading+' · '+unit:(heading||unit||'Coluna '+(i+1)),
+        value:value,editable:false,unit:''};
+    });
+    var item={sheet:name,store:label,sourceRow:ri+1,rowCells:cells,
+      sheetHeaders:headers,fields:fields,code:'',product:'',sentQuantity:'',unit:''};
     codes.forEach(function(code){
       if(!perStore[code])perStore[code]=[];
-      perStore[code].push({sheet:name,store:label,code:itemCode,product:product,sentQuantity:quantity,unit:unit,sourceRow:ri+1,fields:fields});
+      // A mesma linha de operação dupla é visível a ambas as lojas, sem duplicar na visão global.
+      perStore[code].push(item);
     });
-    count++;
+    if(!seen[ri+1]){tableRows.push({sourceRow:ri+1,cells:cells,codes:codes});seen[ri+1]=true;}
+    used++;
+    if(used>5000)throw new Error('O arquivo excede o limite de 5.000 linhas operacionais.');
    }
-   source.push({sheet:name,rows:count});
+   if(tableRows.length){
+    source.push({sheet:name,rows:tableRows.length});
+    sheetLayouts.push({sheet:name,headerRows:headers,rows:tableRows,width:width});
+   }
   });
-  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas do arquivo.');
-  done({version:3,fileName:file.name,perStore:perStore,sheets:source,responseFields:[]});
+  if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas operacionais do arquivo.');
+  done({version:4,fileName:file.name,perStore:perStore,sheets:source,sheetLayouts:sheetLayouts,responseFields:[]});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
  reader.readAsArrayBuffer(file);
