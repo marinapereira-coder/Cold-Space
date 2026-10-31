@@ -3248,7 +3248,7 @@ function buildChatWorkspaceV2_(user,storeMode) {
     var extras=parseJsonObject_(store.dados_extras);
     var name=String(store.nome||'').trim();
     // A base já traz títulos como "LJ 0006 - SHOP PATIO PAULISTA"; evitar prefixo "6 ·".
-    var title=/^LJ\\s*\\d+/i.test(name)?name:storeLabelV2_(store);
+    var title=name.toUpperCase().indexOf('LJ ')===0?name:storeLabelV2_(store);
     return {id:'geral:'+String(store.id),storeId:String(store.id),
       title:title,
       subtitle:isStore?'Conversa com o escritório':
