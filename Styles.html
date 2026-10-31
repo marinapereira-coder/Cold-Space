@@ -2371,7 +2371,16 @@ body{background:var(--cream)}
 .app-shell .nav-btn.active .nav-dot{filter:brightness(0) invert(1);opacity:1}
 .app-shell .user-card{
   background:#eee4db;border:1px solid #e6d8cb;border-radius:14px;
-  padding:13px 15px;bottom:15px;left:15px;right:15px;
+  padding:13px 15px;
+  position:relative;left:auto;right:auto;bottom:auto;
+  margin:18px 0 12px;
+}
+/* Gestão, links de acesso e perfil permanecem visíveis em janelas menores. */
+.app-shell .sidebar{
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior-y:contain;
+  scrollbar-width:thin;
 }
 .app-shell .user-card strong{font-size:13px}
 .app-shell .user-card span{font-size:11px;line-height:1.5}
