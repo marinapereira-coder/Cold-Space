@@ -1023,6 +1023,28 @@ function deleteDemand(demandaId) {
   return { ok: true };
 }
 
+// A visualização de planilha é filtrada no servidor para perfis não-admin.
+// Preserva cabeçalhos/valores por loja, sem liberar outras carteiras.
+function scopedCampaignImportMeta_(meta,stores) {
+  var source=normalizeJsonObject_(meta);
+  if(!source.perStore&&!source.sheetLayouts)return source;
+  var allowed={};
+  (stores||[]).forEach(function(store){
+    var match=String(store.nome||'').match(/LJ\s*0*(\d{1,5})/i);
+    var raw=match?match[1]:String(store.codigo||'');
+    var number=raw.match(/\d+/);
+    if(number)allowed[('0000'+String(Number(number[0]))).slice(-4)]=true;
+  });
+  var selected={},sections=[];
+  Object.keys(source.perStore||{}).forEach(function(code){
+    if(!allowed[code])return;
+    selected[code]=source.perStore[code];
+    sections=sections.concat(source.perStore[code]||[]);
+  });
+  return {version:source.version,fileName:source.fileName,
+    sheets:source.sheets,perStore:selected,storeSections:sections};
+}
+
 function getDemandDetail(demandaId,authOverride) {
   if (!demandaId) throw new Error('Campanha/demanda não informada.');
 
@@ -1109,7 +1131,7 @@ function getDemandDetail(demandaId,authOverride) {
     responseRequired: demanda.resposta_obrigatoria !== false,
     modelSource: demanda.model_source || 'manual',
     modelFields: normalizeObjectArray_(demanda.model_fields),
-    importMeta: demanda.import_meta || null,
+    importMeta: role==='admin'?(demanda.import_meta||null):scopedCampaignImportMeta_(demanda.import_meta,targetStores),
     lojaIds: normalizeArray_(demanda.loja_ids),
     totalStores: storeStatus.length,
     answeredCount: answered,
