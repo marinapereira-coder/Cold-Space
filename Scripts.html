@@ -355,6 +355,9 @@ function renderCampaignManagement(){
    safe(st)+'">'+safe(item.timelineLabel||timelineLabel(st))+'</span></div><div class="muted">'+
    safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:nowrap"><button class="btn soft" style="white-space:nowrap" onclick="openDemandDetail(\''+
    safeJs(item.id)+'\')">Detalhes</button>'+
+    (CURRENT_ROLE==='admin'&&!CAMPAIGN_PREVIEW_DEPARTMENT?
+      '<button class="btn danger" style="white-space:nowrap" onclick="deleteDemandItem(\''+
+      safeJs(item.id)+'\',\''+safeJs(item.title||'Solicitação')+'\')">Excluir</button>':'')+
     (CURRENT_ROLE==='admin'&&!CAMPAIGN_PREVIEW_DEPARTMENT&&item.publishStatus==='draft'&&(item.cronograma||{}).aprovacaoStatus==='pendente'?
     '<button class="btn primary" style="white-space:nowrap" onclick="approveDepartmentRequest(\''+safeJs(item.id)+'\')">Aprovar e publicar</button>'+
     '<button class="btn soft" onclick="decideDepartmentRequestUI(\''+safeJs(item.id)+'\',\'ajustes\')">Solicitar ajustes</button>'+
@@ -857,7 +860,14 @@ function submitStoreResponse(demandaId){
   if(AUTH_MODE==='store')run.submitStoreDemandResponse(STORE_ACCESS_TOKEN,payload);else run.submitDemandResponse(payload);
 }
 
-function deleteDemandItem(id){if(!confirm('Excluir este item? O histórico será preservado.'))return;google.script.run.withSuccessHandler(function(){closeModal('detailModal');showToast('Item excluído.');refreshBootstrap('campanhas');}).withFailureHandler(serverError).deleteDemand(id);}
+function deleteDemandItem(id,title){
+ if(CURRENT_ROLE!=='admin'){showToast('Apenas administradores podem excluir solicitações.');return;}
+ var label=String(title||((window.BACIO_CURRENT_DETAIL||{}).title)||'esta solicitação');
+ if(!confirm('Retirar "'+label+'" da Central de Solicitações?\\n\\nA solicitação ficará inativa, mas o histórico, as respostas e os registros serão preservados. É possível criar uma nova do zero depois.'))return;
+ google.script.run.withSuccessHandler(function(){
+  closeModal('detailModal');showToast('Solicitação retirada da lista sem apagar o histórico.');refreshBootstrap('campanhas');
+ }).withFailureHandler(serverError).deleteDemand(id);
+}
 
 function openNoticeModal(){if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem publicar comunicados.');return;}openGeneric('Comunicação','Novo comunicado','<div><label class="label">Título</label><input id="gNoticeTitle" class="field"></div><div style="margin-top:12px"><label class="label">Mensagem</label><textarea id="gNoticeText" class="textarea"></textarea></div><div style="margin-top:12px"><label class="label">Lojas</label><select id="gNoticeAudience" class="select"><option value="all">Todas as lojas do escopo</option><option value="selected">Usar lojas selecionadas na tela de campanhas</option></select></div>',function(){var title=document.getElementById('gNoticeTitle').value.trim();if(!title){showToast('Informe um título.');return;}var ids=document.getElementById('gNoticeAudience').value==='selected'?getSelectedStoreIds():[];setBusy('genericSaveBtn',true,'Publicando...');google.script.run.withSuccessHandler(function(){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast('Comunicado publicado.');refreshBootstrap('comunicados');}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).saveAnnouncement({title:title,message:document.getElementById('gNoticeText').value.trim(),lojaIds:ids});});}
 
