@@ -2622,3 +2622,47 @@ body.dark-mode #page-central .central-link-icon{background:#6c4430}
 @media(max-width:760px){#page-central .central-links-section{padding:20px 16px}#page-central .central-link-grid{grid-template-columns:1fr}#page-central .central-links-head{align-items:start;flex-wrap:wrap}#page-central .central-link-open{font-size:10px}}
 
 </style>
+
+/* Bacio Conecta — leitura fiel de modelos operacionais importados (2026-10-31).
+   Classes isoladas para preservar componentes, menus e demais tabelas. */
+.bacio-sheet-detail,.bacio-import-sheet-preview{
+  margin:0 0 20px;background:var(--paper,#fffdf9);border:1px solid var(--line,#e4d6c8);
+  padding:14px;border-radius:15px;max-width:100%;min-width:0;
+}
+.bacio-sheet-top{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px 20px;margin:2px 3px 12px}
+.bacio-sheet-top strong{font-size:15px;color:var(--brown,#623e2d)}
+.bacio-sheet-top .muted{font-size:11px}
+.bacio-sheet-tabs{display:flex;gap:8px;overflow-x:auto;padding:3px 2px 12px;scrollbar-width:thin}
+.bacio-sheet-tab{
+  flex:none;max-width:290px;border:1px solid #ddcfc1;border-radius:9px;
+  padding:10px 13px;color:#69452f;background:#f8f1e9;font-weight:700;
+  font-size:12px;text-align:left;cursor:pointer
+}
+.bacio-sheet-tab.active{background:#69432e;color:#fff;border-color:#69432e}
+.bacio-sheet-scroll{
+  width:100%;max-width:100%;max-height:560px;overflow:auto;border:1px solid #e2d6c9;
+  border-radius:12px;position:relative;scrollbar-width:thin;background:white
+}
+.bacio-sheet-grid{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:11px;color:#50372b}
+.bacio-sheet-grid th,.bacio-sheet-grid td{
+  text-align:left;vertical-align:middle;padding:9px 11px;min-width:104px;max-width:290px;
+  white-space:pre-wrap;overflow-wrap:anywhere;border-right:1px solid #e8ddd1;border-bottom:1px solid #eee4db;
+}
+.bacio-sheet-grid thead{position:sticky;top:0;z-index:2}
+.bacio-sheet-grid thead th{font-weight:700}
+.bacio-sheet-grid .bacio-sheet-row-label th{background:#67432d;color:#fff;padding:10px 13px;border-color:#7d543a}
+.bacio-sheet-grid .bacio-sheet-header-0 th{background:#fff0d6;color:#673f28;font-size:10px}
+.bacio-sheet-grid .bacio-sheet-header-1 th{background:#f4dfca;color:#5f3928;font-size:11px;min-width:154px}
+.bacio-sheet-grid .bacio-sheet-header-2 th{background:#efe9de;color:#5a4437;font-size:11px}
+.bacio-sheet-grid tbody tr:nth-child(2n){background:#fcf8f3}
+.bacio-sheet-grid tbody tr:hover{background:#f1e7dc}
+.bacio-sheet-grid .bacio-sheet-rowno{min-width:38px;max-width:38px;width:38px;position:sticky;left:0;z-index:1;background:#f5efe7;text-align:center;color:#987b67;font-size:10px}
+.bacio-sheet-grid .bacio-sheet-store{font-weight:700;min-width:240px;max-width:330px}
+.bacio-sheet-grid .bacio-sheet-number{text-align:right;font-variant-numeric:tabular-nums}
+body.dark-mode .bacio-sheet-detail,body.dark-mode .bacio-import-sheet-preview{background:#29231f;border-color:#514034}
+body.dark-mode .bacio-sheet-top strong{color:#f8eddf}
+@media(max-width:760px){
+  .bacio-sheet-detail,.bacio-import-sheet-preview{padding:9px}
+  .bacio-sheet-scroll{max-height:440px}
+  .bacio-sheet-grid th,.bacio-sheet-grid td{padding:8px;min-width:95px}
+}
