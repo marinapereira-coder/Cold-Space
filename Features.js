@@ -1092,6 +1092,12 @@ function syncStoreScopeIdsFromExtras_() {
 }
 
 
+/* REGRA CHAT: funções legadas abaixo permanecem apenas para consulta histórica.
+ * Não registrar endpoints getChatWorkspace/getChatMessages/sendContextChatMessage
+ * aqui: a implementação ativa é Features_V2.js. A duplicidade fazia o Apps Script
+ * chamar métodos antigos (threadId) em vez de storeId, gerando
+ * "Conversa não informada" e ocultando os contatos ADM.
+ */
 /* ================================================================
  * CHAT CONTEXTUAL
  *
@@ -1099,7 +1105,7 @@ function syncStoreScopeIdsFromExtras_() {
  * O contexto é salvo como um prefixo interno na mensagem.
  * ================================================================ */
 
-function getChatWorkspace() {
+function legacyGetChatWorkspace_(/* DESATIVADO: substituído por Features_V2.js */) {
 
   var auth =
     getCurrentAuthContext_();
@@ -1266,7 +1272,7 @@ function getChatWorkspace() {
 }
 
 
-function getChatMessages(input) {
+function legacyGetChatMessages_(input) {
 
   input =
     input || {};
@@ -1471,7 +1477,7 @@ function getChatMessages(input) {
 }
 
 
-function sendContextChatMessage(input) {
+function legacySendContextChatMessage_(input) {
 
   input =
     input || {};
