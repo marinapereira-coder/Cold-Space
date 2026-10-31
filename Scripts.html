@@ -11,6 +11,7 @@ var CHAT_DATA=null;
 var CHAT_THREAD_ID=null;
 var CHAT_SELECTED=null;
 var CHAT_TAB='lojas';
+var CHAT_DIAGNOSTIC='';
 var STORE_IMPORT_ROWS=[];
 var STORE_IMPORT_PREVIEW=null;
 var AUTH_MODE='';
@@ -159,7 +160,31 @@ function startApp(data){
 
     CALENDAR_DATA=null;EVALUATION_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     renderAllCore();
+    if(AUTH_MODE==='corporate')syncVerifiedPortalRole_();
   }catch(error){showError('Erro ao montar a interface: '+error.message);}
+}
+
+function syncVerifiedPortalRole_(){
+  google.script.run.withSuccessHandler(function(cap){
+    if(!cap||!cap.active||!cap.role)return;
+    var verifiedRole=String(cap.role).toLowerCase();
+    if(verifiedRole!==CURRENT_ROLE){
+      CURRENT_ROLE=verifiedRole;
+      if(APP_DATA&&APP_DATA.user)APP_DATA.user.role=verifiedRole;
+    }
+    // A visibilidade é sempre derivada do perfil autenticado no servidor.
+    var admin=cap.isAdmin===true&&verifiedRole==='admin';
+    document.getElementById('managementMenu').style.display=verifiedRole==='loja'?'none':'block';
+    document.getElementById('accessNavBtn').style.display=admin?'flex':'none';
+    document.getElementById('storeAdminActions').style.display=admin?'flex':'none';
+    document.getElementById('noticeAdminActions').style.display=admin?'flex':'none';
+    document.getElementById('newCalendarEventBtn').style.display=admin?'inline-block':'none';
+    document.getElementById('switchProfileLoginBtn').style.display=admin?'inline-flex':'none';
+    if(admin&&CURRENT_PAGE==='acessos'&&!ACCESS_DATA)loadAccesses();
+  }).withFailureHandler(function(error){
+    console.error('Não foi possível verificar o perfil do portal:',error);
+    // Falha de verificação nunca concede acesso administrativo.
+  }).getConectaCurrentCapabilities();
 }
 
 function renderAllCore(){
@@ -788,9 +813,36 @@ function loadChatWorkspace(){
   loader.style.display='block';shell.style.display='none';
   var ok=function(data){
     CHAT_DATA=data||{};
+    // Uma resposta antiga/incompatível não pode ser exibida como "0 contatos".
+    var hasDirectory=Array.isArray(CHAT_DATA.storeContacts)&&
+      Array.isArray(CHAT_DATA.peopleContacts);
     CHAT_DATA.threads=CHAT_DATA.threads||[];
     CHAT_DATA.peopleContacts=CHAT_DATA.peopleContacts||[];
     CHAT_DATA.storeContacts=CHAT_DATA.storeContacts||[];
+    if(AUTH_MODE==='corporate'&&CURRENT_ROLE==='admin'&&
+       !CHAT_DATA.storeContacts.length&&Array.isArray((APP_DATA||{}).stores)&&
+       APP_DATA.stores.length){
+      // Fallback seguro: são lojas já autorizadas e entregues pelo próprio bootstrap.
+      CHAT_DATA.storeContacts=APP_DATA.stores.map(function(s){
+        var name=String(s.nome||'').trim();
+        var title=name.toUpperCase().indexOf('LJ ')===0?name:
+          [(s.codigo?'LJ '+String(s.codigo).padStart(4,'0'):''),name].filter(Boolean).join(' - ');
+        return {id:'geral:'+String(s.id),storeId:String(s.id),
+          title:title||'Loja',subtitle:[s.consultor||'',s.regional||'',s.email||''].filter(Boolean).join(' · ')};
+      });
+      CHAT_DATA.threads=CHAT_DATA.storeContacts.map(function(s){
+        return {id:s.id,storeId:s.storeId,demandId:'',title:s.title,subtitle:s.subtitle};
+      });
+    }
+    if(!hasDirectory&&!CHAT_DATA.storeContacts.length){
+      fail({message:'A versão do servidor não retornou o diretório de contatos. Verifique a publicação do Apps Script.'});
+      return;
+    }
+    if(AUTH_MODE==='corporate'&&CURRENT_ROLE==='admin'&&
+       !CHAT_DATA.storeContacts.length&&!CHAT_DATA.peopleContacts.length){
+      fail({message:'O servidor retornou um diretório vazio para o perfil administrador. Confira a configuração do Supabase no Apps Script e a versão publicada.'});
+      return;
+    }
     loader.style.display='none';shell.style.display='grid';
     // Preserva a seleção após atualizar; oferece um contato imediatamente.
     if(CHAT_TAB==='lojas'&&!CHAT_DATA.storeContacts.length&&CHAT_DATA.peopleContacts.length)CHAT_TAB='adm';
