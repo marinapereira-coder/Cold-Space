@@ -3209,75 +3209,58 @@ function getStoreChatWorkspace(
 
 
 function getChatVisibleStoresV2_(user) {
-  var normal=getVisibleStores_(user);
-  if(!isDepartmentUser_(user))return normal;
-  // Departamentos podem conversar com lojas vinculadas às demandas de sua área.
-  var all=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+
-    '?select=*&ativa=eq.true&limit=5000',[]);
-  var ids=all.map(function(s){return String(s.id);});
-  var requests=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
-    '?select=*&ativa=eq.true&limit=3000',[]);
-  var allowed={};
-  requests.forEach(function(d){
-    if(!mayReadDepartmentDemand_(user,d)||String(d.status||'active').toLowerCase()==='draft')return;
-    getTargetStoreIds_(d,ids).forEach(function(id){allowed[String(id)]=true;});
-  });
-  return all.filter(function(store){return allowed[String(store.id)]===true;});
+  // O chat usa a base de lojas, independente de demandas ou campanhas.
+  // Os escopos de consultores, regionais e lojas continuam sendo validados.
+  if(isDepartmentUser_(user)){
+    return supabaseRequest_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+
+      '?select=*&ativa=eq.true&order=nome.asc&limit=5000','get')||[];
+  }
+  return getVisibleStores_(user);
 }
 
 function chatPeopleDirectoryV2_(user) {
-  var role=roleOf_(user),own=String(user.email||'').trim().toLowerCase();
-  var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+
-    '?select=email,nome,role,ativo&ativo=eq.true&limit=3000',[]);
+  var own=String(user.email||'').trim().toLowerCase();
+  // Não esconder falhas na consulta: a interface mostra um erro em vez de "0 contatos".
+  var users=supabaseRequest_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+
+    '?select=email,nome,role,ativo&ativo=eq.true&limit=5000','get')||[];
+  var labels={
+    admin:'Administração',consultor:'Consultor',regional:'Regional',
+    marketing:'Marketing',rh:'RH',qualidade:'Qualidade',
+    treinamento:'Treinamento',comercial:'Comercial',growth:'Growth',
+    ti:'TI',departamento:'Departamento'
+  };
   return users.filter(function(u){
     var addr=String(u.email||'').trim().toLowerCase();
-    return addr&&addr!==own&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)&&
-      !(role==='loja'&&roleOf_(u)==='loja');
+    return u.ativo!==false&&roleOf_(u)!=='loja'&&addr&&addr!==own&&
+      /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(addr);
   }).map(function(u){
-    return {id:'pessoa:'+String(u.email).trim().toLowerCase(),
-      email:String(u.email).trim().toLowerCase(),
-      title:u.nome||String(u.email).split('@')[0],
-      subtitle:roleOf_(u)==='admin'?'Escritório':roleOf_(u)==='loja'?'Loja':roleOf_(u)||'Equipe'};
+    var email=String(u.email).trim().toLowerCase(),role=roleOf_(u);
+    return {id:'pessoa:'+email,email:email,
+      title:u.nome||email.split('@')[0],
+      subtitle:labels[role]||'ADM'};
   }).sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
 }
 
 function buildChatWorkspaceV2_(user,storeMode) {
-  var stores=getChatVisibleStoresV2_(user),visibleIds=stores.map(function(s){return String(s.id);});
+  var stores=getChatVisibleStoresV2_(user);
   var isStore=roleOf_(user)==='loja';
-  var demands=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
-    '?select=*&ativa=eq.true&order=created_at.desc&limit=1000',[]).filter(function(d){
-      return String(d.status||'active').toLowerCase()!=='draft' &&
-        String(d.tipo||'').toLowerCase()!=='comunicado' &&
-        (!isDepartmentUser_(user)||mayReadDepartmentDemand_(user,d)) &&
-        demandaVisivelNoEscopo_(d,visibleIds);
-    });
-  // Evita recalcular os destinatários para cada combinação loja/demanda.
-  var targets={};
-  demands.forEach(function(d){targets[String(d.id)]=getTargetStoreIds_(d,visibleIds);});
   var storeContacts=stores.map(function(store){
     var extras=parseJsonObject_(store.dados_extras);
     return {id:'geral:'+String(store.id),storeId:String(store.id),
-      title:isStore?'Escritório':storeLabelV2_(store),
-      subtitle:isStore?'Conversa geral com o escritório':
-        [extras.consultor||'',extras.regional||'',store.email||''].filter(Boolean).join(' · ')||'Conversa geral'};
+      title:storeLabelV2_(store),
+      subtitle:isStore?'Conversa com o escritório':
+        [extras.consultor||'',extras.regional||'',store.email||''].filter(Boolean).join(' · ')||'Conversa com a loja'};
+  }).sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
+  // Somente conversas gerais na lista: históricos de demandas permanecem no banco.
+  var threads=storeContacts.map(function(store){
+    return {id:store.id,storeId:store.storeId,demandId:'',
+      title:store.title,subtitle:store.subtitle};
   });
-  storeContacts.sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
-  var threads=[];
-  stores.forEach(function(store){
-    var sid=String(store.id),label=storeLabelV2_(store);
-    threads.push({id:'geral:'+sid,storeId:sid,demandId:'',
-      title:isStore?'Escritório':label,
-      subtitle:isStore?'Conversa geral com o escritório':'Conversa geral'});
-    demands.forEach(function(d){
-      if(targets[String(d.id)].indexOf(sid)<0)return;
-      threads.push({id:'demanda:'+String(d.id)+':'+sid,storeId:sid,
-        demandId:String(d.id),title:d.titulo||'Demanda',
-        subtitle:isStore?(String(d.tipo||'').toLowerCase()==='campanha'?'Campanha':'Demanda'):label});
-    });
-  });
-  return {threads:threads,storeContacts:storeContacts,peopleContacts:chatPeopleDirectoryV2_(user),
-    emptyReason:stores.length?'':'Nenhuma loja vinculada a este perfil. Confira o cadastro e os vínculos de acesso.'};
+  return {threads:threads,storeContacts:storeContacts,
+    peopleContacts:chatPeopleDirectoryV2_(user),
+    emptyReason:stores.length?'':'Nenhuma loja disponível para este perfil.'};
 }
+
 
 function getChatMessages(
   input
