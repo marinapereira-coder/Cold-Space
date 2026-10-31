@@ -10,7 +10,7 @@ var RESPONSES_DATA=null;
 var CHAT_DATA=null;
 var CHAT_THREAD_ID=null;
 var CHAT_SELECTED=null;
-var CHAT_TAB='pessoas';
+var CHAT_TAB='lojas';
 var STORE_IMPORT_ROWS=[];
 var STORE_IMPORT_PREVIEW=null;
 var AUTH_MODE='';
@@ -793,7 +793,8 @@ function loadChatWorkspace(){
     CHAT_DATA.storeContacts=CHAT_DATA.storeContacts||[];
     loader.style.display='none';shell.style.display='grid';
     // Preserva a seleção após atualizar; oferece um contato imediatamente.
-    if(CHAT_TAB==='pessoas'&&!CHAT_DATA.peopleContacts.length&&CHAT_DATA.storeContacts.length)CHAT_TAB='lojas';
+    if(CHAT_TAB==='lojas'&&!CHAT_DATA.storeContacts.length&&CHAT_DATA.peopleContacts.length)CHAT_TAB='adm';
+    if(CHAT_TAB==='adm'&&!CHAT_DATA.peopleContacts.length&&CHAT_DATA.storeContacts.length)CHAT_TAB='lojas';
     renderChatThreads();
     if(CHAT_SELECTED){
       if(CHAT_SELECTED.mode==='direct'&&CHAT_DATA.peopleContacts.some(function(p){return p.email===CHAT_SELECTED.email;})){
@@ -805,7 +806,7 @@ function loadChatWorkspace(){
     }
     CHAT_SELECTED=null;CHAT_THREAD_ID=null;
     document.getElementById('chatTitle').textContent='Selecione um contato';
-    document.getElementById('chatSubtitle').textContent='Escolha uma pessoa, loja ou demanda no painel à esquerda.';
+    document.getElementById('chatSubtitle').textContent='Escolha uma loja ou um contato do ADM no painel à esquerda.';
     document.getElementById('chatMessages').innerHTML='<div class="empty"><strong>Comece uma conversa</strong>Selecione um contato para enviar a primeira mensagem.</div>';
     chatComposerEnabled(false);
   };
@@ -826,18 +827,19 @@ function chatComposerEnabled(enabled){
 function renderChatThreads(){
   var host=document.getElementById('chatThreads');
   if(!host||!CHAT_DATA)return;
-  var people=CHAT_DATA.peopleContacts||[],stores=CHAT_DATA.storeContacts||[],
-    demands=(CHAT_DATA.threads||[]).filter(function(t){return !!t.demandId;});
+  var people=CHAT_DATA.peopleContacts||[],stores=CHAT_DATA.storeContacts||[];
   var countNode=document.getElementById('chatContactsCount');
-  countNode.textContent=people.length+' pessoas · '+stores.length+' lojas';
+  countNode.textContent=stores.length+' lojas · '+people.length+' ADM';
   document.querySelectorAll('#chatTabs [data-chat-tab]').forEach(function(btn){
     btn.classList.toggle('active',btn.getAttribute('data-chat-tab')===CHAT_TAB);
     btn.setAttribute('aria-pressed',btn.classList.contains('active')?'true':'false');
   });
-  var source=CHAT_TAB==='pessoas'?people:(CHAT_TAB==='lojas'?stores:demands);
+  var source=CHAT_TAB==='adm'?people:stores;
   var q=(document.getElementById('chatThreadSearch').value||'').toLowerCase().trim();
-  var list=source.filter(function(item){return !q||((item.title||'')+' '+(item.subtitle||'')+' '+(item.email||'')).toLowerCase().indexOf(q)>=0;});
-  var kind=CHAT_TAB==='pessoas'?'pessoa':'loja';
+  var list=source.filter(function(item){
+    return !q||((item.title||'')+' '+(item.subtitle||'')+' '+(item.email||'')).toLowerCase().indexOf(q)>=0;
+  });
+  var kind=CHAT_TAB==='adm'?'pessoa':'loja';
   host.innerHTML=list.map(function(item){
     var id=kind==='pessoa'?item.email:item.id;
     var active=kind==='pessoa'&&CHAT_SELECTED&&CHAT_SELECTED.mode==='direct'
@@ -851,9 +853,8 @@ function renderChatThreads(){
       '<small>'+safe(item.subtitle||item.email||'')+'</small></span></div></button>';
   }).join('')||'<div class="chat-empty-state">'+
       (q?'Nenhum contato encontrado para esta pesquisa.':
-       CHAT_TAB==='pessoas'?'Nenhum outro usuário ativo disponível para conversa.':
-       CHAT_TAB==='lojas'?(CHAT_DATA.emptyReason||'Nenhuma loja disponível para este perfil.'):
-       'Nenhuma conversa vinculada a uma demanda.')+'</div>';
+       CHAT_TAB==='adm'?'Nenhum outro login ativo do ADM disponível para conversa.':
+       (CHAT_DATA.emptyReason||'Nenhuma loja disponível para este perfil.'))+'</div>';
 }
 function openChatDirect(email){
   var item=((CHAT_DATA||{}).peopleContacts||[]).find(function(x){return x.email===email;});
