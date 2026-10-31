@@ -3246,8 +3246,11 @@ function buildChatWorkspaceV2_(user,storeMode) {
   var isStore=roleOf_(user)==='loja';
   var storeContacts=stores.map(function(store){
     var extras=parseJsonObject_(store.dados_extras);
+    var name=String(store.nome||'').trim();
+    // A base já traz títulos como "LJ 0006 - SHOP PATIO PAULISTA"; evitar prefixo "6 ·".
+    var title=/^LJ\\s*\\d+/i.test(name)?name:storeLabelV2_(store);
     return {id:'geral:'+String(store.id),storeId:String(store.id),
-      title:storeLabelV2_(store),
+      title:title,
       subtitle:isStore?'Conversa com o escritório':
         [extras.consultor||'',extras.regional||'',store.email||''].filter(Boolean).join(' · ')||'Conversa com a loja'};
   }).sort(function(a,b){return a.title.localeCompare(b.title,'pt-BR');});
