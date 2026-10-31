@@ -21,6 +21,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Validar Banco de Regras (antes do deploy)
+        run: node .github/scripts/verify-conecta.cjs
+
       - name: Install clasp
         run: npm install --global @google/clasp
 
