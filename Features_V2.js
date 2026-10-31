@@ -3232,7 +3232,7 @@ function chatPeopleDirectoryV2_(user) {
   return users.filter(function(u){
     var addr=String(u.email||'').trim().toLowerCase();
     return u.ativo!==false&&roleOf_(u)!=='loja'&&addr&&addr!==own&&
-      /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(addr);
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr);
   }).map(function(u){
     var email=String(u.email).trim().toLowerCase(),role=roleOf_(u);
     return {id:'pessoa:'+email,email:email,
