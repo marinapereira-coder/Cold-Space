@@ -473,9 +473,9 @@ function parseMultiSheetCampaign(file,done,fail){
   var wb=XLSX.read(e.target.result,{type:'array',raw:false,cellDates:false});
   var perStore={},source=[],sheetLayouts=[],maxRows=800,maxCols=35,used=0;
   wb.SheetNames.forEach(function(name){
-   var key=String(name||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+   var key=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
    // Nunca enviar bases de apoio/adm, respostas ou logs como modelo operacional.
-   if(/base\\s*(lojas|adm)|respostas|pendencias|historico|log\\s*de\\s*envios/.test(key))return;
+   if(/base\s*(lojas|adm)|respostas|pendencias|historico|log\s*de\s*envios/.test(key))return;
    var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
    var hi=-1,storeCol=-1;
    for(var h=0;h<Math.min(rows.length,8);h++){
@@ -489,8 +489,8 @@ function parseMultiSheetCampaign(file,done,fail){
    var tableRows=[],seen={};
    for(var ri=hi+1;ri<rows.length&&ri<maxRows;ri++){
     var row=rows[ri]||[],label=String(row[storeCol]||'').trim();
-    var codes=(label.match(/LJ\\s*0*\\d{1,5}/gi)||[]).map(function(value){
-      var m=value.match(/\\d+/);return m?('0000'+String(Number(m[0]))).slice(-4):'';
+    var codes=(label.match(/LJ\s*0*\d{1,5}/gi)||[]).map(function(value){
+      var m=value.match(/\d+/);return m?('0000'+String(Number(m[0]))).slice(-4):'';
     }).filter(Boolean);
     if(!codes.length){var code=storeCodeFromText(label);if(code)codes=[code];}
     if(!codes.length)continue;
@@ -555,7 +555,7 @@ function campaignSheetTableHtml(layout){
   return '<tr><td class="bacio-sheet-rowno">'+safe(row.sourceRow||'')+'</td>'+
     Array.from({length:width},function(_,j){
       var value=row.cells&&row.cells[j]!=null?String(row.cells[j]):'';
-      var numeric=value!==''&&!isNaN(Number(value.replace(',','.')))&&/^-?\\d+([.,]\\d+)?$/.test(value);
+      var numeric=value!==''&&!isNaN(Number(value.replace(',','.')))&&/^-?\d+([.,]\d+)?$/.test(value);
       return '<td class="'+(j===0?'bacio-sheet-store ':numeric?'bacio-sheet-number ':'')+
         '" title="'+safe(value.slice(0,800))+'">'+safe(value)+'</td>';
     }).join('')+'</tr>';
