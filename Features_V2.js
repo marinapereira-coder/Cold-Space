@@ -900,7 +900,8 @@ function getDemandDetailForStoreV2_(
         var code=('0000'+m[1]).slice(-4);
         if(raw.perStore[code])selected=selected.concat(raw.perStore[code]);
       });
-      return {version:raw.version,fileName:raw.fileName,storeSections:selected};
+      return {version:raw.version,fileName:raw.fileName,storeSections:selected,
+        sheets:raw.sheets||[],editableColumns:raw.editableColumns||null};
     })(),
 
     lojaIds:
@@ -1068,6 +1069,9 @@ function submitStoreDemandResponse(
     );
 
   }
+
+  // Verifica que só células designadas à loja foram preenchidas.
+  validateSheetCellAnswers_(input.answers||{},detail);
 
   var respostasTable =
     table_(
