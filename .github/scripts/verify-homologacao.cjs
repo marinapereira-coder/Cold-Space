@@ -73,4 +73,14 @@ assert.ok(features.includes(").filter(function(store){return !isConectaTestStore
  'Avisos de calendário geral excluem a loja teste');
 assert.ok(emails.includes(".filter(function(s){return !isConectaTestStoreId_(s.id);});"),
  'E-mail automático de pendências ignora loja teste');
-console.log('OK — Homologação isolada por loja, sem notificações/cobranças às lojas reais.');
+assert.ok(backend.includes("isHomologacao: isConectaTestDemand_(d)") &&
+ backend.includes("pending: metricTasks.filter(") &&
+ backend.includes("campaigns: metricCampaigns.length"),
+ 'KPIs do dashboard ignoram dados de teste');
+assert.ok(features.includes("var operationalItems=items.filter(function(item){return !isConectaTestStoreId_(item.storeId);});") &&
+ features.includes("operationalItems.length"),
+ 'KPIs da avaliação ignoram testes sem ocultá-los da gestão');
+const scripts=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
+assert.ok(scripts.includes("var operationalItems=items.filter(function(i){return i.isHomologacao!==true;});"),
+ 'KPIs de solicitações ignoram testes');
+console.log('OK — Homologação isolada de lojas, notificações, cobranças e indicadores.');
