@@ -141,6 +141,12 @@ assert.ok(softDeleteSource.includes('ativa: false'), 'Excluir é lógico, sem ap
 assert.ok(!softDeleteSource.includes("'delete'"), 'Nunca usar delete físico');
 assert.ok(index.includes('id="newDemandBtn"'), 'Criar nova solicitação deve continuar presente');
 assert.ok(styleSource.includes('bacio-sheet-grid'), 'A visualização deve ter tabela estilo planilha');
+assert.equal((styleSource.match(/<style>/g)||[]).length,1,'Styles.html deve abrir exatamente uma tag style');
+assert.equal((styleSource.match(/<\\/style>/g)||[]).length,1,'Styles.html deve fechar exatamente uma tag style');
+assert.ok(styleSource.trim().startsWith('<style>'),'CSS deve começar dentro de style');
+assert.ok(styleSource.trim().endsWith('</style>'),'CSS não pode aparecer depois de </style> na página');
+assert.ok(styleSource.indexOf('.bacio-sheet-detail')<styleSource.lastIndexOf('</style>'),
+  'CSS das planilhas deve estar dentro de <style>, nunca visível como texto');
 for(const rule of ['BR-011','BR-012','BR-013','BR-014','BR-015','BR-016','BR-017','BR-018']){
  assert.ok(rules.includes(rule), 'Regra não documentada: '+rule);
 }
