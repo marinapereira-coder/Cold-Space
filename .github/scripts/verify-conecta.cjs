@@ -150,7 +150,7 @@ assert.ok(styleSource.indexOf('.bacio-sheet-detail')<styleSource.lastIndexOf('</
 for(const rule of ['BR-011','BR-012','BR-013','BR-014','BR-015','BR-016','BR-017','BR-018']){
  assert.ok(rules.includes(rule), 'Regra não documentada: '+rule);
 }
-const start=scripts.indexOf('function parseMultiSheetCampaign(file,done,fail){');
+const start=scripts.indexOf('function campaignSheetInferEditable_(headers){');
 const stop=scripts.indexOf('function renderStoreTemplateInfo(template){',start);
 assert.ok(start>0&&stop>start,'Importador multiabas precisa existir');
 const browserImportCode=scripts.slice(start,stop);
