@@ -263,5 +263,58 @@ assert.equal(ratingWorkspace.summary.total,1,'Média e SLA não devem incluir av
 assert.ok(demandsSeen.length===2&&demandsSeen.every(url=>url.includes('ativa=eq.true')));
 console.log('OK — Demandas arquivadas ocultas em respostas e avaliações, com histórico preservado.');
 
+
+// BR-021 a BR-023: janela ampla, barra inferior, filtros combinados por carteira.
+for(const rule of ['BR-021','BR-022','BR-023']){
+ assert.ok(rules.includes(rule),'Banco de Regras incompleto: '+rule);
+}
+const detailCss=styleSource.slice(styleSource.indexOf('/* Ajuste exclusivo da visualização de detalhes'));
+assert.ok(detailCss.includes('#detailModal .modal.wide'),'Não ampliar outros modais');
+assert.ok(detailCss.includes('display:flex;flex-direction:column;overflow:hidden'),
+ 'Janela de detalhe precisa de dimensões estáveis');
+assert.ok(detailCss.includes('#detailModal .modal-body')&&detailCss.includes('overflow-y:auto'),
+ 'Área central de detalhe com rolagem própria');
+assert.ok(detailCss.includes('#detailModal .modal-foot')&&detailCss.includes('flex:0 0 auto'),
+ 'Rodapé deve permanecer visível');
+assert.ok(detailCss.includes('.bacio-sheet-hrail')&&detailCss.includes('overflow-x:scroll'),
+ 'Barra horizontal sempre acessível na base da planilha');
+const filterStart=scripts.indexOf('function campaignSheetCode_(');
+const filterStop=scripts.indexOf('function renderStoreTemplateInfo(template){',filterStart);
+assert.ok(filterStart>0&&filterStop>filterStart,'Filtros e barra do visualizador não encontrados');
+const filterCode=scripts.slice(filterStart,filterStop);
+assert.ok(filterCode.includes('data-bacio-filter="store"')&&filterCode.includes('data-bacio-filter="regional"')&&
+  filterCode.includes('data-bacio-filter="consultor"'),'Os três filtros precisam existir');
+assert.ok(filterCode.includes('bacio-sheet-hrail-wrap')&&filterCode.includes('data-bacio-sheet-step'),
+  'Barra e setas precisam existir');
+const filterCtx=vm.createContext({
+ APP_DATA:{stores:[
+  {id:6,codigo:'6',nome:'LJ 0006 - PÁTIO PAULISTA',regional:'São Paulo',consultor:'Bruna'},
+  {id:7,codigo:'7',nome:'LJ 0007 - MORUMBI',regional:'São Paulo',consultor:'Bruna'},
+  {id:3031,codigo:'3031',nome:'LJ 3031 - QUIOSQUE',regional:'Rio de Janeiro',consultor:'Alex'}
+ ]},
+ CURRENT_ROLE:'admin',
+ safe:v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
+ console
+});
+vm.runInContext(filterCode,filterCtx);
+const directory=filterCtx.campaignSheetStoreDirectory_(workbookMeta,workbookMeta.sheetLayouts);
+assert.equal(directory['0006'].regional,'São Paulo','Regional da loja vinculada');
+assert.equal(directory['0006'].consultor,'Bruna','Consultor da loja vinculada');
+assert.equal(directory['3031'].consultor,'Alex','Operação dupla vinculada a outro consultor');
+const allRows=workbookMeta.sheetLayouts[0].rows;
+const query=(filters)=>filterCtx.campaignSheetVisibleRows_(workbookMeta.sheetLayouts[0],filters,directory);
+assert.equal(query({store:'',regional:'',consultor:''}).length,2,'Sem filtro deve mostrar tudo');
+assert.equal(query({store:'0006',regional:'',consultor:''}).length,1,'Filtrar loja');
+assert.equal(query({store:'',regional:'Rio de Janeiro',consultor:''}).length,1,'Filtrar regional');
+assert.equal(query({store:'3031',regional:'Rio de Janeiro',consultor:'Alex'}).length,1,
+ 'Três filtros juntos e linha dupla');
+assert.equal(query({store:'0007',regional:'Rio de Janeiro',consultor:'Alex'}).length,0,
+ 'Combinação deve se aplicar à mesma loja, não a lojas diferentes na mesma linha');
+assert.equal(query({store:'0006',regional:'São Paulo',consultor:'Bruna'}).length,1,
+ 'Combinação exata de três filtros');
+assert.equal(allRows[0].cells[5],'1','Filtros não podem alterar dados de origem');
+assert.ok(filterCtx.campaignSheetCode_('LJ0006 - SHOP')==='0006');
+console.log('OK — Janela ampla, footer fixo, barra horizontal e filtros combináveis foram validados.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
