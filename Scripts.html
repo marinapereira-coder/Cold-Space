@@ -401,10 +401,17 @@ function renderNotifications(){
  var badge=document.getElementById('notificationBadge');
  badge.textContent=unread;badge.style.display=unread?'flex':'none';
  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){
-  var action=n.requiresCorrection===true&&!!n.demandId;
+  var action=n.requiresCorrection===true&&!!n.demandId&&
+   (APP_DATA.announcements||[]).some(function(a){
+    return a.requiresCorrection===true&&String(a.demandId)===String(n.demandId);
+   });
+  var message=String(n.message||'');
+  if(n.requiresCorrection&&!action){
+   message=message.replace(/\s*Status: Aguardando correção\. Use Revisar resposta para reenviar\./g,'');
+  }
   return '<div class="notification-item '+(!n.read?'unread':'')+
    '" data-notification="'+safe(n.id)+'" onclick="openNotificationDemand(\''+safeJs(n.id)+'\')">'+
-   '<strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p>'+
+   '<strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(message)+'</p>'+
    (action?'<div class="notification-review-action"><span>Aguardando correção</span> '+
     '<button type="button" class="btn soft" onclick="event.stopPropagation();openNotificationDemand(\''+
     safeJs(n.id)+'\')">Revisar resposta</button></div>':'')+
