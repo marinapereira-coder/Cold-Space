@@ -730,15 +730,27 @@ function campaignSheetBindRails_(host){
 function renderCampaignSpreadsheet(meta,host){
  if(!host)return;
  var layouts=campaignSpreadsheetLayouts(meta);
+ var storeDetail=(CURRENT_ROLE==='loja'&&window.BACIO_CURRENT_DETAIL)||null;
+ var isInlineStore=!!(storeDetail&&meta===storeDetail.importMeta&&Array.isArray(meta.storeSections)&&
+    meta.storeSections.length&&Array.isArray(meta.sheets)&&meta.sheets.length);
+ var response=storeDetail&&storeDetail.myResponse||null;
+ var responseStatus=String(response&&response.status||'').toLowerCase();
+ var locked=!!(response&&['ajuste_necessario','reprovada'].indexOf(responseStatus)<0);
+ var previousAnswers=(response&&response.answers)||{};
  if(!layouts.length){host.innerHTML='<div class="helper">Este modelo não possui dados de grade importados.</div>';return;}
  var directory=campaignSheetStoreDirectory_(meta,layouts),filters={store:'',regional:'',consultor:''};
  var allCodes=Object.keys(directory).sort(function(a,b){return Number(a)-Number(b);});
  var stores=allCodes.map(function(code){return {value:code,label:directory[code].name||'LJ '+code};});
  var regionals=Array.from(new Set(allCodes.map(function(c){return directory[c].regional;}).filter(Boolean))).sort();
  var consultants=Array.from(new Set(allCodes.map(function(c){return directory[c].consultor;}).filter(Boolean))).sort();
- host.innerHTML='<div class="bacio-sheet-top"><strong>Visão da planilha · '+safe(meta.fileName||'Modelo importado')+'</strong>'+
-  '<span class="muted">Somente leitura · use os filtros para localizar as lojas e deslize pelas colunas.</span></div>'+
-  '<div class="bacio-sheet-filters">'+
+ host.innerHTML=(isInlineStore?'<div id="storeResponseForm">':'')+
+  '<div class="bacio-sheet-top"><strong>Visão da planilha · '+safe(meta.fileName||'Modelo importado')+'</strong>'+
+  '<span class="muted">'+(isInlineStore?'As células coloridas são as únicas editáveis. Confirme a resposta ao final.':
+    'Somente leitura · use os filtros para localizar as lojas e deslize pelas colunas.')+'</span></div>'+
+  (isInlineStore?
+   '<div class="bacio-sheet-edit-guide"><strong>Como preencher:</strong> selecione Sim ou Não nas colunas destacadas de verde, e informe divergências em Observações. Os códigos e as quantidades estão bloqueados.</div>':
+   '')+
+  '<div class="bacio-sheet-filters"'+(isInlineStore?' style="display:none"':'')+'>'+
    '<div class="bacio-sheet-filter-field"><label>Loja</label><select class="select" data-bacio-filter="store">'+
     campaignSheetOptions_(stores,'Todas as lojas')+'</select></div>'+
    '<div class="bacio-sheet-filter-field"><label>Regional</label><select class="select" data-bacio-filter="regional">'+
@@ -753,15 +765,29 @@ function renderCampaignSpreadsheet(meta,host){
   }).join('')+'</div>'+
   layouts.map(function(layout,i){
    return '<div class="bacio-sheet-page" data-bacio-sheet-page="'+i+'" style="'+(i?'display:none':'')+'"></div>';
-  }).join('');
+  }).join('')+
+  (isInlineStore?'<div class="bacio-sheet-submit-area">'+
+    (locked?'<div class="response-status-note aprovada">Resposta registrada em '+
+       safe(formatDateTime(response.createdAt))+
+       '. Você pode consultar os valores enviados. Para corrigir, aguarde a liberação da gestão.</div>':
+      '<label class="label" for="storeResponseObs">Observações gerais (opcional)</label>'+
+      '<textarea id="storeResponseObs" class="textarea" placeholder="Inclua detalhes para a gestão...">'+
+       safe(response&&response.observacao||'')+'</textarea>'+
+      '<button class="btn primary" type="button" onclick="submitStoreResponse(\''+
+       safeJs(storeDetail.id)+'\')">'+(response?'Enviar correção':'Enviar conferência')+'</button>')+
+     '</div></div>':'');
  var active=0;
  function paint(){
   var matching=0;
   host.querySelectorAll('[data-bacio-sheet-page]').forEach(function(page,i){
    var layout=layouts[i],rows=campaignSheetVisibleRows_(layout,filters,directory);
    matching+=rows.length;
+   var sheetIndex=(meta.sheets||[]).findIndex(function(entry){return String(entry.sheet)===String(layout.sheet);});
    page.innerHTML=rows.length?campaignSheetTableHtml({sheet:layout.sheet,width:layout.width,
-     headerRows:layout.headerRows,rows:rows}):
+     headerRows:layout.headerRows,rows:rows},isInlineStore?{
+       mode:'store',sheetIndex:sheetIndex,rules:campaignSheetRules_(meta,layout),
+       answers:previousAnswers,readonly:locked
+     }:null):
      '<div class="empty">Nenhuma linha desta aba corresponde aos filtros selecionados.</div>';
    if(rows.length){
     page.innerHTML+='<div class="bacio-sheet-hrail-wrap">'+
@@ -875,9 +901,11 @@ function renderDemandDetail(d){
   window.BACIO_CURRENT_DETAIL=d;
   var storeSections=(d.importMeta&&d.importMeta.storeSections)||null;
   var isImportedSheet=!!(d.importMeta&&Array.isArray(d.importMeta.sheetLayouts)&&d.importMeta.sheetLayouts.length);
+  var isInlineStore=!!(CURRENT_ROLE==='loja'&&d.importMeta&&Array.isArray(d.importMeta.storeSections)&&
+      d.importMeta.storeSections.length&&Array.isArray(d.importMeta.sheets)&&d.importMeta.sheets.length);
   var adminTemplateHtml=CURRENT_ROLE==='admin'?renderAdminStoreSimulator(d):'<div class="muted">As perguntas e respostas podem ser acompanhadas na área de Respostas das Lojas.</div>';
   var answers=(d.myResponse&&d.myResponse.answers)||{};var answerHtml=(d.modelFields||[]).map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+(f.required?' *':'')+'</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('');
-  document.getElementById('detailBody').innerHTML='<div class="detail-grid"><div class="detail-box"><span class="eyebrow">'+safe(typeLabel(d.type))+' · '+safe((t.label||d.timelineLabel||''))+'</span><p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p><div class="timeline"><div><span>Publicada</span><strong>'+safe(formatDateTime(d.publicadaEm||t.publishedAt)||'—')+'</strong></div><div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm||t.startAt)||'Imediato')+'</strong></div><div><span>Prazo</span><strong>'+safe(formatDateTime(d.deadline||t.deadline)||'Sem prazo')+'</strong></div><div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm||t.endAt)||'Sem encerramento')+'</strong></div></div><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0"><div class="kpi"><strong>'+Number(d.totalStores||0)+'</strong><span>Lojas</span></div><div class="kpi"><strong>'+Number(d.answeredCount||0)+'</strong><span>Responderam</span></div><div class="kpi"><strong>'+Number(pct||0)+'%</strong><span>Conclusão</span></div></div></div>'+(CURRENT_ROLE==='admin'&&isImportedSheet?
+  document.getElementById('detailBody').innerHTML='<div class="detail-grid"><div class="detail-box"><span class="eyebrow">'+safe(typeLabel(d.type))+' · '+safe((t.label||d.timelineLabel||''))+'</span><p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p><div class="timeline"><div><span>Publicada</span><strong>'+safe(formatDateTime(d.publicadaEm||t.publishedAt)||'—')+'</strong></div><div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm||t.startAt)||'Imediato')+'</strong></div><div><span>Prazo</span><strong>'+safe(formatDateTime(d.deadline||t.deadline)||'Sem prazo')+'</strong></div><div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm||t.endAt)||'Sem encerramento')+'</strong></div></div><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0"><div class="kpi"><strong>'+Number(d.totalStores||0)+'</strong><span>Lojas</span></div><div class="kpi"><strong>'+Number(d.answeredCount||0)+'</strong><span>Responderam</span></div><div class="kpi"><strong>'+Number(pct||0)+'%</strong><span>Conclusão</span></div></div></div>'+(isInlineStore?'':CURRENT_ROLE==='admin'&&isImportedSheet?
     '<details class="detail-box bacio-optional-simulator"><summary>Simular resposta da loja (opcional)</summary>'+
     '<div class="bacio-optional-simulator-body">'+adminTemplateHtml+'</div></details>':
     '<div class="detail-box"><h4>'+(CURRENT_ROLE==='loja'?'Sua resposta':'Modelo de resposta')+'</h4>'+
