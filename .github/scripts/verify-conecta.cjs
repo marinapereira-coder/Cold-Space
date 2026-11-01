@@ -234,6 +234,7 @@ const evaluationFixture=[
 const demandsSeen=[];
 const operationsCtx=vm.createContext({
  getVisibleStores_:()=>[{id:'1',nome:'LJ 0001 - OSCAR FREIRE',codigo:'0001'}],
+ isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
  roleOf_:u=>u.role,isDepartmentUser_:()=>false,table_:(_key,t)=>t,
  safeSupabaseSelect_:(url)=>{
   if(url.includes('bacio_demandas')){
