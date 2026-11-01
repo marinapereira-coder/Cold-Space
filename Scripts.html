@@ -872,7 +872,7 @@ function renderCampaignSpreadsheet(meta,host){
   (isInlineStore&&response&&!locked?
    '<div class="response-status-note ajuste_necessario"><strong>Aguardando correção</strong>'+
    '<p>Feedback da gestão: '+safe(response.feedback||'Revise os campos indicados pela gestão e reenvie a conferência.')+'</p></div>':'')+
-  '<div class="bacio-sheet-filters"'+(isInlineStore?' style="display:none"':'')+'>+
+  '<div class="bacio-sheet-filters"'+(isInlineStore?' style="display:none"':'')+'>'+
    '<div class="bacio-sheet-filter-field"><label>Loja</label><select class="select" data-bacio-filter="store">'+
     campaignSheetOptions_(stores,'Todas as lojas')+'</select></div>'+
    '<div class="bacio-sheet-filter-field"><label>Regional</label><select class="select" data-bacio-filter="regional">'+
