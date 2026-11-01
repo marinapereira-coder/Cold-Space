@@ -450,5 +450,79 @@ assert.ok(modern.includes('validateSheetCellAnswers_(input.answers||{},detail)')
 assert.ok(styleSource.includes('bacio-sheet-editable'),'Destaque de campos editáveis indispensável');
 console.log('OK — Sim/Não inline, observações, restrição por loja, validação e persistência protegida.');
 
+
+// BR-029 a BR-031: evidência por loja e SLA antes de avaliar, sem regravar dados.
+for(const rule of ['BR-029','BR-030','BR-031'])
+ assert.ok(rules.includes(rule),'Banco de Regras da avaliação incompleto: '+rule);
+assert.ok(scripts.includes('responseEvaluationEvidenceHtml_(item)'),
+ 'Avaliação real e simulada precisam exibir a evidência enviada');
+assert.ok(scripts.includes("document.getElementById('genericModal').classList.add('bacio-evaluation-modal')"));
+assert.ok(styleSource.includes('.bacio-review-cell') &&
+ styleSource.includes('.bacio-evaluation-timing'),'Evidência e SLA devem ter destaque');
+const evidenceStart=modern.indexOf('function responseSheetPreviewV2_(');
+const evidenceStop=modern.indexOf('function buildResponsesWorkspaceV2_(',evidenceStart);
+assert.ok(evidenceStart>=0&&evidenceStop>evidenceStart,'Falta construção segura do detalhe da resposta');
+const evidenceCtx=vm.createContext({normalizeJsonObject_:v=>v||{}});
+vm.runInContext(modern.slice(evidenceStart,evidenceStop),evidenceCtx);
+const evidenceD={
+ import_meta:{
+  version:5,fileName:'Crema.xlsx',sheets:[{sheet:'LCP'}],
+  editableColumns:{LCP:{2:{type:'boolean',required:true},3:{type:'text',required:false}}},
+  perStore:{
+   '0006':[{sheet:'LCP',sourceRow:4,sheetHeaders:[['LOJA','QUANTIDADE','INSUMOS RECEBIDOS?','OBSERVAÇÕES']],
+    rowCells:['LJ 0006 - PÁTIO PAULISTA','4','','']}],
+   '0007':[{sheet:'LCP',sourceRow:5,sheetHeaders:[['LOJA','QUANTIDADE','INSUMOS RECEBIDOS?','OBSERVAÇÕES']],
+    rowCells:['LJ 0007 - MORUMBI','9','','']}]
+  }
+ }
+};
+const evidence=evidenceCtx.responseSheetPreviewV2_(evidenceD,{codigo:'LJ 0006',nome:'LJ 0006 - PÁTIO PAULISTA'});
+assert.equal(evidence.storeSections.length,1,'Apenas uma loja na evidência');
+assert.ok(!JSON.stringify(evidence).includes('MORUMBI'),'Não vazar lojas de outras carteiras');
+assert.equal(evidence.storeSections[0].sourceRow,4,'Manter a linha original');
+const clientStart=scripts.indexOf('function responseTimingInfo_(item){');
+const clientStop=scripts.indexOf('function openEvaluation(responseId){',clientStart);
+assert.ok(clientStart>0&&clientStop>clientStart,'Quadro de SLA ausente');
+const clientCtx=vm.createContext({
+ safe:v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
+ formatDateTime:v=>String(v||''),
+ formatAnswer:v=>String(v||''),
+ campaignSpreadsheetLayouts:meta=>meta.storeSections.map(sec=>({
+   sheet:sec.sheet,headerRows:sec.sheetHeaders,width:sec.rowCells.length,
+   rows:[{sourceRow:sec.sourceRow,cells:sec.rowCells}]
+ })),
+ campaignSheetRules_:(meta,layout)=>meta.editableColumns[layout.sheet],
+ campaignSheetTableHtml:(layout,opts)=>{
+   const key='sheetcell_'+opts.sheetIndex+'_'+layout.rows[0].sourceRow+'_2';
+   return '<div class="bacio-sheet-grid">PRODUTO '+layout.rows[0].cells[1]+
+     ' · '+(opts.answers[key]||'Não informado')+'</div>';
+ }
+});
+vm.runInContext(scripts.slice(clientStart,clientStop),clientCtx);
+const onTime=clientCtx.responseTimingInfo_({
+ firstResponseAt:'2026-11-01T12:00:00Z',
+ createdAt:'2026-11-01T14:00:00Z',deadline:'2026-11-01T13:00:00Z'
+});
+assert.equal(onTime.status,'on-time','Primeira entrega no prazo mesmo quando correção chega depois');
+assert.equal(clientCtx.responseTimingInfo_({
+ firstResponseAt:'2026-11-01T14:00:00Z',deadline:'2026-11-01T13:00:00Z'
+}).status,'late','Entrega após o prazo');
+assert.equal(clientCtx.responseTimingInfo_({
+ firstResponseAt:'2026-11-01T14:00:00Z',deadline:''
+}).status,'unknown','Nunca inventar prazo');
+const review=clientCtx.responseEvaluationEvidenceHtml_({
+ storeLabel:'LJ0006',demandaTitle:'Crema',userEmail:'loja@bdil.com.br',
+ firstResponseAt:'2026-11-01T12:00:00Z',
+ createdAt:'2026-11-01T14:00:00Z',deadline:'2026-11-01T13:00:00Z',
+ submittedSheet:evidence,
+ answers:{sheetcell_0_4_2:'Não',sheetcell_0_4_3:'Faltou insumo'},
+ observacao:'Pedido parcial',modelFields:[]
+});
+assert.ok(review.includes('No prazo')&&review.includes('Primeira resposta')&&review.includes('Última atualização'));
+assert.ok(review.includes('PRODUTO 4 · Não'),'Exibir exatamente a resposta da célula original');
+assert.ok(review.includes('Pedido parcial'),'Não perder observação');
+assert.ok(!review.includes('MORUMBI'),'Nunca mostrar outra loja');
+console.log('OK — Evidência de planilha, resposta Não e SLA da primeira entrega validados.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
