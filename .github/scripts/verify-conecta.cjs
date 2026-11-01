@@ -200,5 +200,68 @@ const scoped=scopeCtx.scopedCampaignImportMeta_(workbookMeta,[{codigo:'6',nome:'
 assert.ok(scoped.perStore['0006']);
 assert.ok(!scoped.perStore['3031']);
 assert.ok(!('sheetLayouts' in scoped),'Perfil não-admin não recebe a planilha global');
+// Exclusão lógica: registros inativos jamais devem reaparecer em respostas e avaliações.
+assert.ok(rules.includes('BR-020'),'Banco de Regras deve definir ocultação dos itens arquivados');
+const responseBuilder=modern.slice(modern.indexOf('function buildResponsesWorkspaceV2_('),
+  modern.indexOf('function evaluateDemandDelivery('));
+const evaluationBuilder=modern.slice(modern.indexOf('function buildEvaluationWorkspaceV2_('),
+  modern.indexOf('function mapEvaluationRowV2_('));
+const evaluateAction=modern.slice(modern.indexOf('function evaluateDemandDelivery('),
+  modern.indexOf('function getEvaluationWorkspace('));
+for(const [label,part] of [['Respostas',responseBuilder],['Avaliações',evaluationBuilder]]) {
+ assert.ok(part.includes('ativa=eq.true'),'Filtro de demandas ativas no servidor: '+label);
+ assert.ok(part.includes('d.ativa===true'),'Defesa adicional contra demandas inativas: '+label);
+ assert.ok(part.includes('demandMap[String('),'Registros dependentes precisam respeitar as demandas ativas: '+label);
+}
+assert.ok(evaluateAction.includes('&ativa=eq.true&limit=1') &&
+  evaluateAction.includes('demand.ativa===false'), 'Impedir avaliação de solicitação excluída');
+const demandFixture=[
+ {id:'d-active',titulo:'Solicitação ativa',ativa:true,prazo_sla:null,model_fields:[]},
+ {id:'d-archived',titulo:'Solicitação excluída',ativa:false,prazo_sla:null,model_fields:[]}
+];
+const responseFixture=[
+ {id:'r-active',demanda_id:'d-active',loja_id:'1',usuario_email:'loja@bdil.com.br',
+  created_at:'2026-10-31T14:30:00Z',status:'respondido',resposta_json:{}},
+ {id:'r-archived',demanda_id:'d-archived',loja_id:'1',usuario_email:'loja@bdil.com.br',
+  created_at:'2026-10-31T14:29:00Z',status:'aprovada',resposta_json:{}}
+];
+const evaluationFixture=[
+ {id:'e-active',demanda_id:'d-active',loja_id:'1',estrelas:5,status:'aprovada',sla_cumprido:true},
+ {id:'e-archived',demanda_id:'d-archived',loja_id:'1',estrelas:1,status:'reprovada',sla_cumprido:false}
+];
+const demandsSeen=[];
+const operationsCtx=vm.createContext({
+ getVisibleStores_:()=>[{id:'1',nome:'LJ 0001 - OSCAR FREIRE',codigo:'0001'}],
+ roleOf_:u=>u.role,isDepartmentUser_:()=>false,table_:(_key,t)=>t,
+ safeSupabaseSelect_:(url)=>{
+  if(url.includes('bacio_demandas')){
+   demandsSeen.push(url);
+   return demandFixture.filter(d=>!url.includes('ativa=eq.true')||d.ativa===true);
+  }
+  if(url.includes('bacio_demanda_respostas'))return responseFixture;
+  if(url.includes('bacio_avaliacoes'))return evaluationFixture;
+  return [];
+ },
+ normalizeJsonObject_:v=>v||{},
+ normalizeObjectArray_:v=>v||[],
+ storeLabelV2_:s=>s.nome||'Loja',
+ mapEvaluationRowV2_:(a,d,s)=>({
+  demandaId:a.demanda_id,storeId:a.loja_id,storeLabel:s.nome||'Loja',
+  demandTitle:d.titulo,stars:a.estrelas,status:a.status,slaMet:a.sla_cumprido
+ }),
+ roundOneV2_:v=>Math.round(v*10)/10
+});
+vm.runInContext(responseBuilder+'\n'+evaluationBuilder,operationsCtx);
+const responseWorkspace=operationsCtx.buildResponsesWorkspaceV2_({role:'admin'});
+const ratingWorkspace=operationsCtx.buildEvaluationWorkspaceV2_({role:'admin'});
+assert.equal(responseWorkspace.items.length,1,'Apenas resposta de demanda ativa deve aparecer');
+assert.equal(responseWorkspace.items[0].demandaId,'d-active');
+assert.equal(responseWorkspace.stats.total,1);
+assert.equal(ratingWorkspace.items.length,1,'Apenas avaliação ativa deve aparecer');
+assert.equal(ratingWorkspace.items[0].demandaId,'d-active');
+assert.equal(ratingWorkspace.summary.total,1,'Média e SLA não devem incluir avaliações arquivadas');
+assert.ok(demandsSeen.length===2&&demandsSeen.every(url=>url.includes('ativa=eq.true')));
+console.log('OK — Demandas arquivadas ocultas em respostas e avaliações, com histórico preservado.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
