@@ -316,5 +316,72 @@ assert.equal(allRows[0].cells[5],'1','Filtros não podem alterar dados de origem
 assert.ok(filterCtx.campaignSheetCode_('LJ0006 - SHOP')==='0006');
 console.log('OK — Janela ampla, footer fixo, barra horizontal e filtros combináveis foram validados.');
 
+
+// BR-024: uma única planilha visível; simulação administrativa compacta, opcional e sem regravar dados.
+assert.ok(rules.includes('BR-024'),'Banco de Regras precisa impedir planilhas duplicadas');
+assert.ok(styleSource.includes('#detailModal .bacio-optional-simulator > summary'),
+  'Simulação de resposta deve ter cabeçalho recolhível');
+const detailStart=scripts.indexOf('function renderDemandDetail(d){');
+const detailEnd=scripts.indexOf('function renderAdminStoreSimulator(d){',detailStart);
+const detailCode=scripts.slice(detailStart,detailEnd);
+assert.ok(detailCode.includes("CURRENT_ROLE==='admin'&&isImportedSheet?"),
+ 'A planilha importada deve substituir o antigo Modelo de resposta no detalhe admin');
+assert.ok(detailCode.includes('<details class="detail-box bacio-optional-simulator">'),
+ 'O simulador deve estar recolhido inicialmente');
+assert.ok(detailCode.includes("CURRENT_ROLE==='loja'?renderStoreResponseSection(d,answerHtml)"),
+ 'Resposta real de loja deve ser preservada');
+const simStart=scripts.indexOf('function storeSimulationBody(d,store){');
+const simEnd=scripts.indexOf('// Respostas de teste são mantidas',simStart);
+const simCode=scripts.slice(simStart,simEnd);
+let oldTableCalls=0;
+const simulatorCtx=vm.createContext({
+ safe:v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
+ requestFieldsForStore:fields=>fields,
+ responseInput:()=>'<textarea class="answer-input" data-key="observacao"></textarea>',
+ storeTemplateSectionHtml:()=>{oldTableCalls++;return '<div class="old-vertical-table">ANTIGA TABELA</div>';}
+});
+vm.runInContext(simCode,simulatorCtx);
+const simStore={id:'6',code:'0006',label:'LJ 0006'};
+const importedDetail={
+ importMeta:{sheetLayouts:[{sheet:'LCP'}],perStore:{'0006':[{sheet:'LCP',rowCells:['LJ0006','1']}]}},
+ modelFields:[{id:'observacao',label:'Observação',type:'textarea'}]
+};
+const simulatedHtml=simulatorCtx.storeSimulationBody(importedDetail,simStore);
+assert.ok(!simulatedHtml.includes('old-vertical-table'),'Não repetir planilha na simulação');
+assert.equal(oldTableCalls,0,'A tabela vertical antiga não pode ser chamada para planilhas importadas');
+assert.ok(simulatedHtml.includes('storeResponsePreviewForm')&&simulatedHtml.includes('Enviar resposta de teste'),
+ 'Campos e envio simulado devem continuar disponíveis');
+assert.ok(simulatedHtml.includes('planilha acima'),'Simulador deve indicar que produtos já estão na planilha');
+const legacyDetail={importMeta:{perStore:{'0006':[{sheet:'LCP'}]}},modelFields:[]};
+const legacyHtml=simulatorCtx.storeSimulationBody(legacyDetail,simStore);
+assert.ok(legacyHtml.includes('old-vertical-table'),'Modelos antigos continuam com visualização anterior');
+assert.equal(oldTableCalls,1,'Retrocompatibilidade de modelos anteriores');
+const detailNodes={
+ detailTitle:{textContent:''},detailBody:{innerHTML:'',firstChild:{},insertBefore(){}},
+ detailFoot:{innerHTML:''}
+};
+const detailsCtx=vm.createContext({
+ document:{getElementById:id=>detailNodes[id],createElement:()=>({className:''})},
+ window:{},CURRENT_ROLE:'admin',
+ renderAdminStoreSimulator:()=>'<div class="admin-sim">SIMULAÇÃO</div>',
+ renderStoreResponseSection:()=>'<div>RESPOSTA LOJA</div>',
+ renderCampaignSpreadsheet:()=>{},
+ storeTemplateSectionHtml:()=>{throw new Error('Tabela vertical duplicada no detalhe admin');},
+ safe:v=>String(v==null?'':v),safeJs:v=>String(v),
+ typeLabel:v=>v,formatDateTime:()=>'',formatAnswer:v=>v
+});
+vm.runInContext(detailCode,detailsCtx);
+detailsCtx.renderDemandDetail({
+ id:'demo',type:'campanha',title:'Crema',description:'',
+ totalStores:1,modelFields:[],stores:[],
+ importMeta:{sheetLayouts:[{sheet:'LCP'}],perStore:{}},timeline:{},
+ cronograma:{},status:'draft'
+});
+assert.ok(detailNodes.detailBody.innerHTML.includes('Simular resposta da loja (opcional)'));
+assert.ok(!detailNodes.detailBody.innerHTML.includes('Modelo de resposta'),
+ 'Não mostrar o modelo duplicado na visualização XLSX para administrador');
+assert.ok(detailNodes.detailBody.innerHTML.includes('admin-sim'),'Simulador preservado no painel fechado');
+console.log('OK — Planilha única e painel de simulação opcional, sem alterar o fluxo de resposta da loja.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
