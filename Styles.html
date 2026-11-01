@@ -2744,4 +2744,42 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
  #detailModal .bacio-optional-simulator{align-self:stretch;}
 }
 
+
+/* Planilhas operacionais: a loja edita somente células destacadas.
+   Os dados de referência permanecem íntegros e somente leitura. */
+.bacio-sheet-edit-guide,.bacio-sim-inline-note{
+ margin:10px 1px 12px;padding:11px 13px;background:#eaf4e8;color:#31553b;
+ border:1px solid #b5d3b4;border-radius:10px;font-size:12px;line-height:1.5;
+}
+.bacio-sheet-editable{background:#e6f2e6!important;min-width:170px!important;max-width:290px!important;padding:6px!important;vertical-align:middle}
+.bacio-sheet-editable .bacio-cell-input{
+ display:block;width:100%;min-width:135px;max-width:none;box-sizing:border-box;
+ border:1.5px solid #78a97d;border-radius:8px;background:#fff;
+ padding:8px;color:#255531;font-size:12px;line-height:1.4;
+}
+.bacio-sheet-editable select.bacio-cell-input{min-height:38px;font-weight:600;cursor:pointer}
+.bacio-sheet-editable textarea.bacio-cell-input{min-height:58px;resize:vertical}
+.bacio-sheet-editable .bacio-cell-input:focus-visible{outline:3px solid #98cda3;outline-offset:1px}
+.bacio-sheet-editable .bacio-cell-input:disabled{background:#e9ece7;color:#586c59;border-style:dashed;cursor:not-allowed}
+.bacio-sheet-editable select.bacio-cell-input:has(option:checked[value="Sim"]){background:#d4efda;color:#225e34;border-color:#7aad89}
+.bacio-sheet-editable select.bacio-cell-input:has(option:checked[value="Não"]){background:#f6dada;color:#8a2424;border-color:#d29191}
+.bacio-sheet-editable select.bacio-cell-input:has(option:checked[value="Recebimento errado / anotar observação"]){background:#fff0cd;color:#7b5109;border-color:#d9b35f}
+.bacio-sheet-locked{background:#f1f0ea!important}
+.bacio-sheet-submit-area{display:flex;flex-direction:column;align-items:stretch;gap:9px;padding:16px 4px 2px;border-top:1px solid var(--line);margin-top:12px}
+.bacio-sheet-submit-area .btn{align-self:flex-end}
+.bacio-sheet-submit-area .textarea{max-width:100%;box-sizing:border-box}
+.bacio-column-settings{margin:10px 0 16px;border:1px solid #b8cbb7;border-radius:12px;padding:12px;background:#f5faf3}
+.bacio-column-settings summary{font-size:13px;font-weight:750;color:#2f6642;cursor:pointer}
+.bacio-editor-sheet{margin:14px 0;padding:12px;border:1px solid #d9dfd5;border-radius:10px;background:#fff}
+.bacio-editor-sheet strong{display:block;margin-bottom:8px}
+.bacio-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.bacio-editor-row{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:600}
+.bacio-editor-row span{overflow-wrap:anywhere}
+.bacio-editor-row select{font-weight:400}
+.bacio-sim-sheet{margin:14px 0;min-width:0;max-width:100%}
+.bacio-sim-sheet h4{margin:12px 0}
+.bacio-optional-simulator .bacio-sheet-scroll{overflow-x:auto}
+.bacio-sim-extra-field{margin:10px 0}
+@media(max-width:780px){.bacio-editor-grid{grid-template-columns:1fr}}
+
 </style>
