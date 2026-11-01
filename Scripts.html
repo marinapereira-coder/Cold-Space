@@ -598,7 +598,8 @@ function campaignSpreadsheetLayouts(meta){
  });
  return order.map(function(key){return grouped[key];});
 }
-function campaignSheetTableHtml(layout){
+function campaignSheetTableHtml(layout,opts){
+ opts=opts||{};
  var width=Number(layout.width||0),headers=layout.headerRows||[],rows=layout.rows||[];
  if(width<1||!headers.length)return '<div class="empty">Esta aba não contém uma grade de planilha disponível.</div>';
  var thead=headers.map(function(row,ri){
@@ -613,6 +614,35 @@ function campaignSheetTableHtml(layout){
     Array.from({length:width},function(_,j){
       var value=row.cells&&row.cells[j]!=null?String(row.cells[j]):'';
       var numeric=value!==''&&!isNaN(Number(value.replace(',','.')))&&/^-?\d+([.,]\d+)?$/.test(value);
+      // Apenas na tela autenticada da própria loja (ou simulação isolada):
+      // os campos editáveis aparecem nas mesmas células do Excel.
+      var rule=opts.rules&&opts.rules[j],type=String(rule&&rule.type||'readonly');
+      if(opts.mode==='store'&&['boolean','text','number'].indexOf(type)>=0){
+       var key='sheetcell_'+Number(opts.sheetIndex)+'_'+Number(row.sourceRow)+'_'+j;
+       var answer=opts.answers&&Object.prototype.hasOwnProperty.call(opts.answers,key)?
+         String(opts.answers[key]||''):'';
+       var locked=opts.readonly===true,required=rule.required===true;
+       var classes='bacio-sheet-editable'+(type==='boolean'?' bacio-sheet-confirm':'')+
+         (locked?' bacio-sheet-locked':'');
+       var attrs=' class="answer-input bacio-cell-input" data-key="'+safe(key)+'"'+
+         (required?' data-required="1"':'')+(locked?' disabled':'');
+       var control='';
+       if(type==='boolean'){
+        var options=['','Sim','Não','Recebimento errado / anotar observação','Não se aplica'];
+        control='<select'+attrs+' aria-label="'+safe(campaignSheetColumnLabel_(layout,j))+
+          '" title="Resposta da loja">'+options.map(function(opt){
+          return '<option value="'+safe(opt)+'"'+(opt===answer?' selected':'')+'>'+
+            safe(opt||'Selecione...')+'</option>';
+        }).join('')+'</select>';
+       }else if(type==='number'){
+        control='<input type="number" min="0" step="any"'+attrs+' value="'+safe(answer)+
+         '" placeholder="Informe...">';
+       }else{
+        control='<textarea rows="2"'+attrs+' maxlength="2000" placeholder="Digite sua observação...">'+
+          safe(answer)+'</textarea>';
+       }
+       return '<td class="'+classes+'" title="Campo para preenchimento da loja">'+control+'</td>';
+      }
       return '<td class="'+(j===0?'bacio-sheet-store ':numeric?'bacio-sheet-number ':'')+
         '" title="'+safe(value.slice(0,800))+'">'+safe(value)+'</td>';
     }).join('')+'</tr>';
