@@ -604,6 +604,37 @@ function getStoreDemandDetail(
 }
 
 
+// A loja de homologação não tem linha no Excel original. Criamos uma linha
+// VIRTUAL por aba, usando somente os cabeçalhos e regras de edição da importação.
+// Nenhum valor ou identificação de qualquer loja real é copiado e o arquivo original
+// e import_meta permanecem imutáveis.
+function conectaTestSheetSectionsV2_(demand,store) {
+  if(!store || !isConectaTestStoreId_(store.id) || !isConectaTestDemand_(demand))return [];
+  var meta=normalizeJsonObject_(demand.import_meta);
+  if(String(demand.model_source||'')!=='spreadsheet' || !meta.perStore)return [];
+  var layouts=Array.isArray(meta.sheetLayouts)?meta.sheetLayouts:[];
+  return layouts.map(function(layout,index){
+    var headers=Array.isArray(layout.headerRows)?layout.headerRows:[];
+    var width=Math.max(Number(layout.width)||0,headers.reduce(function(n,row){
+      return Math.max(n,Array.isArray(row)?row.length:0);
+    },0));
+    if(!width)return null;
+    var cells=Array.from({length:width},function(){return '';});
+    cells[0]='LOJA TESTE - HOMOLOGAÇÃO';
+    return {
+      sheet:String(layout.sheet||'Planilha de teste'),
+      store:'LOJA TESTE - HOMOLOGAÇÃO',
+      code:'TESTE',
+      sourceRow:90000+index,
+      rowCells:cells,
+      sheetHeaders:headers,
+      hiddenColumns:Array.isArray(layout.hiddenColumns)?layout.hiddenColumns:[],
+      columnWidths:Array.isArray(layout.columnWidths)?layout.columnWidths:[],
+      fields:[]
+    };
+  }).filter(Boolean);
+}
+
 function getDemandDetailForStoreV2_(
   ctx,
   demandaId
@@ -868,6 +899,9 @@ function getDemandDetailForStoreV2_(
         var code=('0000'+m[1]).slice(-4);
         if(raw.perStore[code])selected=selected.concat(raw.perStore[code]);
       });
+      if(!selected.length && targetStores.length===1){
+        selected=conectaTestSheetSectionsV2_(demanda,targetStores[0]);
+      }
       return {version:raw.version,fileName:raw.fileName,storeSections:selected,
         sheets:raw.sheets||[],editableColumns:raw.editableColumns||null};
     })(),
@@ -1152,6 +1186,7 @@ function responseSheetPreviewV2_(d,store) {
   var raw=String(store.codigo||store.nome||'').match(/(?:LJ\s*)?0*(\d{1,5})(?:\b|$)/i);
   var code=raw?('0000'+String(Number(raw[1]))).slice(-4):'';
   var sections=code?meta.perStore[code]||[]:[];
+  if(!sections.length)sections=conectaTestSheetSectionsV2_(d,store);
   if(!sections.length)return null;
   return {
     version:meta.version||0,

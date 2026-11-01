@@ -84,3 +84,49 @@ const scripts=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
 assert.ok(scripts.includes("var operationalItems=items.filter(function(i){return i.isHomologacao!==true;});"),
  'KPIs de solicitações ignoram testes');
 console.log('OK — Homologação isolada de lojas, notificações, cobranças e indicadores.');
+
+/** Uma importação da produção pode ser experimentada sem copiar nenhuma linha real. */
+const testSheetStart=features.indexOf('function conectaTestSheetSectionsV2_(');
+const testSheetEnd=features.indexOf('function getDemandDetailForStoreV2_(',testSheetStart);
+assert.ok(testSheetStart>=0 && testSheetEnd>testSheetStart,'Gerador de planilha fictícia na API da loja');
+const sheetCtx=vm.createContext({
+  isConectaTestStoreId_:id=>String(id)===testId,
+  isConectaTestDemand_:d=>JSON.stringify(d.loja_ids)==='["'+testId+'"]',
+  normalizeJsonObject_:v=>v||{}
+});
+vm.runInContext(features.slice(testSheetStart,testSheetEnd),sheetCtx);
+const header=[['LOJA','UF','INSUMOS RECEBIDOS?','OBSERVAÇÕES']];
+const layout={sheet:'Crema',width:4,headerRows:header,hiddenColumns:[1],columnWidths:[220,60,110,200],
+ rows:[{sourceRow:4,cells:['LJ 0001 - OSCAR FREIRE','SP','Sim','Pedido 123']}]};
+const imported={id:'d1',loja_ids:[testId],model_source:'spreadsheet',
+ import_meta:{perStore:{'0001':[{'store':'LJ 0001 - OSCAR FREIRE'}]},
+ sheetLayouts:[layout],sheets:[{sheet:'Crema'}],
+ editableColumns:{Crema:{2:{type:'boolean',required:true},3:{type:'text',required:false}}}}};
+let generated=sheetCtx.conectaTestSheetSectionsV2_(imported,{id:testId,codigo:'TESTE'});
+assert.equal(generated.length,1,'Deve criar uma linha por aba para a loja fictícia');
+assert.equal(generated[0].rowCells[0],'LOJA TESTE - HOMOLOGAÇÃO');
+assert.deepEqual(Array.from(generated[0].rowCells).slice(1),['','',''],
+ 'Não copiar quantidade, dados da loja real nem respostas anteriores');
+assert.deepEqual(Array.from(generated[0].sheetHeaders[0]),header[0],
+ 'Cabeçalhos e campos da planilha são preservados');
+assert.equal(generated[0].sourceRow,90000,'Identificador virtual não coincide com linhas reais');
+assert.equal(generated[0].hiddenColumns[0],1,'Respeitar colunas auxiliares ocultas');
+assert.equal(sheetCtx.conectaTestSheetSectionsV2_(imported,{id:realId,codigo:'1'}).length,0,
+ 'O gerador nunca altera a visualização da loja real');
+assert.equal(sheetCtx.conectaTestSheetSectionsV2_({...imported,loja_ids:[realId]},{id:testId}).length,0,
+ 'Planilha virtual só pode existir em solicitação isolada de homologação');
+assert.ok(features.includes("selected=conectaTestSheetSectionsV2_(demanda,targetStores[0]);") &&
+ features.includes("sections=conectaTestSheetSectionsV2_(d,store);"),
+ 'Visão da loja e avaliação administrativa devem usar a mesma planilha virtual');
+assert.ok(backend.includes("String(d.status || 'active').toLowerCase() === 'draft'") &&
+ features.includes("String(d.status || 'active').toLowerCase() !=="),
+ 'Demandas publicadas visíveis no bootstrap, rascunhos ocultos');
+console.log('OK — Planilha fictícia, resposta e revisão isoladas, sem dados de lojas reais.');
+
+/** Uma sessão já autenticada da loja deve prevalecer após atualizar a página. */
+const sessionScripts=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
+assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store'"),
+ 'Login de loja não pode voltar silenciosamente ao perfil corporativo ao atualizar');
+assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap"),
+ 'Renovação de sessão também mantém a preferência do login da loja');
+console.log('OK — O perfil de teste permanece escolhido após atualização e renovação da sessão.');
