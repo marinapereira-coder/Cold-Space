@@ -431,7 +431,7 @@ assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_
 assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_3:'Talvez'},detail),
  /opção válida/,'Sim/Não deve ser validado no servidor');
 assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_2:''},detail),
- /obrigatórias/,'Confirmar as colunas obrigatórias');
+ /colunas de confirmação/,'Confirmar as colunas obrigatórias');
 const scopedMeta=scopeCtx.scopedCampaignImportMeta_({
  version:5,perStore:{'0006':[serverMeta.storeSections[0]]},sheets:serverMeta.sheets,
  editableColumns:serverMeta.editableColumns
