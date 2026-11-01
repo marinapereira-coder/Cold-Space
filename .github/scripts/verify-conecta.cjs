@@ -537,13 +537,13 @@ const compactOpts={mode:'store',sheetIndex:1,
  rules:{4:{type:'boolean',required:true},5:{type:'boolean',required:true},
         6:{type:'text'},9:{type:'boolean',required:true}},answers:{},readonly:false};
 const visibleCols=importCtx.campaignSheetDisplayColumns_(compactLayout,compactOpts);
-assert.deepEqual(Array.from(visibleCols),[0,1,2,3,4,5,6,9],
- 'Não mostrar colunas totalmente vazias, mas manter respostas em colunas com regra');
+assert.deepEqual(Array.from(visibleCols),[0,2,3,4,5,6,9],
+ 'Ocultar UF auxiliar e colunas vazias, mantendo respostas com chaves originais');
 const compactWidths=visibleCols.map(j=>importCtx.campaignSheetColumnWidth_(compactLayout,j,compactOpts));
 const compactMin=34+compactWidths.reduce((a,b)=>a+b,0);
 assert.ok(compactMin<=1300,'Grade com oito colunas deve caber no espaço central comum');
-assert.ok(compactWidths[0]>compactWidths[1]&&compactWidths[6]>compactWidths[2],
- 'Largura de Loja e Observações maiores que UF e quantidades');
+assert.ok(compactWidths[0]>compactWidths[1]&&compactWidths[5]>compactWidths[2],
+ 'Largura de Loja e Observações maiores que forecast e quantidades');
 const compactHtml=importCtx.campaignSheetTableHtml(compactLayout,compactOpts);
 assert.ok(compactHtml.includes('bacio-sheet-compact-scroll')&&compactHtml.includes('<colgroup>'),
  'Tamanho e colunas responsivas devem estar no HTML');
@@ -557,6 +557,49 @@ assert.ok(compactHtml.includes('BALDE')&&compactHtml.includes('PÁTIO PAULISTA')
  'Valores originais devem permanecer visíveis');
 assert.ok(!compactHtml.includes('data-key="sheetcell_1_21_2"'),
  'Quantidade original continua bloqueada');
+
+// BR-033: aparência e disposição reais das abas Crema (A + E-M, sem B-D).
+assert.ok(rules.includes('BR-033'),'Banco de Regras precisa registrar a fidelidade com Excel');
+const cremaLayout={
+ sheet:'Para loja pedir - LCP e Op. Dup',width:13,
+ headerRows:[
+ ['','','','','ATENÇÃO: PEDIDO LOJA LCP E QUIOSQUE OP. DUPLA','','','','','','','',''],
+ ['GELATO CREMA POSITANO 03/11 a 04/01','','','','Forecast em kgs 5,0% de Participação',
+  'MP207030004541 GEMA DE OVO','MP207030004573 PASTA','MP207030005153 SABORIZANTE',
+  'MP208030006244 COOKIES','PA001009001232 GELATO CREMA','PLAQUINHAS','INSUMOS RECEBIDOS?','OBSERVAÇÕES'],
+ ['LOJA','UF','Produção','Tipo Op','','CAIXA C/12 DE 1 LITRO','POTE 220G','PACOTE 1,5 KG',
+  'BALDE 3,5 KG','BALDE 3,6 KG','(Automático carga seca CD)','','']
+ ],
+ rows:[{sourceRow:4,cells:['LJ 0001 - OSCAR FREIRE - SP','SP Capital','LCP','Loja',
+  '147','1','2','1','4','NÃO PEDIR','Sim','Não','Pedido parcial']}]
+};
+const originalIndexes=Array.from(importCtx.campaignSheetDisplayColumns_(cremaLayout,{}));
+assert.deepEqual(originalIndexes,[0,4,5,6,7,8,9,10,11,12],
+ 'A vista padrão deve ser A, E-M, como na planilha Excel');
+const reveal=Array.from(importCtx.campaignSheetDisplayColumns_(cremaLayout,{showAuxiliary:true}));
+assert.deepEqual(reveal,[0,1,2,3,4,5,6,7,8,9,10,11,12],
+ 'Colunas auxiliares originais continuam recuperáveis');
+const layoutHtml=importCtx.campaignSheetTableHtml(cremaLayout,{
+ mode:'store',sheetIndex:0,rules:{10:{type:'boolean',required:true},11:{type:'boolean',required:true},12:{type:'text'}}
+});
+assert.ok(layoutHtml.includes('colspan="7"')||layoutHtml.includes('colspan="8"'),
+ 'Título de atenção tem que ficar mesclado, como no Excel');
+assert.ok(!layoutHtml.includes('data-sheet-original-col="1"'),
+ 'UF auxiliar não deve ampliar a grade na vista padrão');
+assert.ok(layoutHtml.includes('data-key="sheetcell_0_4_10"') &&
+ layoutHtml.includes('data-key="sheetcell_0_4_11"') &&
+ layoutHtml.includes('data-key="sheetcell_0_4_12"'),
+ 'Plaquinhas, insumos e observações mantêm os índices reais');
+assert.ok(layoutHtml.includes('bacio-sheet-source-pill'),'Valores Sim/Não da planilha devem aparecer como pílulas coloridas');
+const autoLayout={sheet:'ITENS DE ENVIO AUTOMÁTICO',width:13,
+ headerRows:[cremaLayout.headerRows[0],cremaLayout.headerRows[1],cremaLayout.headerRows[2]],
+ rows:cremaLayout.rows,hiddenColumns:[1,2,3]};
+assert.deepEqual(Array.from(importCtx.campaignSheetDisplayColumns_(autoLayout,{})),originalIndexes,
+ 'Importações com !cols ocultas precisam reproduzir a mesma disposição');
+assert.ok(!layoutHtml.includes('bacio-sheet-row-label'),
+ 'Faixa redundante acima da planilha não existe no Excel');
+console.log('OK — Crema exibe colunas A e E-M, cabeçalho mesclado e campos originais.');
+
 console.log('OK — Larguras compactas, colunas vazias ocultas e chaves originais preservadas.');
 
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
