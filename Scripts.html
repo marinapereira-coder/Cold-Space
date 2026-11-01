@@ -333,14 +333,16 @@ function renderCampaignManagement(){
   return matchesView&&(!q||text.indexOf(q)>=0)&&(t==='all'||String(i.type)===t)&&
    (status==='all'||st===status)&&(depFilter==='all'||requestDepartment(i)===depFilter);
  });
+ // Homologação segue na lista mas não nos indicadores operacionais.
+ var operationalItems=items.filter(function(i){return i.isHomologacao!==true;});
  document.getElementById('campaignKpis').innerHTML=[
-  [items.length,'Total de solicitações'],
-  [items.filter(function(i){return i.timelineStatus==='active';}).length,'Em andamento'],
-  [items.filter(function(i){return i.timelineStatus==='late'||i.timelineStatus==='due_today';}).length,'Precisam de atenção'],
-  [items.filter(function(i){return i.timelineStatus==='completed'||i.timelineStatus==='closed';}).length,'Concluídas']
+  [operationalItems.length,'Total de solicitações'],
+  [operationalItems.filter(function(i){return i.timelineStatus==='active';}).length,'Em andamento'],
+  [operationalItems.filter(function(i){return i.timelineStatus==='late'||i.timelineStatus==='due_today';}).length,'Precisam de atenção'],
+  [operationalItems.filter(function(i){return i.timelineStatus==='completed'||i.timelineStatus==='closed';}).length,'Concluídas']
  ].map(kpiHtml).join('');
  var depts={};
- items.forEach(function(item){var d=requestDepartment(item);depts[d]=(depts[d]||0)+1;});
+ operationalItems.forEach(function(item){var d=requestDepartment(item);depts[d]=(depts[d]||0)+1;});
  document.getElementById('campaignDepartmentsSummary').innerHTML=
   Object.keys(depts).sort().map(function(dept){
    return '<button type="button" class="campaign-dept-card '+(depFilter===dept?'selected':'')+

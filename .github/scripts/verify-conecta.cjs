@@ -234,6 +234,7 @@ const evaluationFixture=[
 const demandsSeen=[];
 const operationsCtx=vm.createContext({
  getVisibleStores_:()=>[{id:'1',nome:'LJ 0001 - OSCAR FREIRE',codigo:'0001'}],
+ isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
  roleOf_:u=>u.role,isDepartmentUser_:()=>false,table_:(_key,t)=>t,
  safeSupabaseSelect_:(url)=>{
   if(url.includes('bacio_demandas')){
@@ -669,6 +670,7 @@ const evalBuilderStop=modern.indexOf('function mapEvaluationRowV2_(',evalBuilder
 const mapStop=modern.indexOf('function evaluationTitleV2_(',evalBuilderStop);
 const metricsCtx=vm.createContext({
  getVisibleStores_:()=>[{id:'loja1',nome:'LJ 0006'}],
+ isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
  storeLabelV2_:store=>store.nome||'Loja',
  table_:(_name,fallback)=>fallback,
  safeSupabaseSelect_:url=>{

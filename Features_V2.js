@@ -1459,16 +1459,18 @@ function buildResponsesWorkspaceV2_(
     }
   );
 
+  // Manter resposta fictícia avaliável, mas fora dos indicadores reais.
+  var operationalItems=items.filter(function(item){return !isConectaTestStoreId_(item.storeId);});
   return {
     items:
       items,
 
     stats: {
       total:
-        items.length,
+        operationalItems.length,
 
       aprovadas:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1478,7 +1480,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       aguardando:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1488,7 +1490,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       ajuste:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1498,7 +1500,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       reprovadas:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1929,7 +1931,7 @@ function buildEvaluationWorkspaceV2_(
   var visibleIds = {};
   var storeMap = {};
 
-  visibleStores.forEach(
+  visibleStores.filter(function(s){return !isConectaTestStoreId_(s.id);}).forEach(
     function (s) {
 
       visibleIds[
@@ -2021,6 +2023,8 @@ function buildEvaluationWorkspaceV2_(
       }
     );
 
+  // Avaliações de homologação continuam no histórico, mas não entram em rankings/médias.
+  var operationalEvaluations=items.filter(function(i){return !isConectaTestStoreId_(i.storeId);});
   var grouped = {};
 
   visibleStores.forEach(
@@ -2035,7 +2039,7 @@ function buildEvaluationWorkspaceV2_(
     }
   );
 
-  items.forEach(
+  operationalEvaluations.forEach(
     function (i) {
 
       if (
@@ -2185,13 +2189,13 @@ function buildEvaluationWorkspaceV2_(
       }
     );
 
-  var ratedItems = items.filter(function(i){
+  var ratedItems = operationalEvaluations.filter(function(i){
     return i.stars !== null && i.stars >= 1 && i.stars <= 5;
   });
   var totalStars = ratedItems.reduce(function(sum,i){return sum+i.stars;},0);
 
   var slaItems =
-    items.filter(
+    operationalEvaluations.filter(
       function (i) {
 
         return (
@@ -2223,7 +2227,7 @@ function buildEvaluationWorkspaceV2_(
 
     summary: {
       total:
-        items.length,
+        operationalEvaluations.length,
 
       avgStars: ratedItems.length ?
         roundOneV2_(totalStars/ratedItems.length) : null,
@@ -2240,7 +2244,7 @@ function buildEvaluationWorkspaceV2_(
           : null,
 
       approved:
-        items.filter(
+        operationalEvaluations.filter(
           function (i) {
 
             return (
