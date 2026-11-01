@@ -566,25 +566,145 @@ function campaignSheetTableHtml(layout){
   thead.replace(/<tr class="bacio-sheet-header/g,'<tr class="bacio-sheet-header').replace(/(<tr class="bacio-sheet-header[^"]*"?>)/g,'$1<th class="bacio-sheet-rowno"></th>')+
   '</thead><tbody>'+tbody+'</tbody></table></div>';
 }
+// Filtros somente de visualização. Nunca modificam dados da demanda nem disparam alertas.
+function campaignSheetCode_(value){
+ var text=String(value==null?'':value).trim();
+ var match=text.match(/(?:^|\b)LJ\s*0*(\d{1,5})(?:\b|$)/i);
+ if(!match)match=text.match(/^0*(\d{1,5})$/);
+ return match?('0000'+String(Number(match[1]))).slice(-4):'';
+}
+function campaignSheetRowCodes_(row){
+ if(Array.isArray(row.codes)&&row.codes.length)return row.codes.map(campaignSheetCode_).filter(Boolean);
+ var label=String((row.cells||[])[0]||'');
+ var matches=label.match(/LJ\s*0*\d{1,5}/gi)||[];
+ return matches.map(campaignSheetCode_).filter(Boolean);
+}
+function campaignSheetStoreDirectory_(meta,layouts){
+ // APP_DATA.stores já é delimitado pelo servidor ao perfil autenticado.
+ // A planilha, também delimitada, determina quais códigos são oferecidos.
+ var codes={},labels={},directory={};
+ (layouts||[]).forEach(function(layout){(layout.rows||[]).forEach(function(row){
+  campaignSheetRowCodes_(row).forEach(function(code){codes[code]=true;
+   if(!labels[code])labels[code]=String((row.cells||[])[0]||'');
+  });
+ });});
+ (APP_DATA&&APP_DATA.stores||[]).forEach(function(store){
+  var code=campaignSheetCode_(store.nome)||campaignSheetCode_(store.codigo)||campaignSheetCode_(store.id);
+  if(!code||!codes[code])return;
+  directory[code]={code:code,name:String(store.nome||labels[code]||'LJ '+code),
+    regional:String(store.regional||'').trim(),consultor:String(store.consultor||'').trim()};
+ });
+ Object.keys(codes).forEach(function(code){
+  if(directory[code])return;
+  var entry=meta&&meta.perStore&&meta.perStore[code],section=entry&&entry[0];
+  directory[code]={code:code,name:String(section&&section.store||labels[code]||'LJ '+code),
+   regional:'',consultor:''};
+ });
+ return directory;
+}
+function campaignSheetVisibleRows_(layout,filters,directory){
+ return (layout.rows||[]).filter(function(row){
+  if(!filters.store&&!filters.regional&&!filters.consultor)return true;
+  return campaignSheetRowCodes_(row).some(function(code){
+   var store=directory[code];
+   return !!store&&(!filters.store||filters.store===code)&&
+    (!filters.regional||store.regional===filters.regional)&&
+    (!filters.consultor||store.consultor===filters.consultor);
+  });
+ });
+}
+function campaignSheetOptions_(values,placeholder){
+ return '<option value="">'+safe(placeholder)+'</option>'+
+  values.map(function(value){return '<option value="'+safe(value.value)+'">'+safe(value.label)+'</option>';}).join('');
+}
+function campaignSheetBindRails_(host){
+ host.querySelectorAll('.bacio-sheet-page').forEach(function(page){
+  var viewport=page.querySelector('.bacio-sheet-scroll'),rail=page.querySelector('.bacio-sheet-hrail');
+  var fill=page.querySelector('.bacio-sheet-hrail-fill'),wrap=page.querySelector('.bacio-sheet-hrail-wrap');
+  if(!viewport||!rail||!fill)return;
+  function size(){
+   var width=Math.max(0,viewport.scrollWidth-viewport.clientWidth);
+   fill.style.width=viewport.scrollWidth+'px';
+   wrap.style.display=width>3?'flex':'none';
+   rail.scrollLeft=viewport.scrollLeft;
+  }
+  viewport.addEventListener('scroll',function(){if(Math.abs(rail.scrollLeft-viewport.scrollLeft)>1)rail.scrollLeft=viewport.scrollLeft;},{passive:true});
+  rail.addEventListener('scroll',function(){if(Math.abs(viewport.scrollLeft-rail.scrollLeft)>1)viewport.scrollLeft=rail.scrollLeft;},{passive:true});
+  page.querySelectorAll('[data-bacio-sheet-step]').forEach(function(button){
+   button.onclick=function(){
+    viewport.scrollLeft+=Number(button.getAttribute('data-bacio-sheet-step'))*Math.max(180,Math.round(viewport.clientWidth*.6));
+   };
+  });
+  size();
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(size);
+ });
+}
 function renderCampaignSpreadsheet(meta,host){
  if(!host)return;
  var layouts=campaignSpreadsheetLayouts(meta);
  if(!layouts.length){host.innerHTML='<div class="helper">Este modelo não possui dados de grade importados.</div>';return;}
+ var directory=campaignSheetStoreDirectory_(meta,layouts),filters={store:'',regional:'',consultor:''};
+ var allCodes=Object.keys(directory).sort(function(a,b){return Number(a)-Number(b);});
+ var stores=allCodes.map(function(code){return {value:code,label:directory[code].name||'LJ '+code};});
+ var regionals=Array.from(new Set(allCodes.map(function(c){return directory[c].regional;}).filter(Boolean))).sort();
+ var consultants=Array.from(new Set(allCodes.map(function(c){return directory[c].consultor;}).filter(Boolean))).sort();
  host.innerHTML='<div class="bacio-sheet-top"><strong>Visão da planilha · '+safe(meta.fileName||'Modelo importado')+'</strong>'+
-  '<span class="muted">Visualização somente leitura. A estrutura, os códigos e as quantidades foram preservados.</span></div>'+
+  '<span class="muted">Somente leitura · use os filtros para localizar as lojas e deslize pelas colunas.</span></div>'+
+  '<div class="bacio-sheet-filters">'+
+   '<div class="bacio-sheet-filter-field"><label>Loja</label><select class="select" data-bacio-filter="store">'+
+    campaignSheetOptions_(stores,'Todas as lojas')+'</select></div>'+
+   '<div class="bacio-sheet-filter-field"><label>Regional</label><select class="select" data-bacio-filter="regional">'+
+    campaignSheetOptions_(regionals.map(function(v){return {value:v,label:v};}),'Todas as regionais')+'</select></div>'+
+   '<div class="bacio-sheet-filter-field"><label>Consultor</label><select class="select" data-bacio-filter="consultor">'+
+    campaignSheetOptions_(consultants.map(function(v){return {value:v,label:v};}),'Todos os consultores')+'</select></div>'+
+   '<button type="button" class="btn soft bacio-sheet-filter-clear">Limpar filtros</button>'+
+  '</div><div class="bacio-sheet-result-count" role="status"></div>'+
   '<div class="bacio-sheet-tabs" role="tablist">'+layouts.map(function(layout,i){
    return '<button type="button" class="bacio-sheet-tab'+(i===0?' active':'')+
      '" data-bacio-sheet-tab="'+i+'">'+safe(layout.sheet)+'</button>';
   }).join('')+'</div>'+
-  layouts.map(function(layout,i){return '<div class="bacio-sheet-page" data-bacio-sheet-page="'+i+
-   '" style="'+(i?'display:none':'')+'">'+campaignSheetTableHtml(layout)+'</div>';}).join('');
+  layouts.map(function(layout,i){
+   return '<div class="bacio-sheet-page" data-bacio-sheet-page="'+i+'" style="'+(i?'display:none':'')+'"></div>';
+  }).join('');
+ var active=0;
+ function paint(){
+  var matching=0;
+  host.querySelectorAll('[data-bacio-sheet-page]').forEach(function(page,i){
+   var layout=layouts[i],rows=campaignSheetVisibleRows_(layout,filters,directory);
+   matching+=rows.length;
+   page.innerHTML=rows.length?campaignSheetTableHtml({sheet:layout.sheet,width:layout.width,
+     headerRows:layout.headerRows,rows:rows}):
+     '<div class="empty">Nenhuma linha desta aba corresponde aos filtros selecionados.</div>';
+   if(rows.length){
+    page.innerHTML+='<div class="bacio-sheet-hrail-wrap">'+
+     '<button type="button" class="bacio-sheet-scroll-arrow" data-bacio-sheet-step="-1" aria-label="Colunas anteriores">←</button>'+
+     '<div class="bacio-sheet-hrail" role="scrollbar" aria-label="Rolagem horizontal da planilha"><div class="bacio-sheet-hrail-fill"></div></div>'+
+     '<button type="button" class="bacio-sheet-scroll-arrow" data-bacio-sheet-step="1" aria-label="Próximas colunas">→</button>'+
+     '<span class="bacio-sheet-hrail-hint">Deslize para ver as colunas</span></div>';
+   }
+   page.style.display=i===active?'':'none';
+  });
+  host.querySelector('.bacio-sheet-result-count').textContent=matching+' linhas visíveis nas '+layouts.length+
+    ' abas · '+allCodes.length+' lojas no arquivo';
+  campaignSheetBindRails_(host);
+ }
+ host.querySelectorAll('[data-bacio-filter]').forEach(function(select){
+  select.onchange=function(){filters[select.getAttribute('data-bacio-filter')]=select.value;paint();};
+ });
+ host.querySelector('.bacio-sheet-filter-clear').onclick=function(){
+  filters={store:'',regional:'',consultor:''};
+  host.querySelectorAll('[data-bacio-filter]').forEach(function(select){select.value='';});
+  paint();
+ };
  host.querySelectorAll('[data-bacio-sheet-tab]').forEach(function(btn){
   btn.onclick=function(){
-   var index=btn.getAttribute('data-bacio-sheet-tab');
+   active=Number(btn.getAttribute('data-bacio-sheet-tab'));
    host.querySelectorAll('[data-bacio-sheet-tab]').forEach(function(b){b.classList.toggle('active',b===btn);});
-   host.querySelectorAll('[data-bacio-sheet-page]').forEach(function(p){p.style.display=p.getAttribute('data-bacio-sheet-page')===index?'':'none';});
+   host.querySelectorAll('[data-bacio-sheet-page]').forEach(function(p,i){p.style.display=i===active?'':'none';});
+   campaignSheetBindRails_(host);
   };
  });
+ paint();
 }
 function renderStoreTemplateInfo(template){
  var host=document.getElementById('formImportPreview'),codes=Object.keys(template.perStore).sort();
