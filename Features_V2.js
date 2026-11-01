@@ -1172,6 +1172,24 @@ function getResponsesWorkspace() {
 }
 
 
+// Retorna SOMENTE as linhas da loja que entregou a resposta; nunca expõe
+// a planilha global ou outras lojas no payload da avaliação.
+function responseSheetPreviewV2_(d,store) {
+  var meta=normalizeJsonObject_(d.import_meta);
+  if(!meta.perStore||!store)return null;
+  var raw=String(store.codigo||store.nome||'').match(/(?:LJ\s*)?0*(\d{1,5})(?:\b|$)/i);
+  var code=raw?('0000'+String(Number(raw[1]))).slice(-4):'';
+  var sections=code?meta.perStore[code]||[]:[];
+  if(!sections.length)return null;
+  return {
+    version:meta.version||0,
+    fileName:meta.fileName||'Planilha importada',
+    sheets:(meta.sheets||[]).map(function(sh){return {sheet:sh.sheet};}),
+    editableColumns:meta.editableColumns||null,
+    storeSections:sections
+  };
+}
+
 function buildResponsesWorkspaceV2_(
   user
 ) {
@@ -1304,6 +1322,15 @@ function buildResponsesWorkspaceV2_(
   );
 
   var latest = {};
+  var firstDeliveryByDemandStore = {};
+
+  respostas.forEach(function(r){
+    var key=String(r.demanda_id||'')+'|'+String(r.loja_id||'');
+    var at=String(r.created_at||'');
+    if(at&&(!firstDeliveryByDemandStore[key]||at<firstDeliveryByDemandStore[key])){
+      firstDeliveryByDemandStore[key]=at;
+    }
+  });
 
   respostas.forEach(
     function (r) {
@@ -1416,6 +1443,11 @@ function buildResponsesWorkspaceV2_(
           createdAt:
             r.created_at ||
             '',
+
+          // O SLA usa a PRIMEIRA resposta, conforme evaluateDemandDelivery.
+          firstResponseAt:firstDeliveryByDemandStore[key]||r.created_at||'',
+
+          submittedSheet:responseSheetPreviewV2_(d,store),
 
           deadline:
             d.prazo_sla ||
