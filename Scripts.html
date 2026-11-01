@@ -598,24 +598,57 @@ function campaignSpreadsheetLayouts(meta){
  });
  return order.map(function(key){return grouped[key];});
 }
+// Visualização compacta como Excel: preservar índices originais para respostas,
+// mas ocultar APENAS colunas 100% vazias e ajustar largura conforme o conteúdo.
+function campaignSheetDisplayColumns_(layout,opts){
+ var n=Number(layout.width||0),rows=layout.rows||[],headers=layout.headerRows||[],rules=opts&&opts.rules||{};
+ var indices=[];
+ for(var j=0;j<n;j++){
+  var inHeader=headers.some(function(row){return String(row&&row[j]==null?'':row[j]).trim()!=='';});
+  var inData=rows.some(function(row){return String(row.cells&&row.cells[j]==null?'':row.cells[j]).trim()!=='';});
+  if(inHeader||inData||Object.prototype.hasOwnProperty.call(rules,j))indices.push(j);
+ }
+ return indices.length?indices:Array.from({length:n},function(_,i){return i;});
+}
+function campaignSheetColumnWidth_(layout,j,opts){
+ var headers=(layout.headerRows||[]).map(function(r){return String(r&&r[j]!=null?r[j]:'');});
+ var h=headers.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+ var sample=(layout.rows||[]).slice(0,30).map(function(r){return String(r.cells&&r.cells[j]!=null?r.cells[j]:'').trim();}).filter(Boolean);
+ var kind=String(opts&&opts.rules&&opts.rules[j]&&opts.rules[j].type||'');
+ if(/observa|comentario|justificativa/.test(h)||kind==='text')return 260;
+ if(/insumos?\s+recebidos?|recebimento|recebeu/.test(h))return 147;
+ if(/plaquinhas?/.test(h))return 146;
+ if(kind==='boolean')return 144;
+ if(kind==='number')return 92;
+ if(/(?:^|\s)(loja|centro de custo)(?:\s|$)/.test(h)||sample.some(function(v){return /^LJ\s*0*\d+/i.test(v);}))return 242;
+ if(/(?:^|\s)(uf|estado)(?:\s|$)/.test(h))return 56;
+ if(/tipo\s*(?:op|operacao)|producao|formato/.test(h))return 72;
+ if(/forecast|previsao|quantidade|qtd|participacao|percentual|%/.test(h))return 88;
+ if(sample.length&&sample.filter(function(v){return /^-?\d+(?:[.,]\d+)?$/.test(v);}).length/sample.length>=.75)return 83;
+ return h.length>75?126:h.length>36?112:100;
+}
 function campaignSheetTableHtml(layout,opts){
  opts=opts||{};
  var width=Number(layout.width||0),headers=layout.headerRows||[],rows=layout.rows||[];
  if(width<1||!headers.length)return '<div class="empty">Esta aba não contém uma grade de planilha disponível.</div>';
+ var cols=campaignSheetDisplayColumns_(layout,opts);
+ var sized=cols.map(function(j){return {original:j,pixels:campaignSheetColumnWidth_(layout,j,opts)};});
+ var totalWidth=34+sized.reduce(function(acc,c){return acc+c.pixels;},0);
+ var columnHtml='<colgroup><col style="width:34px">'+sized.map(function(c){
+  return '<col style="width:'+c.pixels+'px" data-sheet-original-col="'+c.original+'">';
+ }).join('')+'</colgroup>';
  var thead=headers.map(function(row,ri){
   return '<tr class="bacio-sheet-header bacio-sheet-header-'+Math.min(ri,2)+'">'+
-   Array.from({length:width},function(_,j){
-    var value=row&&row[j]!=null?String(row[j]):'';
-    return '<th title="'+safe(value)+'">'+safe(value)+'</th>';
+   '<th class="bacio-sheet-rowno" scope="col"></th>'+
+   cols.map(function(j){var value=row&&row[j]!=null?String(row[j]):'';
+    return '<th title="'+safe(value)+'" scope="col">'+safe(value)+'</th>';
    }).join('')+'</tr>';
  }).join('');
- var tbody=rows.map(function(row,i){
+ var tbody=rows.map(function(row){
   return '<tr><td class="bacio-sheet-rowno">'+safe(row.sourceRow||'')+'</td>'+
-    Array.from({length:width},function(_,j){
+    cols.map(function(j){
       var value=row.cells&&row.cells[j]!=null?String(row.cells[j]):'';
       var numeric=value!==''&&!isNaN(Number(value.replace(',','.')))&&/^-?\d+([.,]\d+)?$/.test(value);
-      // Apenas na tela autenticada da própria loja (ou simulação isolada):
-      // os campos editáveis aparecem nas mesmas células do Excel.
       var rule=opts.rules&&opts.rules[j],type=String(rule&&rule.type||'readonly');
       if(opts.mode==='review'&&['boolean','text','number'].indexOf(type)>=0){
        var k='sheetcell_'+Number(opts.sheetIndex)+'_'+Number(row.sourceRow)+'_'+j;
@@ -648,7 +681,7 @@ function campaignSheetTableHtml(layout,opts){
         control='<input type="number" min="0" step="any"'+attrs+' value="'+safe(answer)+
          '" placeholder="Informe...">';
        }else{
-        control='<textarea rows="2"'+attrs+' maxlength="2000" placeholder="Digite sua observação...">'+
+        control='<textarea rows="2"'+attrs+' maxlength="2000" placeholder="Observação...">'+
           safe(answer)+'</textarea>';
        }
        return '<td class="'+classes+'" title="Campo para preenchimento da loja">'+control+'</td>';
@@ -657,10 +690,11 @@ function campaignSheetTableHtml(layout,opts){
         '" title="'+safe(value.slice(0,800))+'">'+safe(value)+'</td>';
     }).join('')+'</tr>';
  }).join('');
- // Primeira coluna interna indica a linha original do Excel; sem alterar os valores.
- return '<div class="bacio-sheet-scroll"><table class="bacio-sheet-grid" aria-label="'+safe(layout.sheet)+'">'+
-  '<thead><tr class="bacio-sheet-row-label"><th>#</th><th colspan="'+width+'">'+safe(layout.sheet)+'</th></tr>'+
-  thead.replace(/<tr class="bacio-sheet-header/g,'<tr class="bacio-sheet-header').replace(/(<tr class="bacio-sheet-header[^"]*"?>)/g,'$1<th class="bacio-sheet-rowno"></th>')+
+ // Todos os índices de células permanecem os da planilha, ainda que uma coluna vazia não apareça.
+ return '<div class="bacio-sheet-scroll bacio-sheet-compact-scroll"><table class="bacio-sheet-grid bacio-sheet-compact"'+
+  ' style="--bacio-sheet-min-width:'+totalWidth+'px" aria-label="'+safe(layout.sheet)+'">'+
+  columnHtml+'<thead><tr class="bacio-sheet-row-label"><th>#</th><th colspan="'+cols.length+'">'+
+  safe(layout.sheet)+'</th></tr>'+thead+
   '</thead><tbody>'+tbody+'</tbody></table></div>';
 }
 // Filtros somente de visualização. Nunca modificam dados da demanda nem disparam alertas.
