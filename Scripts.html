@@ -617,6 +617,16 @@ function campaignSheetTableHtml(layout,opts){
       // Apenas na tela autenticada da própria loja (ou simulação isolada):
       // os campos editáveis aparecem nas mesmas células do Excel.
       var rule=opts.rules&&opts.rules[j],type=String(rule&&rule.type||'readonly');
+      if(opts.mode==='review'&&['boolean','text','number'].indexOf(type)>=0){
+       var k='sheetcell_'+Number(opts.sheetIndex)+'_'+Number(row.sourceRow)+'_'+j;
+       var hasAnswer=Object.prototype.hasOwnProperty.call(opts.answers||{},k);
+       var submitted=hasAnswer?String(opts.answers[k]==null?'':opts.answers[k]).trim():'';
+       var state=!submitted?'missing':submitted==='Sim'?'yes':
+         (submitted==='Não'||submitted.indexOf('Recebimento errado')===0)?'no':'other';
+       return '<td class="bacio-review-cell bacio-review-'+state+
+         '" title="Resposta enviada pela loja"><span class="bacio-review-value">'+
+         safe(submitted||'Não informado')+'</span></td>';
+      }
       if(opts.mode==='store'&&['boolean','text','number'].indexOf(type)>=0){
        var key='sheetcell_'+Number(opts.sheetIndex)+'_'+Number(row.sourceRow)+'_'+j;
        var answer=opts.answers&&Object.prototype.hasOwnProperty.call(opts.answers,key)?
@@ -1140,15 +1150,83 @@ function renderResponses(){
   var header='<div class="row header"><div>Loja</div><div>Demanda</div><div>Status</div><div>Atualização</div><div>Ação</div></div>';
   document.getElementById('responsesTable').innerHTML=header+(list.length?list.map(function(i){return '<div class="row"><div><h4>'+safe(i.storeLabel)+'</h4><div class="muted">'+safe(i.userEmail||'')+'</div></div><div class="muted">'+safe(i.demandaTitle)+'</div><div><span class="status '+safe(i.status)+'">'+safe(responseStatusLabel(i.status))+'</span></div><div class="muted">'+safe(formatDateTime(i.createdAt))+'</div><div><button class="btn soft" onclick="openEvaluation(\''+safeJs(i.responseId)+'\')">Avaliar</button></div></div>';}).join(''):'<div class="empty">Nenhuma resposta encontrada.</div>');
 }
+// O prazo é calculado pela primeira resposta, conforme a regra de SLA do servidor.
+// Uma correção posterior não muda a classificação da primeira entrega.
+function responseTimingInfo_(item){
+ var at=String(item.firstResponseAt||item.createdAt||'');
+ var due=String(item.deadline||'');
+ var a=at?new Date(at):null,b=due?new Date(due):null;
+ var validA=!!a&&!isNaN(a.getTime()),validB=!!b&&!isNaN(b.getTime());
+ if(!validA||!validB)return {status:'unknown',label:validB?'Entrega sem data válida':'Sem prazo cadastrado',offset:''};
+ var difference=Math.abs(a.getTime()-b.getTime()),minutes=Math.ceil(difference/60000);
+ var duration=minutes>=1440?Math.floor(minutes/1440)+' dia(s) e '+Math.ceil(minutes%1440/60)+' h':
+  minutes>=60?Math.floor(minutes/60)+' h e '+(minutes%60)+' min':minutes+' min';
+ return {status:a.getTime()<=b.getTime()?'on-time':'late',
+   label:a.getTime()<=b.getTime()?'No prazo':'Fora do prazo',
+   offset:a.getTime()<=b.getTime()?'Entregue '+duration+' antes do prazo':'Atraso de '+duration};
+}
+function responseTimingHtml_(item){
+ var t=responseTimingInfo_(item);
+ return '<div class="bacio-evaluation-timing"><div class="bacio-evaluation-time">'+
+   '<span>Primeira resposta (base do SLA)</span><strong>'+safe(formatDateTime(item.firstResponseAt||item.createdAt)||'Não informada')+'</strong></div>'+
+   '<div class="bacio-evaluation-time"><span>Última atualização</span><strong>'+
+     safe(formatDateTime(item.createdAt)||'Não informada')+'</strong></div>'+
+   '<div class="bacio-evaluation-time"><span>Prazo da solicitação</span><strong>'+
+     safe(item.deadline?formatDateTime(item.deadline):'Não definido')+'</strong></div>'+
+   '<div class="bacio-evaluation-time bacio-evaluation-sla bacio-evaluation-'+t.status+'">'+
+     '<span>Prazo de resposta</span><strong>'+safe(t.label)+'</strong>'+
+     (t.offset?'<small>'+safe(t.offset)+'</small>':'')+'</div></div>';
+}
+function responseSubmittedSheetHtml_(item){
+ var meta=item.submittedSheet||{},sections=meta.storeSections||[],answers=item.answers||{};
+ if(!sections.length)return '';
+ var layouts=campaignSpreadsheetLayouts({storeSections:sections});
+ var count=0,received=0,notReceived=0,empty=0;
+ var html=layouts.map(function(layout){
+  var idx=(meta.sheets||[]).findIndex(function(s){return String(s.sheet)===String(layout.sheet);});
+  if(idx<0)return '';
+  var rules=campaignSheetRules_(meta,layout);
+  (layout.rows||[]).forEach(function(row){Object.keys(rules||{}).forEach(function(col){
+    var type=(rules[col]||{}).type;
+    if(['boolean','number','text'].indexOf(type)<0)return;
+    var key='sheetcell_'+idx+'_'+Number(row.sourceRow)+'_'+Number(col),v=String(answers[key]||'').trim();
+    count++;if(!v)empty++;else if(v==='Sim')received++;
+    else if(v==='Não'||v.indexOf('Recebimento errado')===0)notReceived++;
+  });});
+  return '<section class="bacio-review-sheet"><h4>'+safe(layout.sheet)+'</h4>'+
+   campaignSheetTableHtml(layout,{mode:'review',sheetIndex:idx,rules:rules,answers:answers})+
+   '</section>';
+ }).join('');
+ if(!html)return '';
+ return '<div class="bacio-review-block"><h4>Planilha enviada pela loja</h4>'+
+ '<p class="helper">Visualização das respostas registradas, sem possibilidade de editar. Deslize horizontalmente para conferir todos os campos.</p>'+
+ '<div class="bacio-review-summary"><span>'+received+' confirmações Sim</span>'+
+ '<span>'+notReceived+' respostas Não / divergência</span>'+
+ '<span>'+empty+' campos sem resposta</span></div>'+html+'</div>';
+}
+function responseEvaluationEvidenceHtml_(item){
+ var fields=item.modelFields||[],answers=item.answers||{};
+ var sheetHtml=responseSubmittedSheetHtml_(item);
+ var extras=fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+
+  '</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('');
+ return '<div class="detail-box bacio-review-overview"><h4>'+safe(item.storeLabel||'Loja')+'</h4>'+
+  '<p class="muted">'+safe(item.demandaTitle||'')+'</p>'+
+  (item.userEmail?'<p class="muted">Respondido por '+safe(item.userEmail)+'</p>':'')+
+  responseTimingHtml_(item)+'</div>'+
+  (sheetHtml||'')+
+  (extras?'<div class="bacio-review-extras"><h4>Outras respostas enviadas</h4>'+extras+'</div>':'')+
+  '<div class="bacio-review-extras"><div class="answer-line"><strong>Observação geral da loja</strong>'+
+  '<span>'+safe(item.observacao||'Não informada')+'</span></div></div>';
+}
 function openEvaluation(responseId){
   var item=((RESPONSES_DATA||{}).items||[]).find(function(i){return String(i.responseId)===String(responseId);});if(!item)return;
   var fields=item.modelFields||[],answers=item.answers||{};
-  var body='<div class="detail-box"><h4>'+safe(item.storeLabel)+'</h4><div class="muted">'+safe(item.demandaTitle)+'</div><div class="answer-line"><strong>Entrega</strong><span>'+safe(formatDateTime(item.createdAt))+'</span></div><div class="answer-line"><strong>Prazo</strong><span>'+safe(formatDateTime(item.deadline)||'Sem prazo')+'</span></div></div>'+
-    '<div style="margin-top:14px">'+fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('')+'<div class="answer-line"><strong>Observação</strong><span>'+safe(item.observacao||'—')+'</span></div></div>'+
+  var body=responseEvaluationEvidenceHtml_(item)+
     '<div style="margin-top:16px"><label class="label">Nota da entrega</label><div id="ratingPicker" class="rating-picker">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star" data-star="'+n+'">★</button>';}).join('')+'</div></div>'+
     '<div><label class="label">Resultado</label><select id="evalStatus" class="select"><option value="aprovada">Aprovada</option><option value="ajuste_necessario">Ajuste necessário</option><option value="reprovada">Reprovada</option></select></div>'+
     '<div style="margin-top:12px"><label class="label">Comentário para a loja</label><textarea id="evalComment" class="textarea" placeholder="Feedback, orientação ou motivo..."></textarea></div>';
   openGeneric('Avaliação','Avaliar entrega',body,function(){var stars=Number(document.getElementById('ratingPicker').getAttribute('data-value')||0);if(!stars){showToast('Selecione de 1 a 5 estrelas.');return;}setBusy('genericSaveBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(result){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast(result&&result.slaCumprido===false?'Avaliação salva · SLA não cumprido.':'Avaliação salva.');loadResponses();EVALUATION_DATA=null;refreshBootstrap(CURRENT_PAGE);}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).evaluateDemandDelivery({responseId:responseId,demandaId:item.demandaId,lojaId:item.storeId,status:document.getElementById('evalStatus').value,stars:stars,comment:document.getElementById('evalComment').value.trim()});});
+  document.getElementById('genericModal').classList.add('bacio-evaluation-modal');
   document.querySelectorAll('#ratingPicker .rating-star').forEach(function(btn){btn.onclick=function(){var value=Number(btn.dataset.star);document.getElementById('ratingPicker').setAttribute('data-value',value);document.querySelectorAll('#ratingPicker .rating-star').forEach(function(b){b.classList.toggle('selected',Number(b.dataset.star)<=value);});};});
 }
 
