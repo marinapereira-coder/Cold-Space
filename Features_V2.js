@@ -1238,7 +1238,7 @@ function buildResponsesWorkspaceV2_(
         demandasTable +
         '?select=*&ativa=eq.true&order=created_at.desc&limit=3000',
       []
-    );
+    ).filter(function(d){return d.ativa===true;});
 
   var avaliacoes =
     safeSupabaseSelect_(
@@ -1709,6 +1709,9 @@ function evaluateDemandDelivery(
 
   var demand =
     demandRows[0];
+  if(demand.ativa===false){
+    throw new Error('Esta solicitação foi excluída ou não está disponível para avaliação.');
+  }
 
   var allResponses =
     supabaseRequest_(
@@ -1959,9 +1962,9 @@ function buildEvaluationWorkspaceV2_(
           'TABLE_DEMANDAS',
           'bacio_demandas'
         ) +
-        '?select=id,titulo&ativa=eq.true&limit=5000',
+        '?select=id,titulo,ativa&ativa=eq.true&limit=5000',
       []
-    );
+    ).filter(function(d){return d.ativa===true;});
 
   var demandMap = {};
 
