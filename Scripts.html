@@ -1669,7 +1669,51 @@ function calendarTypeLabel(t){return ({demanda_inicio:'Início de demanda',deman
 ============================================================ */
 function loadEvaluations(){document.getElementById('evaluationHistory').innerHTML='<div class="empty">Carregando avaliações...</div>';var ok=function(data){EVALUATION_DATA=data||{items:[],stores:[],summary:{}};populateEvaluationStoreFilter();renderEvaluations();};var run=google.script.run.withSuccessHandler(ok).withFailureHandler(serverError);if(AUTH_MODE==='store')run.getStoreEvaluationWorkspace(STORE_ACCESS_TOKEN);else run.getEvaluationWorkspace();}
 function populateEvaluationStoreFilter(){var el=document.getElementById('evaluationStoreFilter');if(CURRENT_ROLE==='loja')return;var current=el.value;el.innerHTML='<option value="all">Todas as lojas</option>'+((EVALUATION_DATA||{}).stores||[]).map(function(s){return '<option value="'+safe(s.storeId)+'">'+safe(s.storeLabel)+'</option>';}).join('');if(Array.prototype.some.call(el.options,function(o){return o.value===current;}))el.value=current;}
-function renderEvaluations(){if(!EVALUATION_DATA){loadEvaluations();return;}var sum=EVALUATION_DATA.summary||{};document.getElementById('evaluationKpis').innerHTML=[[sum.total||0,'Avaliações'],[sum.avgStars||0,'Média de estrelas'],[sum.slaRate==null?0:sum.slaRate,'SLA cumprido %'],[sum.approved||0,'Aprovadas']].map(kpiHtml).join('');var q=(document.getElementById('evaluationSearch').value||'').toLowerCase().trim(),storeFilter=document.getElementById('evaluationStoreFilter').value;var stores=((EVALUATION_DATA||{}).stores||[]).filter(function(s){return (!q||s.storeLabel.toLowerCase().indexOf(q)>=0)&&(storeFilter==='all'||String(s.storeId)===storeFilter);});document.getElementById('evaluationStores').innerHTML=stores.map(function(s){return '<div class="evaluation-store-card"><h4>'+safe(s.storeLabel)+'</h4><div class="evaluation-score">'+safe(s.avgStars)+' <span>/ 5</span></div><div class="stars">'+starsText(s.avgStars)+'</div><div class="eval-meta"><div><strong>'+(s.slaRate==null?'—':s.slaRate+'%')+'</strong><span>SLA cumprido</span></div><div><strong>'+s.total+'</strong><span>avaliadas</span></div><div><strong>'+s.approved+'</strong><span>aprovadas</span></div><div><strong>'+s.adjustment+'</strong><span>ajustes</span></div></div></div>';}).join('')||'<div class="empty">Nenhuma avaliação ainda.</div>';var items=((EVALUATION_DATA||{}).items||[]).filter(function(i){var text=((i.storeLabel||'')+' '+(i.demandTitle||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter);});document.getElementById('evaluationHistory').innerHTML='<div class="row header"><div>Loja / Demanda</div><div>Nota</div><div>SLA</div><div>Resultado</div><div>Data</div></div>'+(items.map(function(i){return '<div class="row"><div><h4>'+safe(i.storeLabel)+'</h4><div class="muted">'+safe(i.demandTitle)+(i.comment?' · '+safe(i.comment):'')+'</div></div><div><span class="stars">'+starsText(i.stars)+'</span></div><div><span class="'+(i.slaMet===true?'sla-ok':i.slaMet===false?'sla-late':'muted')+'">'+(i.slaMet===true?'No prazo':i.slaMet===false?'Fora do prazo':'Sem SLA')+'</span></div><div><span class="status '+safe(i.status)+'">'+safe(responseStatusLabel(i.status))+'</span></div><div class="muted">'+safe(formatDateTime(i.evaluatedAt))+'</div></div>';}).join('')||'<div class="empty">Nenhuma avaliação encontrada.</div>');}
+function renderEvaluations(){
+ if(!EVALUATION_DATA){loadEvaluations();return;}
+ var sum=EVALUATION_DATA.summary||{};
+ var average=sum.avgStars==null?'—':sum.avgStars;
+ document.getElementById('evaluationKpis').innerHTML=
+  kpiHtml([sum.total||0,'Avaliações'])+
+  '<div class="kpi"><strong>'+safe(average)+'</strong><span>Média de estrelas</span></div>'+
+  kpiHtml([sum.slaRate==null?0:sum.slaRate,'SLA cumprido %'])+
+  kpiHtml([sum.approved||0,'Aprovadas']);
+ var q=(document.getElementById('evaluationSearch').value||'').toLowerCase().trim();
+ var storeFilter=document.getElementById('evaluationStoreFilter').value;
+ var stores=((EVALUATION_DATA||{}).stores||[]).filter(function(s){
+  return (!q||s.storeLabel.toLowerCase().indexOf(q)>=0)&&
+    (storeFilter==='all'||String(s.storeId)===storeFilter);
+ });
+ document.getElementById('evaluationStores').innerHTML=stores.map(function(s){
+  return '<div class="evaluation-store-card"><h4>'+safe(s.storeLabel)+'</h4>'+
+   '<div class="evaluation-score">'+safe(s.avgStars==null?'—':s.avgStars)+
+    ' <span>/ 5</span></div>'+
+   '<div class="stars">'+(s.avgStars==null?'Sem nota':starsText(s.avgStars))+'</div>'+
+   '<div class="eval-meta"><div><strong>'+(s.slaRate==null?'—':s.slaRate+'%')+
+   '</strong><span>SLA cumprido</span></div><div><strong>'+s.total+
+   '</strong><span>avaliadas</span></div><div><strong>'+s.approved+
+   '</strong><span>aprovadas</span></div><div><strong>'+s.adjustment+
+   '</strong><span>ajustes</span></div></div></div>';
+ }).join('')||'<div class="empty">Nenhuma avaliação ainda.</div>';
+ var items=((EVALUATION_DATA||{}).items||[]).filter(function(i){
+  var t=((i.storeLabel||'')+' '+(i.demandTitle||'')).toLowerCase();
+  return (!q||t.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter);
+ });
+ document.getElementById('evaluationHistory').innerHTML=
+  '<div class="row header"><div>Loja / Demanda</div><div>Nota</div><div>SLA</div><div>Resultado</div><div>Data</div></div>'+
+  (items.map(function(i){
+   return '<div class="row"><div><h4>'+safe(i.storeLabel)+'</h4>'+
+    '<div class="muted">'+safe(i.demandTitle)+(i.comment?' · '+safe(i.comment):'')+
+    '</div></div><div><span class="'+(i.stars==null?'muted':'stars')+'">'+
+    (i.stars==null?'Sem nota':starsText(i.stars))+
+    '</span></div><div><span class="'+
+    (i.slaMet===true?'sla-ok':i.slaMet===false?'sla-late':'muted')+'">'+
+    (i.slaMet===true?'No prazo':i.slaMet===false?'Fora do prazo':'Sem SLA')+
+    '</span></div><div><span class="status '+safe(i.status)+'">'+
+    safe(responseStatusLabel(i.status))+'</span></div><div class="muted">'+
+    safe(formatDateTime(i.evaluatedAt))+'</div></div>';
+  }).join('')||'<div class="empty">Nenhuma avaliação encontrada.</div>');
+}
 function starsText(value){var n=Math.round(Number(value||0)),out='';for(var i=1;i<=5;i++)out+=i<=n?'★':'☆';return out;}
 
 /* ============================================================
