@@ -854,7 +854,7 @@ function renderCampaignSpreadsheet(meta,host){
    '<div class="bacio-sheet-filter-field"><label>Consultor</label><select class="select" data-bacio-filter="consultor">'+
     campaignSheetOptions_(consultants.map(function(v){return {value:v,label:v};}),'Todos os consultores')+'</select></div>'+
    '<button type="button" class="btn soft bacio-sheet-filter-clear">Limpar filtros</button>'+
-  '</div><div class="bacio-sheet-result-count" role="status"></div>'+
+  '</div><div class="bacio-sheet-result-tools"><div class="bacio-sheet-result-count" role="status"></div>'+  '<button type="button" class="bacio-sheet-aux-toggle"'+(isInlineStore?' style="display:none"':'')+'>Mostrar colunas auxiliares</button></div>'+
   '<div class="bacio-sheet-tabs" role="tablist">'+layouts.map(function(layout,i){
    return '<button type="button" class="bacio-sheet-tab'+(i===0?' active':'')+
      '" data-bacio-sheet-tab="'+i+'">'+safe(layout.sheet)+'</button>';
@@ -872,7 +872,7 @@ function renderCampaignSpreadsheet(meta,host){
       '<button class="btn primary" type="button" onclick="submitStoreResponse(\''+
        safeJs(storeDetail.id)+'\')">'+(response?'Enviar correção':'Enviar conferência')+'</button>')+
      '</div></div>':'');
- var active=0;
+ var active=0,showAuxiliary=false;
  function paint(){
   var matching=0;
   host.querySelectorAll('[data-bacio-sheet-page]').forEach(function(page,i){
@@ -880,10 +880,11 @@ function renderCampaignSpreadsheet(meta,host){
    matching+=rows.length;
    var sheetIndex=(meta.sheets||[]).findIndex(function(entry){return String(entry.sheet)===String(layout.sheet);});
    page.innerHTML=rows.length?campaignSheetTableHtml({sheet:layout.sheet,width:layout.width,
-     headerRows:layout.headerRows,rows:rows},isInlineStore?{
+     headerRows:layout.headerRows,hiddenColumns:layout.hiddenColumns||[],
+     columnWidths:layout.columnWidths||[],rows:rows},isInlineStore?{
        mode:'store',sheetIndex:sheetIndex,rules:campaignSheetRules_(meta,layout),
-       answers:previousAnswers,readonly:locked
-     }:null):
+       answers:previousAnswers,readonly:locked,showAuxiliary:showAuxiliary
+     }:{showAuxiliary:showAuxiliary}):
      '<div class="empty">Nenhuma linha desta aba corresponde aos filtros selecionados.</div>';
    if(rows.length){
     page.innerHTML+='<div class="bacio-sheet-hrail-wrap">'+
@@ -898,6 +899,12 @@ function renderCampaignSpreadsheet(meta,host){
     ' abas · '+allCodes.length+' lojas no arquivo';
   campaignSheetBindRails_(host);
  }
+ var auxButton=host.querySelector('.bacio-sheet-aux-toggle');
+ if(auxButton)auxButton.onclick=function(){
+  showAuxiliary=!showAuxiliary;
+  auxButton.textContent=showAuxiliary?'Ocultar colunas auxiliares':'Mostrar colunas auxiliares';
+  paint();
+ };
  host.querySelectorAll('[data-bacio-filter]').forEach(function(select){
   select.onchange=function(){filters[select.getAttribute('data-bacio-filter')]=select.value;paint();};
  });
