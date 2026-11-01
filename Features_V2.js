@@ -372,9 +372,7 @@ function buildStoreBootstrapV2_(ctx) {
     );
 
   var announcements =
-    buildAnnouncements_(
-      demandas
-    );
+    buildStoreCorrectionNotices_(demandas,respostas,lojas).concat(buildAnnouncements_(demandas));
 
   var managementItems =
     buildManagementItems_(
@@ -493,37 +491,7 @@ function buildStoreBootstrapV2_(ctx) {
     announcements:
       announcements,
 
-    notifications:
-      notifications.map(
-        function (n) {
-
-          return {
-            id: n.id,
-
-            title:
-              n.titulo ||
-              n.title ||
-              'Notificação',
-
-            message:
-              n.mensagem ||
-              n.message ||
-              '',
-
-            read:
-              Boolean(
-                n.lida ||
-                n.read
-              ),
-
-            createdAt:
-              n.created_at ||
-              n.createdAt ||
-              ''
-          };
-
-        }
-      )
+    notifications: notifications.map(mapBacioNotification_)
   };
 }
 
@@ -1004,7 +972,10 @@ function getDemandDetailForStoreV2_(
 
             userEmail:
               myResponse.usuario_email ||
-              ''
+              '',
+            feedback:
+              ['ajuste_necessario','reprovada'].indexOf(String(myResponse.status||''))>=0 ?
+                getResponseCorrectionFeedback_(demandaId,lojaId,myResponse.id) : ''
           }
         : null,
 
@@ -1072,6 +1043,7 @@ function submitStoreDemandResponse(
 
   // Verifica que só células designadas à loja foram preenchidas.
   validateSheetCellAnswers_(input.answers||{},detail);
+  assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId);
 
   var respostasTable =
     table_(
@@ -1378,8 +1350,7 @@ function buildResponsesWorkspaceV2_(
           ] || {};
 
         var evaluation =
-          evaluationMap[key] ||
-          null;
+          evaluationMap[key] && String(evaluationMap[key].resposta_id||'')===String(r.id) ? evaluationMap[key] : null;
 
         return {
           responseId:
@@ -1765,6 +1736,10 @@ function evaluateDemandDelivery(
       'get'
     ) || [];
 
+  if(allResponses.length && String(allResponses[allResponses.length-1].id)!==responseId){
+    throw new Error('Esta resposta foi substituída por uma correção. Avalie a versão mais recente.');
+  }
+
   var firstDeliveryRaw =
     allResponses.length
       ? allResponses[0].created_at
@@ -1894,7 +1869,8 @@ function evaluateDemandDelivery(
       comment,
 
       slaMet
-    )
+    ) + (status==='ajuste_necessario'||status==='reprovada' ?
+      ' [[bacio-demand:'+demandaId+']]' : '')
   );
 
   return {
@@ -2410,9 +2386,9 @@ function evaluationMessageV2_(
       : status ===
         'ajuste_necessario'
 
-        ? 'O escritório solicitou um ajuste na sua entrega.'
+        ? 'O escritório solicitou um ajuste na sua entrega. Status: Aguardando correção. Use Revisar resposta para reenviar.'
 
-        : 'Sua entrega foi reprovada e precisa de revisão.';
+        : 'Sua entrega foi reprovada e precisa de revisão. Status: Aguardando correção. Use Revisar resposta para reenviar.';
 
   var slaText =
     slaMet === true
