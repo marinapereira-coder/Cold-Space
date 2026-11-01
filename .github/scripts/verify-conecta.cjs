@@ -244,6 +244,7 @@ const operationsCtx=vm.createContext({
  },
  normalizeJsonObject_:v=>v||{},
  normalizeObjectArray_:v=>v||[],
+ responseSheetPreviewV2_:()=>null,
  storeLabelV2_:s=>s.nome||'Loja',
  mapEvaluationRowV2_:(a,d,s)=>({
   demandaId:a.demanda_id,storeId:a.loja_id,storeLabel:s.nome||'Loja',
