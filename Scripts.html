@@ -691,9 +691,7 @@ function campaignSheetTableHtml(layout,opts){
  var thead=headers.map(function(row,ri){
   return '<tr class="bacio-sheet-header bacio-sheet-header-'+Math.min(ri,2)+'">'+
    '<th class="bacio-sheet-rowno" scope="col"></th>'+
-   cols.map(function(j){var value=row&&row[j]!=null?String(row[j]):'';
-    return '<th title="'+safe(value)+'" scope="col">'+safe(value)+'</th>';
-   }).join('')+'</tr>';
+   campaignSheetHeaderCells_(layout,cols,ri)+'</tr>';
  }).join('');
  var tbody=rows.map(function(row){
   return '<tr><td class="bacio-sheet-rowno">'+safe(row.sourceRow||'')+'</td>'+
@@ -737,15 +735,18 @@ function campaignSheetTableHtml(layout,opts){
        }
        return '<td class="'+classes+'" title="Campo para preenchimento da loja">'+control+'</td>';
       }
+      var state=String(value||'').trim().toLowerCase();
+      var display=(state==='sim'||state==='não'||state==='nao')?
+        '<span class="bacio-sheet-source-pill '+(state==='sim'?'yes':'no')+'">'+safe(value)+'</span>':
+        safe(value);
       return '<td class="'+(j===0?'bacio-sheet-store ':numeric?'bacio-sheet-number ':'')+
-        '" title="'+safe(value.slice(0,800))+'">'+safe(value)+'</td>';
+        '" title="'+safe(value.slice(0,800))+'">'+display+'</td>';
     }).join('')+'</tr>';
  }).join('');
  // Todos os índices de células permanecem os da planilha, ainda que uma coluna vazia não apareça.
  return '<div class="bacio-sheet-scroll bacio-sheet-compact-scroll"><table class="bacio-sheet-grid bacio-sheet-compact"'+
   ' style="--bacio-sheet-min-width:'+totalWidth+'px" aria-label="'+safe(layout.sheet)+'">'+
-  columnHtml+'<thead><tr class="bacio-sheet-row-label"><th>#</th><th colspan="'+cols.length+'">'+
-  safe(layout.sheet)+'</th></tr>'+thead+
+  columnHtml+'<thead>'+thead+
   '</thead><tbody>'+tbody+'</tbody></table></div>';
 }
 // Filtros somente de visualização. Nunca modificam dados da demanda nem disparam alertas.
