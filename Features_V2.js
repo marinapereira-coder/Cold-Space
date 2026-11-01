@@ -1459,16 +1459,18 @@ function buildResponsesWorkspaceV2_(
     }
   );
 
+  // Manter resposta fictícia avaliável, mas fora dos indicadores reais.
+  var operationalItems=items.filter(function(item){return !isConectaTestStoreId_(item.storeId);});
   return {
     items:
       items,
 
     stats: {
       total:
-        items.length,
+        operationalItems.length,
 
       aprovadas:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1478,7 +1480,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       aguardando:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1488,7 +1490,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       ajuste:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
@@ -1498,7 +1500,7 @@ function buildResponsesWorkspaceV2_(
         ).length,
 
       reprovadas:
-        items.filter(
+        operationalItems.filter(
           function (i) {
             return (
               i.status ===
