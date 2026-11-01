@@ -354,7 +354,7 @@ assert.ok(!simulatedHtml.includes('old-vertical-table'),'Não repetir planilha n
 assert.equal(oldTableCalls,0,'A tabela vertical antiga não pode ser chamada para planilhas importadas');
 assert.ok(simulatedHtml.includes('storeResponsePreviewForm')&&simulatedHtml.includes('Enviar resposta de teste'),
  'Campos e envio simulado devem continuar disponíveis');
-assert.ok(simulatedHtml.includes('planilha acima'),'Simulador deve indicar que produtos já estão na planilha');
+assert.ok(simulatedHtml.includes('Prévia real da loja'),'Simulador precisa mostrar a própria planilha editável');
 const legacyDetail={importMeta:{perStore:{'0006':[{sheet:'LCP'}]}},modelFields:[]};
 const legacyHtml=simulatorCtx.storeSimulationBody(legacyDetail,simStore);
 assert.ok(legacyHtml.includes('old-vertical-table'),'Modelos antigos continuam com visualização anterior');
