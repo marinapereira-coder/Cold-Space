@@ -624,8 +624,9 @@ function campaignSheetBindRails_(host){
   if(!viewport||!rail||!fill)return;
   function size(){
    var width=Math.max(0,viewport.scrollWidth-viewport.clientWidth);
-   fill.style.width=viewport.scrollWidth+'px';
    wrap.style.display=width>3?'flex':'none';
+   // As duas barras devem ter exatamente a mesma distância máxima de rolagem.
+   fill.style.width=(width+rail.clientWidth)+'px';
    rail.scrollLeft=viewport.scrollLeft;
   }
   viewport.addEventListener('scroll',function(){if(Math.abs(rail.scrollLeft-viewport.scrollLeft)>1)rail.scrollLeft=viewport.scrollLeft;},{passive:true});
