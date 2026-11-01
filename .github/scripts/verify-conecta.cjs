@@ -670,6 +670,7 @@ const evalBuilderStop=modern.indexOf('function mapEvaluationRowV2_(',evalBuilder
 const mapStop=modern.indexOf('function evaluationTitleV2_(',evalBuilderStop);
 const metricsCtx=vm.createContext({
  getVisibleStores_:()=>[{id:'loja1',nome:'LJ 0006'}],
+ isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
  storeLabelV2_:store=>store.nome||'Loja',
  table_:(_name,fallback)=>fallback,
  safeSupabaseSelect_:url=>{
