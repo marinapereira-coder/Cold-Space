@@ -999,8 +999,14 @@ function simulateStoreResponse(){
  var observation=(document.getElementById('storeResponsePreviewObs')||{}).value||'';
  var item={responseId:'test-'+Date.now()+'-'+BACIO_TEST_RESPONSES.length,demandaId:String(d.id),demandaTitle:d.title,
   storeId:store.id,storeLabel:store.label,createdAt:new Date().toISOString(),status:'respondido',
+  deadline:d.deadline||'',firstResponseAt:'',
+  userEmail:'SIMULAÇÃO (sem envio real)',
   answers:answers,observacao:observation,modelFields:requestFieldsForStore(d.modelFields||[],d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]||[]),
+  submittedSheet:d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]?
+    {fileName:d.importMeta.fileName||'',sheets:d.importMeta.sheets||[],
+     editableColumns:d.importMeta.editableColumns||null,storeSections:d.importMeta.perStore[store.code]}:null,
   evaluation:null};
+ item.firstResponseAt=item.createdAt;
  BACIO_TEST_RESPONSES.unshift(item);
  renderTestResponses();
  result.innerHTML='<div class="response-status-note"><strong>Resposta de teste registrada!</strong> A resposta da '+safe(store.label)+' está disponível em Respostas das Lojas → Respostas simuladas. Os dados oficiais não foram alterados.</div>'+
@@ -1028,10 +1034,7 @@ function openTestResponse(id){
  var item=BACIO_TEST_RESPONSES.find(function(x){return String(x.responseId)===String(id);});
  if(!item){showToast('Resposta de teste não encontrada nesta sessão.');return;}
  var fields=item.modelFields||[],answers=item.answers||{},evalData=item.evaluation||{};
- var body='<div class="detail-box"><h4>TESTE · '+safe(item.storeLabel)+'</h4><div class="muted">'+safe(item.demandaTitle)+'</div>'+
- '<div class="answer-line"><strong>Entrega simulada</strong><span>'+safe(formatDateTime(item.createdAt))+'</span></div></div>'+
- '<div style="margin-top:14px">'+fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+'</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('')+
- '<div class="answer-line"><strong>Observação</strong><span>'+safe(item.observacao||'—')+'</span></div></div>'+
+ var body=responseEvaluationEvidenceHtml_(item)+
  '<div style="margin-top:16px"><label class="label">Nota da entrega (teste)</label><div id="testRatingPicker" class="rating-picker" data-value="'+safe(evalData.stars||0)+'">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star'+(Number(evalData.stars||0)>=n?' selected':'')+'" data-star="'+n+'">★</button>';}).join('')+'</div></div>'+
  '<div><label class="label">Resultado</label><select id="testEvalStatus" class="select">'+
  [['aprovada','Aprovada'],['ajuste_necessario','Ajuste necessário'],['reprovada','Reprovada']].map(function(x){return '<option value="'+x[0]+'" '+(item.status===x[0]?'selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></div>'+
@@ -1044,6 +1047,7 @@ function openTestResponse(id){
   item.evaluation={status:item.status,stars:stars,comment:document.getElementById('testEvalComment').value.trim(),createdAt:new Date().toISOString()};
   closeModal('genericModal');renderTestResponses();showToast('Avaliação de teste salva nesta sessão.');
  });
+ document.getElementById('genericModal').classList.add('bacio-evaluation-modal');
  document.querySelectorAll('#testRatingPicker .rating-star').forEach(function(btn){
   btn.onclick=function(){
    var value=Number(btn.getAttribute('data-star')),picker=document.getElementById('testRatingPicker');
@@ -1418,7 +1422,7 @@ function parseStoreRows(rows){rows=(rows||[]).filter(function(r){return Array.is
 function renderStoreImportPreview(){var r=STORE_IMPORT_PREVIEW||{},s=r.stats||{};document.getElementById('storeImportContent').innerHTML='<div class="import-stats">'+[[s.novas||0,'novas'],[s.alteradas||0,'alteradas'],[s.semAlteracao||0,'sem alteração'],[s.ausentes||0,'ausentes']].map(function(x){return '<div class="import-stat"><strong>'+x[0]+'</strong><span>'+x[1]+'</span></div>';}).join('')+'</div>'+(r.alterados&&r.alterados.length?'<div class="change-list">'+r.alterados.slice(0,20).map(function(st){return '<div class="change-item"><strong>'+safe(st.nome||st.codigo||st.id)+'</strong>'+((st.changes||[]).map(function(ch){return '<div class="change-line"><b>'+safe(ch.label)+':</b> '+safe(ch.antes||'—')+' → '+safe(ch.depois||'—')+'</div>';}).join(''))+'</div>';}).join('')+'</div>':'')+'<label class="check" style="margin-top:14px"><input id="deactivateMissing" type="checkbox">Inativar lojas ausentes desta planilha (preserva histórico)</label><div class="import-message">Revise os números acima antes de aplicar.</div>';document.getElementById('applyStoreImportBtn').disabled=false;}
 function applyStoreImport(){if(!STORE_IMPORT_PREVIEW)return;var btn=document.getElementById('applyStoreImportBtn');setBusy('applyStoreImportBtn',true,'Atualizando...');google.script.run.withSuccessHandler(function(){setBusy('applyStoreImportBtn',false,'Aplicar atualização');closeModal('storeImportModal');showToast('Base atualizada.');refreshBootstrap('lojas');}).withFailureHandler(function(e){setBusy('applyStoreImportBtn',false,'Aplicar atualização');serverError(e);}).importStoreBaseComplete({rows:STORE_IMPORT_ROWS,deactivateMissing:!!(document.getElementById('deactivateMissing')||{}).checked});}
 
-function openGeneric(eyebrow,title,body,onSave){document.getElementById('genericEyebrow').textContent=eyebrow;document.getElementById('genericTitle').textContent=title;document.getElementById('genericBody').innerHTML=body;document.getElementById('genericSaveBtn').onclick=onSave;document.getElementById('genericSaveBtn').textContent='Salvar';openModal('genericModal');}
+function openGeneric(eyebrow,title,body,onSave){document.getElementById('genericModal').classList.remove('bacio-evaluation-modal');document.getElementById('genericEyebrow').textContent=eyebrow;document.getElementById('genericTitle').textContent=title;document.getElementById('genericBody').innerHTML=body;document.getElementById('genericSaveBtn').onclick=onSave;document.getElementById('genericSaveBtn').textContent='Salvar';openModal('genericModal');}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){var el=document.getElementById(id);if(el)el.classList.remove('open');}
 function refreshBootstrap(page){
