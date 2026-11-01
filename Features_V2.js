@@ -5249,7 +5249,7 @@ function processAutomaticNotifications() {
     );
 
   var allStoreIds =
-    lojas.map(
+    lojas.filter(function(l){return !isConectaTestStoreId_(l.id);}).map(
       function (l) {
         return String(l.id);
       }
@@ -5701,7 +5701,7 @@ function processCalendarNotificationsV2_(
         ) +
         '?select=*&ativa=eq.true&limit=5000',
       []
-    );
+    ).filter(function(store){return !isConectaTestStoreId_(store.id);});
 
   var users =
     safeSupabaseSelect_(
