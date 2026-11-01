@@ -466,6 +466,63 @@ function questionTypeOptions(selected){return [['text','Texto curto'],['textarea
 // Importador multiabas: somente abas operacionais; bases administrativas não são enviadas às lojas.
 var CAMPAIGN_STORE_TEMPLATE=null;
 function storeCodeFromText(v){var text=String(v||'').trim();var m=text.match(/(?:\bLJ\s*|^)(\d{1,5})(?:\b|$)/i);return m?('0000'+String(Number(m[1]))).slice(-4):'';}
+// Importação inteligente: somente títulos que indicam resposta viram campos editáveis.
+// A lista por aba é ajustável pelo autor antes da publicação, sem alterar a planilha base.
+function campaignSheetInferEditable_(headers){
+ var width=Math.max.apply(null,(headers||[]).map(function(r){return r.length;}).concat([0]));
+ var result={};
+ for(var i=0;i<width;i++){
+  var names=(headers||[]).map(function(r){return String(r[i]||'');}).join(' ');
+  var normalized=names.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+  if(/plaquinhas?|insumos?\s+recebidos?|recebeu\s+(os\s+)?insumos?|recebimento\s+confirmado/.test(normalized)){
+   result[i]={type:'boolean',required:true};
+  }else if(/observa(c|ç)(a|ã)o|observacoes|comentarios?|justificativa/.test(normalized)){
+   result[i]={type:'text',required:false};
+  }else if(/quantidade\s+recebida|qtd\.?\s+recebida/.test(normalized)){
+   result[i]={type:'number',required:false};
+  }
+ }
+ return result;
+}
+function campaignSheetRules_(meta,layout){
+ var sheet=String(layout.sheet||''),configured=meta&&meta.editableColumns;
+ if(configured&&Object.prototype.hasOwnProperty.call(configured,sheet))return configured[sheet]||{};
+ return campaignSheetInferEditable_(layout.headerRows||[]);
+}
+function campaignSheetColumnLabel_(layout,index){
+ var titles=(layout.headerRows||[]).map(function(row){return String(row[index]||'').trim();}).filter(Boolean);
+ return titles.length?titles.slice(-2).join(' · '):'Coluna '+(index+1);
+}
+function campaignSheetEditorHtml_(layout,meta){
+ var rules=campaignSheetRules_(meta,layout),width=Number(layout.width||0);
+ return '<div class="bacio-editor-sheet"><strong>'+safe(layout.sheet)+'</strong><div class="helper">Colunas identificadas automaticamente: revise apenas se necessário. As demais continuam bloqueadas.</div>'+
+  '<div class="bacio-editor-grid">'+Array.from({length:width},function(_,i){
+   var rule=rules[i]||{},value=rule.type||'readonly';
+   return '<label class="bacio-editor-row"><span>'+safe(campaignSheetColumnLabel_(layout,i))+'</span>'+
+    '<select class="select" data-bacio-config-sheet="'+safe(layout.sheet)+'" data-bacio-config-col="'+i+'">'+
+    [['readonly','Somente leitura'],['boolean','Sim / Não'],['text','Observação / texto'],['number','Número']].map(function(opt){
+     return '<option value="'+opt[0]+'"'+(value===opt[0]?' selected':'')+'>'+opt[1]+'</option>';
+    }).join('')+'</select></label>';
+  }).join('')+'</div></div>';
+}
+function renderCampaignEditableConfig_(template,host){
+ if(!host||!template||!Array.isArray(template.sheetLayouts))return;
+ host.innerHTML='<details class="bacio-column-settings"><summary>Configurar colunas que a loja poderá preencher</summary>'+
+  '<p class="helper">Detectamos automaticamente Plaquinhas, Insumos recebidos e Observações. Você pode corrigir o tipo de qualquer coluna antes de salvar, sem modificar a planilha original.</p>'+
+  template.sheetLayouts.map(function(layout){return campaignSheetEditorHtml_(layout,template);}).join('')+'</details>';
+ host.querySelectorAll('[data-bacio-config-col]').forEach(function(sel){
+  sel.onchange=function(){
+   var sheet=sel.getAttribute('data-bacio-config-sheet'),col=sel.getAttribute('data-bacio-config-col'),type=sel.value;
+   if(!template.editableColumns)template.editableColumns={};
+   if(!Object.prototype.hasOwnProperty.call(template.editableColumns,sheet)){
+    var layout=template.sheetLayouts.filter(function(l){return l.sheet===sheet;})[0];
+    template.editableColumns[sheet]=campaignSheetRules_(template,layout);
+   }
+   if(type==='readonly')delete template.editableColumns[sheet][col];
+   else template.editableColumns[sheet][col]={type:type,required:type==='boolean'};
+  };
+ });
+}
 function parseMultiSheetCampaign(file,done,fail){
  var reader=new FileReader();
  reader.onload=function(e){try{
@@ -518,7 +575,7 @@ function parseMultiSheetCampaign(file,done,fail){
    }
   });
   if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas operacionais do arquivo.');
-  done({version:4,fileName:file.name,perStore:perStore,sheets:source,sheetLayouts:sheetLayouts,responseFields:[]});
+  done({version:5,fileName:file.name,perStore:perStore,sheets:source,sheetLayouts:sheetLayouts,responseFields:[],editableColumns:Object.fromEntries(sheetLayouts.map(function(layout){return [layout.sheet,campaignSheetInferEditable_(layout.headerRows)];}))});
  }catch(err){fail(err);}};
  reader.onerror=function(){fail(new Error('Falha ao ler planilha'));};
  reader.readAsArrayBuffer(file);
@@ -716,6 +773,9 @@ function renderStoreTemplateInfo(template){
  var sheetHost=document.createElement('div');sheetHost.className='bacio-import-sheet-preview';
  host.insertBefore(sheetHost,host.firstChild);
  renderCampaignSpreadsheet(template,sheetHost);
+ var settingsHost=document.createElement('div');settingsHost.className='bacio-column-settings-host';
+ host.insertBefore(settingsHost,sheetHost);
+ if(CURRENT_ROLE==='admin'||CURRENT_ROLE!=='loja')renderCampaignEditableConfig_(template,settingsHost);
 }
 function renderReadonlyStoreSections(sections,host){
  if(!host)return;
