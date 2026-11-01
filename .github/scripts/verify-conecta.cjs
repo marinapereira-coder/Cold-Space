@@ -524,5 +524,40 @@ assert.ok(review.includes('Pedido parcial'),'Não perder observação');
 assert.ok(!review.includes('MORUMBI'),'Nunca mostrar outra loja');
 console.log('OK — Evidência de planilha, resposta Não e SLA da primeira entrega validados.');
 
+
+// BR-032: compactação apenas visual; IDs de respostas permanecem os da planilha XLSX.
+assert.ok(rules.includes('BR-032'),'Banco de Regras precisa preservar a grade compacta');
+assert.ok(styleSource.includes('.bacio-sheet-grid.bacio-sheet-compact')&&
+  styleSource.includes('--bacio-sheet-min-width'),'Tabela compacta ausente do CSS');
+const compactLayout={sheet:'LCP',width:11,
+ headerRows:[['LOJA','UF','Forecast','Produto','PLAQUINHAS','INSUMOS RECEBIDOS?','OBSERVAÇÕES','','','Recebimento extra','']],
+ rows:[{sourceRow:21,cells:['LJ 0006 - PÁTIO PAULISTA','SP','147','BALDE','', '', '','','','','']}]
+};
+const compactOpts={mode:'store',sheetIndex:1,
+ rules:{4:{type:'boolean',required:true},5:{type:'boolean',required:true},
+        6:{type:'text'},9:{type:'boolean',required:true}},answers:{},readonly:false};
+const visibleCols=importCtx.campaignSheetDisplayColumns_(compactLayout,compactOpts);
+assert.deepEqual(Array.from(visibleCols),[0,1,2,3,4,5,6,9],
+ 'Não mostrar colunas totalmente vazias, mas manter respostas em colunas com regra');
+const compactWidths=visibleCols.map(j=>importCtx.campaignSheetColumnWidth_(compactLayout,j,compactOpts));
+const compactMin=34+compactWidths.reduce((a,b)=>a+b,0);
+assert.ok(compactMin<=1300,'Grade com oito colunas deve caber no espaço central comum');
+assert.ok(compactWidths[0]>compactWidths[1]&&compactWidths[6]>compactWidths[2],
+ 'Largura de Loja e Observações maiores que UF e quantidades');
+const compactHtml=importCtx.campaignSheetTableHtml(compactLayout,compactOpts);
+assert.ok(compactHtml.includes('bacio-sheet-compact-scroll')&&compactHtml.includes('<colgroup>'),
+ 'Tamanho e colunas responsivas devem estar no HTML');
+assert.ok(compactHtml.includes('data-key="sheetcell_1_21_9"'),
+ 'Ocultar colunas vazias não deve renumerar células editáveis');
+assert.ok(!compactHtml.includes('data-sheet-original-col="8"'),
+ 'Coluna vazia precisa desaparecer apenas da apresentação');
+assert.ok(compactHtml.includes('data-sheet-original-col="9"'),
+ 'Campo permitido depois de coluna vazia precisa continuar presente');
+assert.ok(compactHtml.includes('BALDE')&&compactHtml.includes('PÁTIO PAULISTA'),
+ 'Valores originais devem permanecer visíveis');
+assert.ok(!compactHtml.includes('data-key="sheetcell_1_21_2"'),
+ 'Quantidade original continua bloqueada');
+console.log('OK — Larguras compactas, colunas vazias ocultas e chaves originais preservadas.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
