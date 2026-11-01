@@ -424,6 +424,10 @@ const valid={'sheetcell_0_4_2':'Sim','sheetcell_0_4_3':'Não',
  'sheetcell_0_4_4':'Pedido chegou parcialmente.'};
 assert.doesNotThrow(()=>validationCtx.validateSheetCellAnswers_(valid,detail),
  'Confirmar a própria linha deve ser permitido');
+assert.throws(()=>validationCtx.validateSheetCellAnswers_({}, {importMeta:{...serverMeta,version:5}}),
+ /colunas de confirmação/,'Nova planilha não pode ser enviada com confirmações obrigatórias vazias');
+assert.doesNotThrow(()=>validationCtx.validateSheetCellAnswers_({}, {importMeta:{...serverMeta,version:4}}),
+ 'Modelos antigos de conferência precisam continuar compatíveis');
 assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_1:'999'},detail),
  /não está autorizada/,'Quantidade original deve ficar bloqueada');
 assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_5_2:'Sim'},detail),
