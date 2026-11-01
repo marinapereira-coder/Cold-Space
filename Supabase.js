@@ -269,7 +269,7 @@ function getRealBootstrap_(email,authOverride) {
   var announcements = role==='loja' ? buildStoreCorrectionNotices_(published,respostas,lojas).concat(buildAnnouncements_(published)) : buildAnnouncements_(published);
   // Defence in depth: filter the final payload as well as source rows.
   // This prevents cross-department records leaking through any future mapper.
-  var managementItems = buildManagementItems_(demandas, respostas, lojas);
+  var managementItems = buildManagementItems_(demandas, respostas, lojas, role);
   if (isDepartmentUser_(user)) {
     var allowedDemandIds = {};
     demandas.forEach(function(d){if(mayReadDepartmentDemand_(user,d))allowedDemandIds[String(d.id)] = true;});
@@ -476,6 +476,19 @@ function latestResponsesByStore_(demandaId, respostas) {
   return map;
 }
 
+// Status do fluxo da última resposta da loja, diferente da conclusão da demanda.
+// Conferir sempre a resposta mais recente: após corrigir, volta a aguardar análise.
+function storeDemandReviewStatus_(response) {
+  if(!response)return '';
+  var status=String(response.status||'respondido').toLowerCase();
+  if(status==='ajuste_necessario'||status==='reprovada')return status;
+  if(status==='respondido')return 'aguardando_analise';
+  return '';
+}
+function storeDemandReviewLabel_(status) {
+  return ({ajuste_necessario:'Ajuste necessário',reprovada:'Reprovada',aguardando_analise:'Aguardando análise'})[status]||'';
+}
+
 function buildTasks_(demandas, respostas, lojas, role, user) {
   var now = new Date();
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
@@ -510,6 +523,20 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
         : pending + ' ' + (pending === 1 ? 'loja pendente' : 'lojas pendentes');
     }
 
+    var reviewStatus=(role==='loja' && targetIds.length===1 && timeline.code!=='closed')
+      ? storeDemandReviewStatus_(latest[targetIds[0]]) : '';
+    if(reviewStatus){
+      timeline.code=reviewStatus;
+      timeline.label=storeDemandReviewLabel_(reviewStatus);
+      if(reviewStatus==='ajuste_necessario'||reviewStatus==='reprovada'){
+        status='warning';
+        label=timeline.label;
+      }else{
+        status='success';
+        label=timeline.label;
+      }
+    }
+
     return {
       id: id,
       title: d.titulo || d.title || 'Demanda',
@@ -518,7 +545,7 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
       deadlineLabel: formatDeadline_(deadline),
       status: status,
       statusLabel: label,
-      actionLabel: role === 'loja' ? (complete ? 'Ver resposta' : 'Responder') : 'Acompanhar',
+      actionLabel: role === 'loja' ? (reviewStatus==='ajuste_necessario'||reviewStatus==='reprovada'?'Revisar resposta':complete?'Ver resposta':'Responder') : 'Acompanhar',
       type: String(d.tipo || d.type || 'demanda'),
       isDueToday: Boolean(isDueToday),
       answeredCount: answered,
@@ -540,7 +567,7 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
   return tasks;
 }
 
-function buildManagementItems_(demandas, respostas, lojas) {
+function buildManagementItems_(demandas, respostas, lojas, role) {
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
   return demandas.map(function (d) {
     var id = String(d.id);
@@ -553,6 +580,15 @@ function buildManagementItems_(demandas, respostas, lojas) {
     var savedStatus = String(d.status || 'active').toLowerCase();
     var timeline = timelineInfo_(d, answered, targetIds.length, new Date());
     var status = savedStatus === 'draft' ? 'draft' : progress >= 100 && targetIds.length ? 'success' : 'active';
+    // O progresso de respostas (1/1) não significa avaliação concluída.
+    // Somente no perfil da própria loja exibimos o resultado de sua última entrega.
+    var reviewStatus=(role==='loja' && savedStatus!=='draft' && timeline.code!=='closed' && targetIds.length===1)
+      ? storeDemandReviewStatus_(latest[targetIds[0]]) : '';
+    if(reviewStatus){
+      status=reviewStatus;
+      timeline.code=reviewStatus;
+      timeline.label=storeDemandReviewLabel_(reviewStatus);
+    }
 
     return {
       id: id,

@@ -130,3 +130,69 @@ assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',
 assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap"),
  'Renovação de sessão também mantém a preferência do login da loja');
 console.log('OK — O perfil de teste permanece escolhido após atualização e renovação da sessão.');
+
+/** BR-040: status da última resposta deve prevalecer sobre 100% respondido apenas para a loja. */
+const stateSource=fs.readFileSync(path.join(__dirname,'../../Supabase.js'),'utf8');
+const stateStart=stateSource.indexOf('function storeDemandReviewStatus_(');
+const stateEnd=stateSource.indexOf('function buildCampaigns_(',stateStart);
+assert.ok(stateStart>=0&&stateEnd>stateStart,'Fluxo de revisão disponível no código');
+const stateCtx=vm.createContext({
+ Date,
+ normalizeJsonObject_:value=>value||{},
+ isConectaTestDemand_:d=>(d.loja_ids||[]).length===1&&d.loja_ids[0]===testId,
+ getTargetStoreIds_:(d,ids)=>(d.loja_ids||[]).filter(id=>ids.includes(id)),
+ latestResponsesByStore_:(demandId,rows)=>{
+   const byId={};
+   rows.filter(r=>r.demanda_id===demandId).sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)))
+    .forEach(r=>{if(!byId[r.loja_id])byId[r.loja_id]=r;});
+   return byId;
+ },
+ responseCountsAsCompleteV2_:row=>Boolean(row)&&!['ajuste_necessario','reprovada'].includes(row.status),
+ timelineInfo_:(_d,count,total)=>({code:total>0&&count===total?'completed':'active',label:total>0&&count===total?'Concluída':'Em andamento'}),
+ formatDeadline_:()=> 'Amanhã',
+ sameDay_:()=>false,
+ console
+});
+vm.runInContext(stateSource.slice(stateStart,stateEnd),stateCtx);
+const storeDemand={id:'dteste',titulo:'Teste',descricao:'',tipo:'demanda',loja_ids:[testId],status:'active',ativa:true,cronograma:{}};
+const storeCtx=[{id:testId,codigo:'TESTE'}];
+const responseAt=(status,id,at)=>({id,demanda_id:'dteste',loja_id:testId,status,created_at:at});
+function inspectStoreStatus(rows,role='loja'){
+  return {
+    item:stateCtx.buildManagementItems_([storeDemand],rows,storeCtx,role)[0],
+    task:stateCtx.buildTasks_([storeDemand],rows,storeCtx,role,{})[0]
+  };
+}
+let change=inspectStoreStatus([responseAt('ajuste_necessario','r1','2026-11-01T18:00:00Z')]);
+assert.equal(change.item.timelineStatus,'ajuste_necessario','Ajuste aparece no status da Central');
+assert.equal(change.item.timelineLabel,'Ajuste necessário','Rótulo de correção visível');
+assert.equal(change.task.statusLabel,'Ajuste necessário','Ação pendente no resumo da loja');
+assert.equal(change.task.actionLabel,'Revisar resposta','Encaminha a loja à revisão');
+assert.notEqual(change.task.status,'success','Correção não pode ser tratada como concluída');
+assert.equal(change.item.completedCount,0,'Correção não conta como resposta completa');
+let adminView=inspectStoreStatus([responseAt('ajuste_necessario','r1','2026-11-01T18:00:00Z')],'admin');
+assert.equal(adminView.item.timelineStatus,'completed','Indicadores administrativos permanecem com status de progresso');
+let waiting=inspectStoreStatus([
+  responseAt('ajuste_necessario','r1','2026-11-01T18:00:00Z'),
+  responseAt('respondido','r2','2026-11-01T18:30:00Z')
+]);
+assert.equal(waiting.item.timelineStatus,'aguardando_analise','Novo envio aguarda avaliação');
+assert.equal(waiting.item.timelineLabel,'Aguardando análise');
+assert.equal(waiting.task.status,'success','A entrega reenviada não exige ação da loja');
+let rejected=inspectStoreStatus([responseAt('reprovada','r1','2026-11-01T18:00:00Z')]);
+assert.equal(rejected.item.timelineStatus,'reprovada','Reprovação mostra status próprio');
+assert.equal(rejected.task.actionLabel,'Revisar resposta','Reprovação também permite corrigir');
+let approved=inspectStoreStatus([responseAt('aprovada','r1','2026-11-01T18:00:00Z')]);
+assert.equal(approved.item.timelineStatus,'completed','Aprovada permanece concluída');
+let notAnswered=inspectStoreStatus([]);
+assert.equal(notAnswered.item.timelineStatus,'active','Sem resposta mantém status anterior');
+const storeUi=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
+const storeIndex=fs.readFileSync(path.join(__dirname,'../../Index.html'),'utf8');
+assert.ok(storeUi.includes("st!=='aguardando_analise'") &&
+ storeUi.includes("st==='aguardando_analise'") &&
+ storeUi.includes("ajuste_necessario:'Ajuste necessário'"),
+ 'Abas Para responder/Respondidas e rótulo da Central seguem o novo status');
+assert.ok(storeIndex.includes('<option value="ajuste_necessario">Ajuste necessário</option>') &&
+ storeIndex.includes('<option value="aguardando_analise">Aguardando análise</option>'),
+ 'Filtro de status aceita revisão e análise');
+console.log('OK — Ajuste necessário aparece no status, reenvio aguarda análise e demais perfis preservados.');

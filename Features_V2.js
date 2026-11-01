@@ -378,7 +378,8 @@ function buildStoreBootstrapV2_(ctx) {
     buildManagementItems_(
       demandas,
       respostas,
-      lojas
+      lojas,
+      'loja'
     );
 
   var currentLoja =
