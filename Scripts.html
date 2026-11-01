@@ -604,8 +604,8 @@ function campaignSheetDisplayColumns_(layout,opts){
  var n=Number(layout.width||0),rows=layout.rows||[],headers=layout.headerRows||[],rules=opts&&opts.rules||{};
  var indices=[];
  for(var j=0;j<n;j++){
-  var inHeader=headers.some(function(row){return String(row&&row[j]==null?'':row[j]).trim()!=='';});
-  var inData=rows.some(function(row){return String(row.cells&&row.cells[j]==null?'':row.cells[j]).trim()!=='';});
+  var inHeader=headers.some(function(row){return String(row&&row[j]!=null?row[j]:'').trim()!=='';});
+  var inData=rows.some(function(row){return String(row.cells&&row.cells[j]!=null?row.cells[j]:'').trim()!=='';});
   if(inHeader||inData||Object.prototype.hasOwnProperty.call(rules,j))indices.push(j);
  }
  return indices.length?indices:Array.from({length:n},function(_,i){return i;});
