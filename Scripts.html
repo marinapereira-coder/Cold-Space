@@ -1126,28 +1126,33 @@ function renderTestResponses(){
 function openTestResponse(id){
  var item=BACIO_TEST_RESPONSES.find(function(x){return String(x.responseId)===String(id);});
  if(!item){showToast('Resposta de teste não encontrada nesta sessão.');return;}
- var fields=item.modelFields||[],answers=item.answers||{},evalData=item.evaluation||{};
+ var evalData=item.evaluation||{};
  var body=responseEvaluationEvidenceHtml_(item)+
- '<div style="margin-top:16px"><label class="label">Nota da entrega (teste)</label><div id="testRatingPicker" class="rating-picker" data-value="'+safe(evalData.stars||0)+'">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star'+(Number(evalData.stars||0)>=n?' selected':'')+'" data-star="'+n+'">★</button>';}).join('')+'</div></div>'+
+ '<div style="margin-top:16px"><label class="label" id="testRatingLabel">Nota da entrega (teste)</label>'+
+ '<div id="testRatingPicker" class="rating-picker" data-value="'+safe(evalData.stars||0)+'">'+
+ [1,2,3,4,5].map(function(n){
+  return '<button type="button" class="rating-star'+(Number(evalData.stars||0)>=n?' selected':'')+
+    '" data-star="'+n+'">★</button>';
+ }).join('')+'</div>'+
+ '<div class="bacio-rating-guidance"><small id="testRatingHint"></small>'+
+ '<button type="button" class="btn soft" id="testRatingClear" style="display:none">Limpar nota</button></div></div>'+
  '<div><label class="label">Resultado</label><select id="testEvalStatus" class="select">'+
- [['aprovada','Aprovada'],['ajuste_necessario','Ajuste necessário'],['reprovada','Reprovada']].map(function(x){return '<option value="'+x[0]+'" '+(item.status===x[0]?'selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></div>'+
- '<div style="margin-top:12px"><label class="label">Comentário para a loja (teste)</label><textarea id="testEvalComment" class="textarea" placeholder="Feedback ou motivo...">'+safe(evalData.comment||'')+'</textarea></div>'+
+ [['aprovada','Aprovada'],['ajuste_necessario','Ajuste necessário'],['reprovada','Reprovada']].map(function(x){
+  return '<option value="'+x[0]+'" '+((evalData.status||item.status)===x[0]?'selected':'')+'>'+x[1]+'</option>';
+ }).join('')+'</select></div>'+
+ '<div style="margin-top:12px"><label class="label">Comentário para a loja (teste)</label>'+
+ '<textarea id="testEvalComment" class="textarea" placeholder="Feedback ou motivo...">'+safe(evalData.comment||'')+'</textarea></div>'+
  '<p class="helper">Esta avaliação é uma simulação e não altera avaliações ou indicadores oficiais.</p>';
  openGeneric('Ambiente de teste','Avaliar resposta simulada',body,function(){
-  var picker=document.getElementById('testRatingPicker'),stars=Number(picker&&picker.getAttribute('data-value')||0);
-  if(stars<1||stars>5){showToast('Selecione de 1 a 5 estrelas para avaliar o teste.');return;}
-  item.status=document.getElementById('testEvalStatus').value;
-  item.evaluation={status:item.status,stars:stars,comment:document.getElementById('testEvalComment').value.trim(),createdAt:new Date().toISOString()};
+  var rating=evaluationRatingSelection_('testRatingPicker','testEvalStatus');
+  if(!rating)return;
+  item.status=rating.status;
+  item.evaluation={status:item.status,stars:rating.stars,
+    comment:document.getElementById('testEvalComment').value.trim(),createdAt:new Date().toISOString()};
   closeModal('genericModal');renderTestResponses();showToast('Avaliação de teste salva nesta sessão.');
  });
  document.getElementById('genericModal').classList.add('bacio-evaluation-modal');
- document.querySelectorAll('#testRatingPicker .rating-star').forEach(function(btn){
-  btn.onclick=function(){
-   var value=Number(btn.getAttribute('data-star')),picker=document.getElementById('testRatingPicker');
-   picker.setAttribute('data-value',String(value));
-   picker.querySelectorAll('.rating-star').forEach(function(b){b.classList.toggle('selected',Number(b.getAttribute('data-star'))<=value);});
-  };
- });
+ bindEvaluationRating_('testRatingPicker','testEvalStatus','testRatingLabel','testRatingHint','testRatingClear');
 }
 function renderSelectedStoreSimulator(storeId){
  var d=window.BACIO_CURRENT_DETAIL,store=(window.BACIO_SIM_STORES||[]).filter(function(x){return x.id===String(storeId);})[0];
@@ -1315,18 +1320,83 @@ function responseEvaluationEvidenceHtml_(item){
   '<div class="bacio-review-extras"><div class="answer-line"><strong>Observação geral da loja</strong>'+
   '<span>'+safe(item.observacao||'Não informada')+'</span></div></div>';
 }
-function openEvaluation(responseId){
-  var item=((RESPONSES_DATA||{}).items||[]).find(function(i){return String(i.responseId)===String(responseId);});if(!item)return;
-  var fields=item.modelFields||[],answers=item.answers||{};
-  var body=responseEvaluationEvidenceHtml_(item)+
-    '<div style="margin-top:16px"><label class="label">Nota da entrega</label><div id="ratingPicker" class="rating-picker">'+[1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star" data-star="'+n+'">★</button>';}).join('')+'</div></div>'+
-    '<div><label class="label">Resultado</label><select id="evalStatus" class="select"><option value="aprovada">Aprovada</option><option value="ajuste_necessario">Ajuste necessário</option><option value="reprovada">Reprovada</option></select></div>'+
-    '<div style="margin-top:12px"><label class="label">Comentário para a loja</label><textarea id="evalComment" class="textarea" placeholder="Feedback, orientação ou motivo..."></textarea></div>';
-  openGeneric('Avaliação','Avaliar entrega',body,function(){var stars=Number(document.getElementById('ratingPicker').getAttribute('data-value')||0);if(!stars){showToast('Selecione de 1 a 5 estrelas.');return;}setBusy('genericSaveBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(result){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast(result&&result.slaCumprido===false?'Avaliação salva · SLA não cumprido.':'Avaliação salva.');loadResponses();EVALUATION_DATA=null;refreshBootstrap(CURRENT_PAGE);}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).evaluateDemandDelivery({responseId:responseId,demandaId:item.demandaId,lojaId:item.storeId,status:document.getElementById('evalStatus').value,stars:stars,comment:document.getElementById('evalComment').value.trim()});});
-  document.getElementById('genericModal').classList.add('bacio-evaluation-modal');
-  document.querySelectorAll('#ratingPicker .rating-star').forEach(function(btn){btn.onclick=function(){var value=Number(btn.dataset.star);document.getElementById('ratingPicker').setAttribute('data-value',value);document.querySelectorAll('#ratingPicker .rating-star').forEach(function(b){b.classList.toggle('selected',Number(b.dataset.star)<=value);});};});
+function setEvaluationRatingState_(pickerId,statusId,labelId,hintId,clearId){
+ var picker=document.getElementById(pickerId),status=document.getElementById(statusId);
+ if(!picker||!status)return;
+ var required=status.value==='aprovada';
+ var value=Number(picker.getAttribute('data-value')||0);
+ var label=document.getElementById(labelId),hint=document.getElementById(hintId),
+   clear=document.getElementById(clearId);
+ if(label)label.textContent=required?'Nota da entrega (obrigatória para aprovação)':'Nota da entrega (opcional)';
+ if(hint)hint.textContent=required?
+  'Para aprovar, escolha de 1 a 5 estrelas.':
+  'É possível devolver à loja o feedback para correção sem selecionar estrelas.';
+ if(clear)clear.style.display=required||!value?'none':'inline-flex';
 }
-
+function clearEvaluationRating_(pickerId,statusId,labelId,hintId,clearId){
+ var picker=document.getElementById(pickerId);if(!picker)return;
+ picker.setAttribute('data-value','0');
+ picker.querySelectorAll('.rating-star').forEach(function(btn){btn.classList.remove('selected');});
+ setEvaluationRatingState_(pickerId,statusId,labelId,hintId,clearId);
+}
+function evaluationRatingSelection_(pickerId,statusId){
+ var picker=document.getElementById(pickerId),status=document.getElementById(statusId);
+ var stars=Number(picker&&picker.getAttribute('data-value')||0);
+ var result=status&&status.value||'';
+ if(result==='aprovada'&&(!stars||stars<1||stars>5)){
+  showToast('Para aprovar, selecione de 1 a 5 estrelas.');return null;
+ }
+ if(stars&&(!Number.isInteger(stars)||stars<1||stars>5)){
+  showToast('A nota deve ser de 1 a 5 estrelas.');return null;
+ }
+ return {status:result,stars:stars||null};
+}
+function bindEvaluationRating_(pickerId,statusId,labelId,hintId,clearId){
+ var picker=document.getElementById(pickerId),status=document.getElementById(statusId),
+   clear=document.getElementById(clearId);
+ if(!picker||!status)return;
+ status.onchange=function(){setEvaluationRatingState_(pickerId,statusId,labelId,hintId,clearId);};
+ picker.querySelectorAll('.rating-star').forEach(function(btn){
+  btn.onclick=function(){
+   var value=Number(btn.getAttribute('data-star'));picker.setAttribute('data-value',String(value));
+   picker.querySelectorAll('.rating-star').forEach(function(b){
+    b.classList.toggle('selected',Number(b.getAttribute('data-star'))<=value);
+   });
+   setEvaluationRatingState_(pickerId,statusId,labelId,hintId,clearId);
+  };
+ });
+ if(clear)clear.onclick=function(){clearEvaluationRating_(pickerId,statusId,labelId,hintId,clearId);};
+ setEvaluationRatingState_(pickerId,statusId,labelId,hintId,clearId);
+}
+function openEvaluation(responseId){
+ var item=((RESPONSES_DATA||{}).items||[]).find(function(i){return String(i.responseId)===String(responseId);});
+ if(!item)return;
+ var body=responseEvaluationEvidenceHtml_(item)+
+  '<div style="margin-top:16px"><label class="label" id="evalRatingLabel">Nota da entrega</label>'+
+  '<div id="ratingPicker" class="rating-picker" data-value="0">'+
+  [1,2,3,4,5].map(function(n){return '<button type="button" class="rating-star" data-star="'+n+'">★</button>';}).join('')+
+  '</div><div class="bacio-rating-guidance"><small id="evalRatingHint"></small>'+
+  '<button type="button" class="btn soft" id="evalRatingClear" style="display:none">Limpar nota</button></div></div>'+
+  '<div><label class="label">Resultado</label><select id="evalStatus" class="select">'+
+  '<option value="aprovada">Aprovada</option><option value="ajuste_necessario">Ajuste necessário</option>'+
+  '<option value="reprovada">Reprovada</option></select></div>'+
+  '<div style="margin-top:12px"><label class="label">Comentário para a loja</label>'+
+  '<textarea id="evalComment" class="textarea" placeholder="Feedback, orientação ou motivo..."></textarea></div>';
+ openGeneric('Avaliação','Avaliar entrega',body,function(){
+  var rating=evaluationRatingSelection_('ratingPicker','evalStatus');
+  if(!rating)return;
+  setBusy('genericSaveBtn',true,'Salvando...');
+  google.script.run.withSuccessHandler(function(result){
+   setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');
+   showToast(result&&result.slaCumprido===false?'Avaliação salva · SLA não cumprido.':'Avaliação salva.');
+   loadResponses();EVALUATION_DATA=null;refreshBootstrap(CURRENT_PAGE);
+  }).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);})
+    .evaluateDemandDelivery({responseId:responseId,demandaId:item.demandaId,lojaId:item.storeId,
+      status:rating.status,stars:rating.stars,comment:document.getElementById('evalComment').value.trim()});
+ });
+ document.getElementById('genericModal').classList.add('bacio-evaluation-modal');
+ bindEvaluationRating_('ratingPicker','evalStatus','evalRatingLabel','evalRatingHint','evalRatingClear');
+}
 function loadChatWorkspace(){
   var loader=document.getElementById('chatLoading'),shell=document.getElementById('chatShell');
   loader.innerHTML='Carregando contatos e conversas...';
