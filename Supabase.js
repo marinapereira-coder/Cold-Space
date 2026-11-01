@@ -279,6 +279,12 @@ function getRealBootstrap_(email,authOverride) {
     announcements = announcements.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
   }
 
+  // Demandas fictícias visíveis à gestão, excluídas de seus KPIs.
+  var testDemandIds={};
+  demandas.forEach(function(d){if(isConectaTestDemand_(d))testDemandIds[String(d.id)]=true;});
+  var metricTasks=role==='loja'?tasks:tasks.filter(function(t){return !testDemandIds[String(t.id)];});
+  var metricCampaigns=role==='loja'?campaigns:campaigns.filter(function(c){return !testDemandIds[String(c.id)];});
+
   var currentLoja = null;
   if (role === 'loja') {
     currentLoja = lojas.find(function (l) {
@@ -322,9 +328,9 @@ function getRealBootstrap_(email,authOverride) {
     }),
     weather: { city: city, temp: '', condition: '' },
     summary: {
-      pending: tasks.filter(function (t) { return t.status !== 'success'; }).length,
-      dueToday: tasks.filter(function (t) { return t.isDueToday && t.status !== 'success'; }).length,
-      campaigns: campaigns.length,
+      pending: metricTasks.filter(function (t) { return t.status !== 'success'; }).length,
+      dueToday: metricTasks.filter(function (t) { return t.isDueToday && t.status !== 'success'; }).length,
+      campaigns: metricCampaigns.length,
       unread: notifications.filter(function (n) { return !(n.lida || n.read); }).length
     },
     tasks: tasks,
@@ -550,6 +556,7 @@ function buildManagementItems_(demandas, respostas, lojas) {
 
     return {
       id: id,
+      isHomologacao: isConectaTestDemand_(d),
       title: d.titulo || d.title || 'Demanda',
       description: d.descricao || d.description || '',
       type: String(d.tipo || d.type || 'demanda').toLowerCase(),
