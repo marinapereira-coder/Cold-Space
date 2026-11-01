@@ -370,7 +370,17 @@ function renderNotices(){
   var list=(APP_DATA.announcements||[]).filter(function(n){var text=((n.title||'')+' '+(n.excerpt||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(f==='all'||String(n.kind||'info')===f);});
   document.getElementById('noticeList').innerHTML=list.length?list.map(announcementHtml).join(''):'<div class="empty"><strong>Nenhum comunicado</strong>Não há comunicados com esse filtro.</div>';
 }
-function announcementHtml(n){return '<div class="announcement '+safe(n.kind||'info')+'"><div class="announcement-type">'+safe(n.kindLabel||'Informativo')+'</div><div><h4>'+safe(n.title)+'</h4><p>'+safe(n.excerpt)+'</p></div><div class="announcement-date">'+safe(n.dateLabel||'')+'</div></div>';}
+function announcementHtml(n){
+ var action=n.requiresCorrection===true&&!!n.demandId;
+ return '<div class="announcement '+safe(n.kind||'info')+'">'+
+  '<div class="announcement-type">'+safe(n.kindLabel||'Informativo')+'</div>'+
+  '<div><h4>'+safe(n.title)+'</h4>'+
+  (action?'<p><strong>Aguardando correção</strong></p>':'')+
+  '<p>'+safe(n.excerpt||'')+'</p>'+
+  (action?'<button type="button" class="btn primary" onclick="openDemandDetail(\''+
+   safeJs(n.demandId)+'\')">Revisar resposta</button>':'')+
+  '</div><div class="announcement-date">'+safe(n.dateLabel||'')+'</div></div>';
+}
 
 function populateStoreFilters(){
   var stores=APP_DATA.stores||[],regionals={},consultors={};stores.forEach(function(s){if(s.regional)regionals[s.regional]=1;if(s.consultor)consultors[s.consultor]=1;});
@@ -386,8 +396,21 @@ function renderStores(){
 }
 
 function renderNotifications(){
-  var list=APP_DATA.notifications||[],unread=list.filter(function(n){return !n.read;}).length,b=document.getElementById('notificationBadge');b.textContent=unread;b.style.display=unread?'flex':'none';
-  document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){return '<div class="notification-item '+(!n.read?'unread':'')+'" data-notification="'+safe(n.id)+'" onclick="openNotificationDemand(\''+safeJs(n.id)+'\')"><strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p><time>'+safe(formatDateTime(n.createdAt))+'</time></div>';}).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong><span>Nenhuma notificação por enquanto.</span></div>';
+ var list=APP_DATA.notifications||[];
+ var unread=list.filter(function(n){return !n.read;}).length;
+ var badge=document.getElementById('notificationBadge');
+ badge.textContent=unread;badge.style.display=unread?'flex':'none';
+ document.getElementById('notificationList').innerHTML=list.length?list.map(function(n){
+  var action=n.requiresCorrection===true&&!!n.demandId;
+  return '<div class="notification-item '+(!n.read?'unread':'')+
+   '" data-notification="'+safe(n.id)+'" onclick="openNotificationDemand(\''+safeJs(n.id)+'\')">'+
+   '<strong>'+safe(n.title||'Notificação')+'</strong><p>'+safe(n.message||'')+'</p>'+
+   (action?'<div class="notification-review-action"><span>Aguardando correção</span> '+
+    '<button type="button" class="btn soft" onclick="event.stopPropagation();openNotificationDemand(\''+
+    safeJs(n.id)+'\')">Revisar resposta</button></div>':'')+
+   '<time>'+safe(formatDateTime(n.createdAt))+'</time></div>';
+ }).join(''):'<div class="notification-empty"><strong>Tudo certo por aqui</strong>'+
+  '<span>Nenhuma notificação por enquanto.</span></div>';
 }
 function toggleNotificationPanel(){var p=document.getElementById('notificationPanel'),open=p.classList.toggle('open');document.getElementById('notificationButton').setAttribute('aria-expanded',open?'true':'false');if(open)renderNotifications();}
 function closeNotificationPanel(){document.getElementById('notificationPanel').classList.remove('open');document.getElementById('notificationButton').setAttribute('aria-expanded','false');}
@@ -846,7 +869,10 @@ function renderCampaignSpreadsheet(meta,host){
   (isInlineStore?
    '<div class="bacio-sheet-edit-guide"><strong>Como preencher:</strong> selecione Sim ou Não nas colunas destacadas de verde, e informe divergências em Observações. Os códigos e as quantidades estão bloqueados.</div>':
    '')+
-  '<div class="bacio-sheet-filters"'+(isInlineStore?' style="display:none"':'')+'>'+
+  (isInlineStore&&response&&!locked?
+   '<div class="response-status-note ajuste_necessario"><strong>Aguardando correção</strong>'+
+   '<p>Feedback da gestão: '+safe(response.feedback||'Revise os campos indicados pela gestão e reenvie a conferência.')+'</p></div>':'')+
+  '<div class="bacio-sheet-filters"'+(isInlineStore?' style="display:none"':'')+'>+
    '<div class="bacio-sheet-filter-field"><label>Loja</label><select class="select" data-bacio-filter="store">'+
     campaignSheetOptions_(stores,'Todas as lojas')+'</select></div>'+
    '<div class="bacio-sheet-filter-field"><label>Regional</label><select class="select" data-bacio-filter="regional">'+
@@ -1202,7 +1228,7 @@ function renderStoreResponseSection(d,answerHtml){
       '<div style="margin-top:12px"><label class="label">Observações gerais</label><textarea class="textarea" id="storeResponseObs">'+safe(current&&current.observacao||'')+'</textarea></div>'+
       '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+safeJs(d.id)+'\')">Enviar conferência</button></div>';
   }
-  var notice=current?'<div class="response-status-note '+safe(status)+'">O escritório solicitou uma nova versão desta resposta. Revise os campos e envie novamente.</div>':'';
+  var notice=current?'<div class="response-status-note '+safe(status)+'"><strong>Aguardando correção</strong><p>Feedback da gestão: '+safe(current.feedback||'O escritório solicitou uma nova versão desta resposta.')+'</p></div>':'';
     return notice+'<div id="storeResponseForm"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:440px">'+
     '<thead><tr style="background:#f4eee8"><th style="padding:10px;text-align:left">Conferência / campo</th><th style="padding:10px;text-align:left">Resposta da loja</th></tr></thead><tbody>'+
     requestFieldsForStore(d.modelFields||[],(d.importMeta&&d.importMeta.storeSections)||[]).map(function(f,i){
@@ -1908,7 +1934,7 @@ function serverError(error){
 function safeJs(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
 function safe(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function showError(message){document.getElementById('loading').style.display='none';document.getElementById('app').style.display='none';var b=document.getElementById('errorBox');b.style.display='block';b.innerHTML='<h2>Bacio Conecta</h2><p><strong>Não foi possível carregar o aplicativo.</strong></p><p>'+safe(message)+'</p>';}
-function renderCentralOperations(){var a=document.getElementById('centralApprovalArea');if(a)a.style.display=CURRENT_ROLE==='loja'?'none':'block';renderCentralLinks_();}
+function renderCentralOperations(){renderCentralLinks_();}
 
 /* Central de Operações · catálogo extraído da página Links Úteis.
    Mantenha os links externos como referência; não concede acesso aos destinos. */
