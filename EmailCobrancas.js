@@ -11,7 +11,9 @@ function bacioResumoPendenciasEmail_(dryRun) {
   }
   var demandas = safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+'?select=*&ativa=eq.true&limit=3000',[]);
   var respostas = safeSupabaseSelect_('/rest/v1/'+table_('TABLE_RESPOSTAS','bacio_demanda_respostas')+'?select=*&order=created_at.desc&limit=10000',[]);
-  var lojas = safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&ativa=eq.true&limit=5000',[]);
+  // Uma loja fictícia não participa de cobranças operacionais nem via e-mail.
+  var lojas = safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+'?select=*&ativa=eq.true&limit=5000',[])
+    .filter(function(s){return !isConectaTestStoreId_(s.id);});
   var usuarios = safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+'?select=*&ativo=eq.true&limit=5000',[]);
   var now = new Date();
   var active = demandas.filter(function(d){

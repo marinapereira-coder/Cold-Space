@@ -1,0 +1,21 @@
+name: Validar alterações do Bacio Conecta
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar-regras:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regressões, isolamento de homologação e segurança
+        run: node .github/scripts/verify-conecta.cjs

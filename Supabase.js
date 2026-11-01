@@ -174,6 +174,16 @@ function operationScopeMatchesStore_(loja, role, scopeId) {
  return operationDirectoryKey_(rawId)===target||operationDirectoryKey_(rawName)===target;
 }
 
+// Unidade fictícia reservada para homologação: nunca faz parte de envios gerais.
+function isConectaTestStoreId_(id) {
+  return String(id || '') === 'TESTE_CONECTA';
+}
+
+function isConectaTestDemand_(demand) {
+  var ids = normalizeArray_(demand.loja_ids || demand.lojas_ids || demand.target_loja_ids || demand.lojas);
+  return ids.length === 1 && isConectaTestStoreId_(ids[0]);
+}
+
 function getVisibleStores_(user) {
   var role = roleOf_(user);
   var lojasTable = table_('TABLE_LOJAS', 'bacio_lojas');
@@ -432,7 +442,8 @@ function demandaVisivelNoEscopo_(demanda, visibleLojaIds) {
   var targetIds = normalizeArray_(
     demanda.loja_ids || demanda.lojas_ids || demanda.target_loja_ids || demanda.lojas
   );
-  if (!targetIds.length) return true;
+  // Uma publicação geral não dá acesso à unidade fictícia de testes.
+  if (!targetIds.length) return visibleLojaIds.some(function(id){ return !isConectaTestStoreId_(id); });
   return targetIds.some(function (id) {
     return visibleLojaIds.indexOf(String(id)) >= 0;
   });
@@ -442,7 +453,7 @@ function getTargetStoreIds_(demanda, visibleLojaIds) {
   var targetIds = normalizeArray_(
     demanda.loja_ids || demanda.lojas_ids || demanda.target_loja_ids || demanda.lojas
   );
-  if (!targetIds.length) return visibleLojaIds.slice();
+  if (!targetIds.length) return visibleLojaIds.filter(function(id){ return !isConectaTestStoreId_(id); });
   return targetIds.filter(function (id) {
     return visibleLojaIds.indexOf(String(id)) >= 0;
   });
@@ -733,6 +744,12 @@ function saveDemand(input,authOverride) {
   if (!input) throw new Error('Dados da campanha não informados.');
   var auth = authOverride || getCurrentAuthContext_();
   var departmentAuthor=isDepartmentUser_(auth.user);
+  var requestedStoreIds=normalizeArray_(input.lojaIds || []);
+  // Homologação só pode ser enviada diretamente pelo admin, sem misturar lojas reais.
+  if(requestedStoreIds.some(isConectaTestStoreId_) &&
+    (requestedStoreIds.length!==1 || roleOf_(auth.user)!=='admin')) {
+    throw new Error('A loja de homologação deve ser selecionada sozinha por um administrador.');
+  }
   if(!departmentAuthor)validateAdminStoreTargets_(input.lojaIds || []);
   if(departmentAuthor && input.id){
     var owned=supabaseRequest_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+'?select=*&id=eq.'+encodeURIComponent(String(input.id))+'&limit=1','get')||[];
@@ -932,7 +949,9 @@ function notifyDemandPublished_(auth, demand) {
     '?select=*&ativo=eq.true&limit=5000','get') || [];
   var stores = supabaseRequest_('/rest/v1/' + table_('TABLE_LOJAS','bacio_lojas') +
     '?select=*&limit=5000','get') || [];
-  var selectedStores=stores.filter(function(store){return (ids.length===0||idSet[String(store.id)]) && store.ativa!==false;});
+  var selectedStores=stores.filter(function(store){
+    return (ids.length ? !!idSet[String(store.id)] : !isConectaTestStoreId_(store.id)) && store.ativa!==false;
+  });
   if(ids.length===0)selectedStores.forEach(function(store){idSet[String(store.id)]=true;});
   var recipients={};
   users.forEach(function(user){

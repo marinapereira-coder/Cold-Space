@@ -768,3 +768,6 @@ console.log('OK — Central sem painel visual, aprovação preservada, devoluç�
 
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
+
+// Contrato de homologação separada de lojas reais.
+require('./verify-homologacao.cjs');
