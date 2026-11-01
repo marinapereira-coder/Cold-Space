@@ -1042,7 +1042,8 @@ function scopedCampaignImportMeta_(meta,stores) {
     sections=sections.concat(source.perStore[code]||[]);
   });
   return {version:source.version,fileName:source.fileName,
-    sheets:source.sheets,perStore:selected,storeSections:sections};
+    sheets:source.sheets,perStore:selected,storeSections:sections,
+    editableColumns:source.editableColumns||null};
 }
 
 function getDemandDetail(demandaId,authOverride) {
@@ -1150,6 +1151,54 @@ function getDemandDetail(demandaId,authOverride) {
   };
 }
 
+// Verifica no servidor todas as células de resposta para impedir edição das
+// quantidades/códigos originais ou respostas de outra loja via payload manipulado.
+function sheetEditableColumnsServer_(headers){
+ var result={},width=Math.max.apply(null,(headers||[]).map(function(r){return r.length;}).concat([0]));
+ for(var i=0;i<width;i++){
+  var text=(headers||[]).map(function(row){return String(row[i]||'');}).join(' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/plaquinhas?|insumos?\s+recebidos?|recebeu\s+(os\s+)?insumos?|recebimento\s+confirmado/.test(text))result[i]={type:'boolean',required:true};
+  else if(/observacoes|observacao|comentarios?|justificativa/.test(text))result[i]={type:'text',required:false};
+  else if(/quantidade\s+recebida|qtd\.?\s+recebida/.test(text))result[i]={type:'number',required:false};
+ }
+ return result;
+}
+function validateSheetCellAnswers_(answers,detail) {
+ answers=answers||{};
+ var meta=detail&&detail.importMeta||{},sections=meta.storeSections||[];
+ if(!sections.length)return;
+ var keys=Object.keys(answers).filter(function(k){return k.indexOf('sheetcell_')===0;});
+ if(!keys.length)return; // Compatibilidade: respostas antigas de conferência continuam legíveis.
+ if(keys.length>600)throw new Error('Número de células preenchidas excede o limite.');
+ var allowed={},required={};
+ sections.forEach(function(sec){
+  var sheet=String(sec.sheet||''),index=(meta.sheets||[]).findIndex(function(t){return String(t.sheet)===sheet;});
+  if(index<0)throw new Error('Aba de resposta não identificada.');
+  var rules=meta.editableColumns&&Object.prototype.hasOwnProperty.call(meta.editableColumns,sheet)?
+    meta.editableColumns[sheet]:sheetEditableColumnsServer_(sec.sheetHeaders||[]);
+  Object.keys(rules||{}).forEach(function(col){
+   var rule=rules[col]||{},type=String(rule.type||'readonly');
+   if(['boolean','text','number'].indexOf(type)<0)return;
+   var key='sheetcell_'+index+'_'+Number(sec.sourceRow)+'_'+Number(col);
+   allowed[key]=type;
+   if(rule.required===true)required[key]=true;
+  });
+ });
+ keys.forEach(function(key){
+  var type=allowed[key],value=answers[key];
+  if(!type)throw new Error('A célula '+key+' não está autorizada para edição.');
+  if(typeof value!=='string'&&typeof value!=='number')throw new Error('Valor de resposta inválido.');
+  value=String(value).trim();
+  if(value.length>2000)throw new Error('O campo excede 2.000 caracteres.');
+  if(type==='boolean'&&value&&['Sim','Não','Recebimento errado / anotar observação','Não se aplica'].indexOf(value)<0)
+   throw new Error('Selecione uma opção válida de recebimento.');
+  if(type==='number'&&value&&(!isFinite(Number(value))||Number(value)<0))throw new Error('Quantidade inválida.');
+ });
+ Object.keys(required).forEach(function(k){
+  if(!String(answers[k]||'').trim())throw new Error('Preencha todas as colunas de confirmação destacadas antes de enviar.');
+ });
+}
 function submitDemandResponse(input) {
   var auth = getCurrentAuthContext_();
   var user = auth.user;
@@ -1174,6 +1223,7 @@ function submitDemandResponse(input) {
   if (targetIds.indexOf(lojaId) < 0) {
     throw new Error('Esta loja não faz parte desta campanha/demanda.');
   }
+  if(role==='loja')validateSheetCellAnswers_(input.answers||{},detail);
 
   var respostasTable = table_('TABLE_RESPOSTAS', 'bacio_demanda_respostas');
   var payload = {
