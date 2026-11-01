@@ -2932,4 +2932,71 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
  .bacio-sheet-grid.bacio-sheet-compact select.bacio-cell-input{font-size:10px!important;}
 }
 
+
+/* BR-033: Excel fiel — colunas A + E-M, cabeçalho mesclado,
+   confirmações com cores e primeira coluna congelada. */
+.bacio-sheet-result-tools{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ gap:6px 14px;margin:4px 2px 10px;
+}
+.bacio-sheet-result-tools .bacio-sheet-result-count{margin:0;}
+.bacio-sheet-aux-toggle{
+ background:transparent;border:0;color:var(--brown2);
+ text-decoration:underline;font-size:11px;cursor:pointer;padding:4px 5px;
+}
+.bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header-0 th{
+ background:#5fa13a!important;color:white!important;text-align:center;
+ font-weight:700;font-size:11px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header-0 th:first-child{
+ background:#edf3e9!important;color:#557e45!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header-1 th{
+ background:#5fa13a!important;color:#fff!important;text-align:center;
+ font-size:10px!important;vertical-align:middle;
+}
+.bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header-2 th{
+ background:#56963a!important;color:#fff!important;
+ font-size:9px!important;text-align:center;
+}
+.bacio-sheet-grid.bacio-sheet-compact tbody td:nth-child(2){
+ position:sticky;left:34px;z-index:2;
+ background:#fff;
+ border-right:2px solid #5c8d45!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact tbody tr:nth-child(2n) td:nth-child(2){
+ background:#f5f8f1;
+}
+.bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header th:nth-child(2){
+ position:sticky;left:34px;z-index:3;
+ border-right:2px solid #376d27!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-source-pill{
+ display:block;padding:3px 7px;border-radius:999px;
+ font-size:10px;line-height:1.15;font-weight:700;text-align:left;
+ min-width:0;max-width:100%;box-sizing:border-box;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-source-pill.yes{
+ background:#d9edca;color:#326d28;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-source-pill.no{
+ background:#b51f1b;color:#fff;
+}
+.bacio-sheet-grid.bacio-sheet-compact select.bacio-cell-input{
+ border-radius:999px!important;padding:3px 7px!important;
+ min-height:26px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-review-cell .bacio-review-value{
+ border-radius:999px;
+}
+/* Para monitor comum, a tabela distribui largura de forma proporcional,
+   sem forçar rolagem por causa de colunas de apoio escondidas no Excel. */
+.bacio-sheet-grid.bacio-sheet-compact{table-layout:fixed!important;}
+@media(max-width:740px){
+ .bacio-sheet-grid.bacio-sheet-compact tbody td:nth-child(2),
+ .bacio-sheet-grid.bacio-sheet-compact thead .bacio-sheet-header th:nth-child(2){
+  position:static;
+ }
+}
+
 </style>
