@@ -2848,4 +2848,88 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
  .bacio-review-block{padding:9px}
 }
 
+
+/* BR-032: mesma planilha em tela, preenchimento e avaliação.
+   Larguras são calculadas conforme os dados; colunas 100% vazias não são
+   mostradas, mas permanecem na origem e seus índices não são alterados. */
+.bacio-sheet-grid.bacio-sheet-compact{
+ width:100%!important;min-width:var(--bacio-sheet-min-width,100%)!important;
+ max-width:none!important;table-layout:fixed!important;border-spacing:0!important;
+ font-size:10px;line-height:1.2;
+}
+.bacio-sheet-grid.bacio-sheet-compact th,
+.bacio-sheet-grid.bacio-sheet-compact td{
+ min-width:0!important;max-width:none!important;box-sizing:border-box!important;
+ padding:5px 6px!important;white-space:normal!important;overflow-wrap:anywhere;
+ font-size:10px!important;line-height:1.25!important;
+ vertical-align:middle!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-rowno{
+ position:sticky;left:0;z-index:2;width:34px!important;min-width:34px!important;
+ max-width:34px!important;padding:4px 2px!important;font-size:9px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-store{
+ min-width:0!important;max-width:none!important;font-weight:700;font-size:10px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-row-label th{
+ background:#427b36!important;color:#fff!important;
+ padding:5px 8px!important;font-size:10px!important;line-height:1.1!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-header-0 th{
+ background:#5f9b4b!important;color:#fff!important;
+ font-size:9px!important;font-weight:700;line-height:1.12!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-header-1 th{
+ background:#77aa5e!important;color:#fff!important;
+ font-size:9px!important;font-weight:700;line-height:1.2!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-header-2 th{
+ background:#e7f0e0!important;color:#36572d!important;font-size:9px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact tbody tr:nth-child(2n){background:#f7faf5}
+.bacio-sheet-grid.bacio-sheet-compact tbody tr:hover{background:#edf7e8}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-number{
+ text-align:center!important;font-variant-numeric:tabular-nums;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-sheet-editable{
+ min-width:0!important;max-width:none!important;padding:3px!important;
+ background:#e8f5e5!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-cell-input{
+ width:100%!important;min-width:0!important;max-width:100%!important;
+ padding:5px 4px!important;font-size:10px!important;box-sizing:border-box;
+ border-radius:5px;line-height:1.2!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact select.bacio-cell-input{min-height:27px!important;}
+.bacio-sheet-grid.bacio-sheet-compact textarea.bacio-cell-input{
+ min-height:29px!important;max-height:80px;resize:vertical;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-review-cell{
+ min-width:0!important;max-width:none!important;padding:3px!important;
+}
+.bacio-sheet-grid.bacio-sheet-compact .bacio-review-value{
+ font-size:10px!important;line-height:1.25!important;
+ padding:5px 4px!important;border-radius:5px;overflow-wrap:anywhere;
+}
+.bacio-sheet-compact-scroll{
+ overflow-x:auto!important;overflow-y:auto!important;
+ max-height:min(59vh,590px);
+ scrollbar-width:thin;
+}
+#detailModal .bacio-sheet-compact-scroll{max-height:min(64vh,640px);}
+#genericModal.bacio-evaluation-modal .bacio-sheet-compact-scroll{
+ overflow-x:auto!important;max-height:420px;
+}
+/* Regras antigas do simulador têm maior especificidade; manter compacto também nele. */
+#detailModal #campaignStoreSimulatorBody .bacio-sheet-grid.bacio-sheet-compact th,
+#detailModal #campaignStoreSimulatorBody .bacio-sheet-grid.bacio-sheet-compact td{
+ padding:5px 6px!important;font-size:10px!important;min-width:0!important;
+ max-width:none!important;
+}
+@media(max-width:750px){
+ .bacio-sheet-grid.bacio-sheet-compact th,
+ .bacio-sheet-grid.bacio-sheet-compact td{font-size:9px!important;padding:4px!important;}
+ .bacio-sheet-grid.bacio-sheet-compact select.bacio-cell-input{font-size:10px!important;}
+}
+
 </style>
