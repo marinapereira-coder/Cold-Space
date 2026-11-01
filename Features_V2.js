@@ -1236,7 +1236,7 @@ function buildResponsesWorkspaceV2_(
     safeSupabaseSelect_(
       '/rest/v1/' +
         demandasTable +
-        '?select=*&order=created_at.desc&limit=3000',
+        '?select=*&ativa=eq.true&order=created_at.desc&limit=3000',
       []
     );
 
@@ -1271,6 +1271,15 @@ function buildResponsesWorkspaceV2_(
 
     }
   );
+
+  // Registros de demandas inativadas são mantidos no banco para auditoria,
+  // mas não aparecem no workspace ativo de Respostas nem em seus indicadores.
+  respostas = respostas.filter(function(r){
+    return !!demandMap[String(r.demanda_id||'')];
+  });
+  avaliacoes = avaliacoes.filter(function(a){
+    return !!demandMap[String(a.demanda_id||'')];
+  });
 
   var evaluationMap = {};
 
@@ -1686,14 +1695,14 @@ function evaluateDemandDelivery(
         encodeURIComponent(
           demandaId
         ) +
-        '&limit=1',
+        '&ativa=eq.true&limit=1',
       'get'
     ) || [];
 
   if (!demandRows.length) {
 
     throw new Error(
-      'Demanda não encontrada.'
+      'Esta solicitação foi excluída ou não está disponível para avaliação.'
     );
 
   }
@@ -1950,7 +1959,7 @@ function buildEvaluationWorkspaceV2_(
           'TABLE_DEMANDAS',
           'bacio_demandas'
         ) +
-        '?select=id,titulo&limit=5000',
+        '?select=id,titulo&ativa=eq.true&limit=5000',
       []
     );
 
@@ -1967,6 +1976,12 @@ function buildEvaluationWorkspaceV2_(
 
     }
   );
+
+  // Avaliações de solicitações excluídas permanecem arquivadas no Supabase,
+  // mas não participam das listas, médias, SLA ou indicadores operacionais.
+  evals = evals.filter(function(a){
+    return !!demandMap[String(a.demanda_id||'')];
+  });
 
   var items =
     evals.map(
