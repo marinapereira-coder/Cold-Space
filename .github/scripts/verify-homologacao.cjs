@@ -69,7 +69,7 @@ assert.ok(backend.includes("requestedStoreIds.some(isConectaTestStoreId_)") &&
  'Servidor impede mistura de homologação com lojas reais e exige admin');
 assert.ok(features.includes("lojas.filter(function(l){return !isConectaTestStoreId_(l.id);}).map("),
  'Robô de demandas gerais exclui a loja teste');
-assert.ok(features.includes("}).filter(function(store){return !isConectaTestStoreId_(store.id);});"),
+assert.ok(features.includes(").filter(function(store){return !isConectaTestStoreId_(store.id);});"),
  'Avisos de calendário geral excluem a loja teste');
 assert.ok(emails.includes(".filter(function(s){return !isConectaTestStoreId_(s.id);});"),
  'E-mail automático de pendências ignora loja teste');
