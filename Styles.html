@@ -2782,4 +2782,70 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
 .bacio-sim-extra-field{margin:10px 0}
 @media(max-width:780px){.bacio-editor-grid{grid-template-columns:1fr}}
 
+
+/* Conferência de respostas: mesma grade enviada, dados originais preservados e
+   respostas reais visíveis antes de avaliar. Somente o modal de avaliação é ampliado. */
+#genericModal.bacio-evaluation-modal{padding:10px;}
+#genericModal.bacio-evaluation-modal .modal{
+ width:min(1500px,calc(100vw - 22px));height:min(95dvh,980px);
+ max-height:calc(100dvh - 18px);overflow:hidden;display:flex;flex-direction:column;
+}
+#genericModal.bacio-evaluation-modal .modal-head{flex:none;position:relative;padding:16px 22px;}
+#genericModal.bacio-evaluation-modal .modal-body{
+ flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:17px 22px;
+ scrollbar-gutter:stable;
+}
+#genericModal.bacio-evaluation-modal .modal-foot{
+ flex:none;position:relative;bottom:auto;padding:12px 22px;
+ box-shadow:0 -4px 15px rgba(54,36,23,.06);
+}
+.bacio-review-overview{margin-bottom:14px}
+.bacio-review-overview h4{margin:0 0 7px}
+.bacio-evaluation-timing{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:9px;margin-top:14px;
+}
+.bacio-evaluation-time{
+ display:flex;flex-direction:column;gap:6px;min-width:0;
+ background:#f8f2eb;border:1px solid #e5d9ce;border-radius:12px;padding:13px;
+ font-size:12px;color:#6d4c39;
+}
+.bacio-evaluation-time span{font-size:11px}
+.bacio-evaluation-time strong{font-size:13px;color:#543724;overflow-wrap:anywhere}
+.bacio-evaluation-sla.bacio-evaluation-on-time{background:#eaf5eb;border-color:#b7d9bd}
+.bacio-evaluation-sla.bacio-evaluation-on-time strong{color:#226b3d}
+.bacio-evaluation-sla.bacio-evaluation-late{background:#fff0ea;border-color:#edbaa8}
+.bacio-evaluation-sla.bacio-evaluation-late strong{color:#a03423}
+.bacio-evaluation-sla.bacio-evaluation-unknown{background:#f1f0ed}
+.bacio-evaluation-sla small{font-size:11px}
+.bacio-review-block{margin:16px 0;border:1px solid var(--line);border-radius:13px;padding:15px;background:var(--paper)}
+.bacio-review-block>h4{margin:0 0 7px}
+.bacio-review-summary{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.bacio-review-summary span{padding:6px 10px;border-radius:18px;border:1px solid #ddcfc2;background:#f6eee5;font-size:11px}
+.bacio-review-sheet{margin:12px 0 20px;min-width:0}
+.bacio-review-sheet>h4{font-size:13px;font-weight:700;margin:0 0 8px}
+.bacio-review-sheet .bacio-sheet-scroll{
+ overflow-x:auto;overflow-y:auto;max-height:370px;
+ scrollbar-width:auto;scrollbar-color:#a28269 #f0e4d8;
+}
+.bacio-review-cell{min-width:140px!important;padding:9px!important;vertical-align:middle}
+.bacio-review-cell .bacio-review-value{
+ display:block;border-radius:8px;font-size:12px;font-weight:700;
+ padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+.bacio-review-yes .bacio-review-value{color:#1c6637;background:#dbf1df;border:1px solid #a7d3b1}
+.bacio-review-no .bacio-review-value{color:#963522;background:#ffe4d9;border:1px solid #f1baa7}
+.bacio-review-missing .bacio-review-value{color:#7b6049;background:#f2ebe4;border:1px dashed #bea99a}
+.bacio-review-other .bacio-review-value{color:#4f402b;background:#fff4d5;border:1px solid #e5cf99}
+.bacio-review-extras{margin:10px 0 18px}
+.bacio-review-extras h4{margin:0 0 10px}
+@media(max-width:950px){.bacio-evaluation-timing{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:600px){
+ #genericModal.bacio-evaluation-modal .modal-head,
+ #genericModal.bacio-evaluation-modal .modal-body,
+ #genericModal.bacio-evaluation-modal .modal-foot{padding-left:10px;padding-right:10px}
+ .bacio-evaluation-timing{grid-template-columns:1fr}
+ .bacio-review-block{padding:9px}
+}
+
 </style>
