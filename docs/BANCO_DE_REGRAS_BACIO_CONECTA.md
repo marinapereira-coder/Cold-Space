@@ -82,6 +82,8 @@ Versão inicial: 31/10/2026 · Repositório: `marinapereira-coder/Cold-Space`
 - **BR-017 — Exemplo de aceite:** arquivo `Campanha Crema Positano - Itens que são pedido de loja e envio automático.xlsx` possui as abas operacionais **Para loja pedir - LCP e Op. Dup**, **Para loja pedir - LSP e Op. Dup** e **ITENS DE ENVIO AUTOMÁTICO**. Na importação, a visão precisa corresponder às três grades, sem incluir abas auxiliares.
 - **BR-018 — Testes de regressão:** o workflow antes do deploy deve validar a separação de abas privadas, operação dupla, código de loja de 4 dígitos, conservação de cabeçalhos/valores, proteção da exclusão e presença dos links/botões existentes. Se algum teste falhar, impedir a publicação.
 
+- **BR-019 — CSS sem vazamento de texto (01/11/2026):** todo o CSS no arquivo `Styles.html` deve estar dentro da tag `<style> ... </style>`. Não acrescentar regras depois de `</style>`, porque o Google Apps Script injeta esse arquivo como HTML e o conteúdo fora da tag aparece como texto no topo do portal. O teste automático de publicação precisa falhar se isso acontecer novamente.
+
 ## 8. Evolução controlada deste banco
 Toda regra nova aprovada entra aqui com data, alcance e teste correspondente. Se existir conflito com regra anterior, obter autorização para a substituição e registrar a alteração. **Nenhuma regra anterior é descartada apenas porque uma solicitação nova não a menciona.**
 
