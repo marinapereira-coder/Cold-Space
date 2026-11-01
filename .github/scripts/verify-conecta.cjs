@@ -18,6 +18,8 @@ const modern = read('Features_V2.js');
 const scripts = read('Scripts.html');
 const index = read('Index.html');
 const styles = read('Styles.html');
+const backend = read('Supabase.js');
+new vm.Script(backend,{filename:'Supabase.js'});
 const rules = read('docs/BANCO_DE_REGRAS_BACIO_CONECTA.md');
 
 for (const [name, source] of [['Features.js', legacy], ['Features_V2.js', modern]]) {
@@ -688,6 +690,81 @@ assert.equal(m.stores[0].avgStars,5,'Média por loja considera só notas preench
 assert.equal(m.items[1].stars,null,'Dados sem nota não são convertidos em zero');
 assert.equal(m.summary.slaRate,100,'SLA mantém respostas sem estrelas');
 console.log('OK — Avaliações sem estrelas preservam feedback, notificação, SLA e médias.');
+
+
+// BR-035/036/037 — painel visual removido, correção real e segurança de reenvio.
+assert.ok(rules.includes('BR-035')&&rules.includes('BR-036')&&rules.includes('BR-037'),
+ 'Banco de Regras precisa cobrir devolução e Central sem Aprovações');
+assert.ok(!index.includes('id="centralApprovalArea"') &&
+ !scripts.includes("getElementById('centralApprovalArea')"),
+ 'O bloco de Aprovações da Central deve desaparecer da interface');
+assert.ok(scripts.includes("approveDepartmentRequest(") &&
+ scripts.includes("decideDepartmentRequestUI(") &&
+ backend.includes('function setDemandStatus('),
+ 'A aprovação real não pode ser removida de outros módulos');
+assert.ok(scripts.includes("Revisar resposta")&&
+ scripts.includes("Aguardando correção")&&
+ scripts.includes("response.feedback")&&
+ scripts.includes("function openNotificationDemand("),
+ 'Notificação e Comunicados precisam abrir a solicitação original e mostrar feedback');
+assert.ok(modern.includes("assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId)") &&
+ backend.includes("assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId)") &&
+ backend.includes("validateSheetCellAnswers_(input.answers||{},detail)"),
+ 'Ambos os logins da loja devem passar por autorização e validação de células no servidor');
+assert.ok(modern.includes("String(evaluationMap[key].resposta_id||'')===String(r.id)") &&
+ modern.includes('Esta resposta foi substituída por uma correção.'),
+ 'Resposta reenviada precisa voltar a aguardar nova avaliação e bloquear avaliação de versão antiga');
+
+const notificationHelpers=backend.slice(backend.indexOf('function mapBacioNotification_('),
+ backend.indexOf('function getContextLabel_('));
+assert.ok(notificationHelpers.includes('function buildStoreCorrectionNotices_('));
+let latestStatus='ajuste_necessario';
+const noticeCtx=vm.createContext({
+ table_:(_name,fallback)=>fallback,
+ supabaseRequest_:(_url,method)=>{assert.equal(method,'get');return [{status:latestStatus}];},
+ safeSupabaseSelect_:url=>{
+  assert.ok(url.includes('loja_id=eq.s1'),'Feedback filtrado pela loja no servidor');
+  return [{resposta_id:'r1',status:'ajuste_necessario',comentario:'Conferir a plaquinha.'}];
+ },
+ formatShortDate_:()=> '01/11',
+ console
+});
+vm.runInContext(notificationHelpers,noticeCtx);
+const aDemand={id:'d1',titulo:'Crema',ativa:true,status:'active'};
+const aResponse={id:'r1',demanda_id:'d1',loja_id:'s1',
+ status:'ajuste_necessario',created_at:'2026-11-01T14:00:00Z'};
+let notices=noticeCtx.buildStoreCorrectionNotices_([aDemand],[aResponse],[{id:'s1'}]);
+assert.equal(notices.length,1,'Loja deve ver sua pendência');
+assert.equal(notices[0].kindLabel,'Aguardando correção');
+assert.equal(notices[0].demandId,'d1');
+assert.equal(notices[0].excerpt,'Conferir a plaquinha.');
+assert.equal(noticeCtx.buildStoreCorrectionNotices_([aDemand],[aResponse],[{id:'s2'}]).length,0,
+ 'Loja diferente não deve receber dados nem feedback');
+assert.equal(noticeCtx.buildStoreCorrectionNotices_([{...aDemand,ativa:false}],[aResponse],[{id:'s1'}]).length,0,
+ 'Solicitação inativa não deve exibir aviso operacional');
+assert.equal(noticeCtx.buildStoreCorrectionNotices_([aDemand],[{...aResponse,status:'respondido',id:'r2'}],[{id:'s1'}]).length,0,
+ 'Após reenviar, não mostrar pendência antiga em Comunicados');
+assert.equal(noticeCtx.buildStoreCorrectionNotices_([aDemand],[{...aResponse,status:'reprovada'}],[{id:'s1'}]).length,1,
+ 'Reprovação também deve liberar o fluxo de correção');
+const mapped=noticeCtx.mapBacioNotification_({
+ id:'n1',titulo:'Ajuste solicitado',mensagem:'Feedback [[bacio-demand:d1]]',lida:false
+});
+assert.equal(mapped.demandId,'d1','Notificação deve vincular solicitação original');
+assert.equal(mapped.message,'Feedback','Não exibir identificador interno à loja');
+assert.equal(mapped.requiresCorrection,true);
+latestStatus='aprovada';
+assert.throws(()=>noticeCtx.assertStoreResponseResubmissionAllowed_('d1','s1'),
+ /após a gestão solicitar correção/,'Uma resposta aprovada não pode ser reenviada');
+latestStatus='respondido';
+assert.throws(()=>noticeCtx.assertStoreResponseResubmissionAllowed_('d1','s1'),
+ /após a gestão solicitar correção/,'Não aceitar duplicação enquanto aguarda avaliação');
+latestStatus='reprovada';
+assert.doesNotThrow(()=>noticeCtx.assertStoreResponseResubmissionAllowed_('d1','s1'),
+ 'Reprovação permite corrigir');
+latestStatus='ajuste_necessario';
+assert.doesNotThrow(()=>noticeCtx.assertStoreResponseResubmissionAllowed_('d1','s1'),
+ 'Solicitação de ajuste permite corrigir');
+console.log('OK — Central sem painel visual, aprovação preservada, devolução e segurança de reenvios.');
 
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
