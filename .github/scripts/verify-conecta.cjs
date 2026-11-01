@@ -142,7 +142,7 @@ assert.ok(!softDeleteSource.includes("'delete'"), 'Nunca usar delete físico');
 assert.ok(index.includes('id="newDemandBtn"'), 'Criar nova solicitação deve continuar presente');
 assert.ok(styleSource.includes('bacio-sheet-grid'), 'A visualização deve ter tabela estilo planilha');
 assert.equal((styleSource.match(/<style>/g)||[]).length,1,'Styles.html deve abrir exatamente uma tag style');
-assert.equal((styleSource.match(/<\\/style>/g)||[]).length,1,'Styles.html deve fechar exatamente uma tag style');
+assert.equal(styleSource.split('</style>').length-1,1,'Styles.html deve fechar exatamente uma tag style');
 assert.ok(styleSource.trim().startsWith('<style>'),'CSS deve começar dentro de style');
 assert.ok(styleSource.trim().endsWith('</style>'),'CSS não pode aparecer depois de </style> na página');
 assert.ok(styleSource.indexOf('.bacio-sheet-detail')<styleSource.lastIndexOf('</style>'),
