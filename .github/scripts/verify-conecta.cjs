@@ -603,5 +603,91 @@ console.log('OK — Crema exibe colunas A e E-M, cabeçalho mesclado e campos or
 
 console.log('OK — Larguras compactas, colunas vazias ocultas e chaves originais preservadas.');
 
+
+// BR-034 — devolver resposta para ajuste/reprovação sem nota, preservando SLA e médias.
+assert.ok(rules.includes('BR-034'),'Banco de Regras: estrelas opcionais não documentadas');
+assert.ok(scripts.includes('function bindEvaluationRating_(') &&
+  scripts.includes('function evaluationRatingSelection_('),
+  'Avaliações reais e simuladas precisam aplicar a mesma validação de estrelas');
+assert.ok(scripts.includes("rating.stars") && scripts.includes("Limpar nota"),
+  'Permitir enviar e limpar nota opcional');
+assert.ok(scripts.includes("i.stars==null?'Sem nota':starsText(i.stars)"),
+  'Registros sem nota devem ser exibidos como Sem nota');
+const evaluationStart=modern.indexOf('function evaluateDemandDelivery(');
+const evaluationEnd=modern.indexOf('function getEvaluationWorkspace()',evaluationStart);
+const msgStart=modern.indexOf('function evaluationMessageV2_(');
+const msgEnd=modern.indexOf('function roundOneV2_(',msgStart);
+assert.ok(evaluationStart>=0&&evaluationEnd>evaluationStart&&msgStart>=0&&msgEnd>msgStart);
+let savedReview=null,notice='';
+const evaluationCtx=vm.createContext({
+ getCurrentAuthContext_:()=>({email:'coord@bdil.com.br',user:{role:'admin',nome:'Coordenação'}}),
+ roleOf_:u=>u.role,
+ getVisibleStores_:()=>[{id:'loja1'}],
+ table_:(_name,fallback)=>fallback,
+ supabaseRequest_:(url,method,payload)=>{
+  if(url.includes('bacio_demanda_respostas')){
+   if(method==='get')return [{id:'resp1',demanda_id:'d1',loja_id:'loja1',created_at:'2026-11-01T10:00:00Z'}];
+   return [];
+  }
+  if(url.includes('bacio_demandas'))return [{id:'d1',ativa:true,titulo:'Crema',prazo_sla:'2026-11-01T11:00:00Z'}];
+  if(url.includes('bacio_avaliacoes')){
+   if(method!=='post')throw new Error('Unexpected review operation');
+   savedReview=payload;return [payload];
+  }
+  throw new Error('Unrecognized API call '+url);
+ },
+ notifyStoreUsersV2_:(_id,_title,message)=>{notice=message;},
+ evaluationTitleV2_:status=>status,
+ v2NiceNameFromEmail_:mail=>mail,
+ console
+});
+vm.runInContext(modern.slice(msgStart,msgEnd)+'\n'+modern.slice(evaluationStart,evaluationEnd),evaluationCtx);
+const makeReview=(status,stars)=>evaluationCtx.evaluateDemandDelivery({
+ responseId:'resp1',demandaId:'d1',lojaId:'loja1',status,stars,
+ comment:'Verificar a confirmação dos insumos.'
+});
+makeReview('ajuste_necessario',null);
+assert.equal(savedReview.estrelas,null,'Ajustes não exigem estrelas');
+assert.ok(savedReview.comentario.includes('insumos'),'Feedback precisa continuar salvo');
+assert.ok(notice.includes('Verificar a confirmação') && !notice.includes('Nota:'),
+ 'Notificação com ajuste sem nota não deve dizer Nota: null/5');
+makeReview('reprovada',null);
+assert.equal(savedReview.estrelas,null,'Reprovação sem nota não pode virar zero');
+assert.throws(()=>makeReview('aprovada',null),/Para aprovar, selecione uma nota/,
+ 'Aprovação ainda exige 1 a 5 estrelas');
+assert.throws(()=>makeReview('ajuste_necessario',9),/nota deve ser de 1 a 5/,
+ 'Nota opcional preenchida precisa ser válida');
+makeReview('ajuste_necessario',3);
+assert.equal(savedReview.estrelas,3,'Nota opcional informada deve ser preservada');
+makeReview('aprovada',5);
+assert.equal(savedReview.estrelas,5,'Aprovação com nota deve funcionar');
+assert.ok(notice.includes('Nota: 5/5'),'Notificação aprovada preserva estrelas');
+const evalBuilderStart=modern.indexOf('function buildEvaluationWorkspaceV2_(');
+const evalBuilderStop=modern.indexOf('function mapEvaluationRowV2_(',evalBuilderStart);
+const mapStop=modern.indexOf('function evaluationTitleV2_(',evalBuilderStop);
+const metricsCtx=vm.createContext({
+ getVisibleStores_:()=>[{id:'loja1',nome:'LJ 0006'}],
+ storeLabelV2_:store=>store.nome||'Loja',
+ table_:(_name,fallback)=>fallback,
+ safeSupabaseSelect_:url=>{
+  if(url.includes('bacio_demandas'))return [{id:'d1',titulo:'Crema',ativa:true}];
+  if(url.includes('bacio_avaliacoes'))return [
+   {id:'a1',resposta_id:'r1',demanda_id:'d1',loja_id:'loja1',estrelas:5,status:'aprovada',sla_cumprido:true},
+   {id:'a2',resposta_id:'r2',demanda_id:'d1',loja_id:'loja1',estrelas:null,status:'ajuste_necessario',sla_cumprido:true}
+  ];
+  return [];
+ }
+});
+vm.runInContext(modern.slice(evalBuilderStart,mapStop),metricsCtx);
+vm.runInContext(modern.slice(modern.indexOf('function roundOneV2_('),
+ modern.indexOf('/* ======================================================================\n * CALENDÁRIO',modern.indexOf('function roundOneV2_('))),metricsCtx);
+const m=metricsCtx.buildEvaluationWorkspaceV2_({role:'admin'});
+assert.equal(m.summary.total,2,'Ajustes continuam no total de avaliações');
+assert.equal(m.summary.avgStars,5,'Uma devolução sem nota não reduz a média');
+assert.equal(m.stores[0].avgStars,5,'Média por loja considera só notas preenchidas');
+assert.equal(m.items[1].stars,null,'Dados sem nota não são convertidos em zero');
+assert.equal(m.summary.slaRate,100,'SLA mantém respostas sem estrelas');
+console.log('OK — Avaliações sem estrelas preservam feedback, notificação, SLA e médias.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
