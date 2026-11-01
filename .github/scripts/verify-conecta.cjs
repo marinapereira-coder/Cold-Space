@@ -590,7 +590,8 @@ assert.ok(layoutHtml.includes('data-key="sheetcell_0_4_10"') &&
  layoutHtml.includes('data-key="sheetcell_0_4_11"') &&
  layoutHtml.includes('data-key="sheetcell_0_4_12"'),
  'Plaquinhas, insumos e observações mantêm os índices reais');
-assert.ok(layoutHtml.includes('bacio-sheet-source-pill'),'Valores Sim/Não da planilha devem aparecer como pílulas coloridas');
+assert.ok(importCtx.campaignSheetTableHtml(cremaLayout,{}).includes('bacio-sheet-source-pill'),
+ 'Valores Sim/Não da planilha devem aparecer como pílulas coloridas na visão de leitura');
 const autoLayout={sheet:'ITENS DE ENVIO AUTOMÁTICO',width:13,
  headerRows:[cremaLayout.headerRows[0],cremaLayout.headerRows[1],cremaLayout.headerRows[2]],
  rows:cremaLayout.rows,hiddenColumns:[1,2,3]};
