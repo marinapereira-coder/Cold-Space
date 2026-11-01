@@ -84,6 +84,8 @@ Versão inicial: 31/10/2026 · Repositório: `marinapereira-coder/Cold-Space`
 
 - **BR-019 — CSS sem vazamento de texto (01/11/2026):** todo o CSS no arquivo `Styles.html` deve estar dentro da tag `<style> ... </style>`. Não acrescentar regras depois de `</style>`, porque o Google Apps Script injeta esse arquivo como HTML e o conteúdo fora da tag aparece como texto no topo do portal. O teste automático de publicação precisa falhar se isso acontecer novamente.
 
+- **BR-020 — Exclusão lógica unificada (01/11/2026):** quando `bacio_demandas.ativa=false`, a solicitação **e seus registros dependentes** deixam de aparecer na Central de Solicitações, em Respostas das Lojas, Avaliações, listagens de histórico operacional, médias e indicadores/SLA calculados nessas telas. A exclusão não apaga respostas nem avaliações do Supabase, para manter rastreabilidade e auditoria. Consultas operacionais devem validar `ativa=true` no servidor e filtrar os registros dependentes pelo conjunto de demandas ativas. O servidor deve rejeitar nova avaliação de resposta de demanda inativa. Não alterar nenhuma demanda/resposta/avaliação real durante a correção ou os testes.
+
 ## 8. Evolução controlada deste banco
 Toda regra nova aprovada entra aqui com data, alcance e teste correspondente. Se existir conflito com regra anterior, obter autorização para a substituição e registrar a alteração. **Nenhuma regra anterior é descartada apenas porque uma solicitação nova não a menciona.**
 
