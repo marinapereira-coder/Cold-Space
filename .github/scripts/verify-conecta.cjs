@@ -386,5 +386,64 @@ assert.ok(!detailNodes.detailBody.innerHTML.includes('Modelo de resposta'),
 assert.ok(detailNodes.detailBody.innerHTML.includes('admin-sim'),'Simulador preservado no painel fechado');
 console.log('OK — Planilha única e painel de simulação opcional, sem alterar o fluxo de resposta da loja.');
 
+
+// BR-025 a BR-028: colunas editáveis são inferidas de cabeçalhos, nunca dos valores.
+for(const rule of ['BR-025','BR-026','BR-027','BR-028'])
+ assert.ok(rules.includes(rule),'Banco de Regras faltando: '+rule);
+const headers=[['LOJA','GELATO','PLAQUINHAS','INSUMOS RECEBIDOS?','OBSERVAÇÕES'],
+ ['Loja','BALDE 3,6 KG','(Automático)','Confirmação','Texto da loja']];
+const inferred=importCtx.campaignSheetInferEditable_(headers);
+assert.ok(!inferred[0]&&!inferred[1],'Loja e quantidade devem ser somente leitura');
+assert.equal(inferred[2].type,'boolean','Plaquinhas preenchíveis com Sim ou Não');
+assert.equal(inferred[3].type,'boolean','Insumos recebidos com Sim ou Não');
+assert.equal(inferred[4].type,'text','Observação editável');
+const editableLayout={sheet:'Para loja pedir - LCP',width:5,headerRows:headers,
+ rows:[{sourceRow:4,cells:['LJ 0006 - PÁTIO PAULISTA','3','Não','Não',''],codes:['0006']}]};
+const editableHtml=importCtx.campaignSheetTableHtml(editableLayout,{
+ mode:'store',sheetIndex:0,rules:inferred,answers:{sheetcell_0_4_2:'Sim'},readonly:false
+});
+assert.ok(editableHtml.includes('data-key="sheetcell_0_4_2"'));
+assert.ok(editableHtml.includes('data-key="sheetcell_0_4_3"'));
+assert.ok(editableHtml.includes('data-key="sheetcell_0_4_4"'));
+assert.ok(!editableHtml.includes('data-key="sheetcell_0_4_1"'),'Quantidade não é editável');
+assert.ok(editableHtml.includes('<select')&&editableHtml.includes('<textarea'),
+ 'A planilha deve permitir Sim/Não e observações na própria linha');
+assert.ok(editableHtml.includes('BALDE 3,6 KG')&&editableHtml.includes('PÁTIO PAULISTA'),
+ 'O restante da planilha precisa preservar os valores');
+const validationStart=sqlSource.indexOf('function sheetEditableColumnsServer_(');
+const validationEnd=sqlSource.indexOf('function submitDemandResponse(',validationStart);
+assert.ok(validationStart>0&&validationEnd>validationStart,'Validação de células precisa existir no servidor');
+const validationCtx=vm.createContext({});
+vm.runInContext(sqlSource.slice(validationStart,validationEnd),validationCtx);
+const serverMeta={sheets:[{sheet:'Para loja pedir - LCP'}],
+ storeSections:[{sheet:'Para loja pedir - LCP',sourceRow:4,sheetHeaders:headers,
+  rowCells:['LJ0006','3','','','']}],
+ editableColumns:{'Para loja pedir - LCP':inferred}};
+const detail={importMeta:serverMeta};
+const valid={'sheetcell_0_4_2':'Sim','sheetcell_0_4_3':'Não',
+ 'sheetcell_0_4_4':'Pedido chegou parcialmente.'};
+assert.doesNotThrow(()=>validationCtx.validateSheetCellAnswers_(valid,detail),
+ 'Confirmar a própria linha deve ser permitido');
+assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_1:'999'},detail),
+ /não está autorizada/,'Quantidade original deve ficar bloqueada');
+assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_5_2:'Sim'},detail),
+ /não está autorizada/,'Uma loja não pode enviar outra linha');
+assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_3:'Talvez'},detail),
+ /opção válida/,'Sim/Não deve ser validado no servidor');
+assert.throws(()=>validationCtx.validateSheetCellAnswers_({...valid,sheetcell_0_4_2:''},detail),
+ /obrigatórias/,'Confirmar as colunas obrigatórias');
+const scopedMeta=scopeCtx.scopedCampaignImportMeta_({
+ version:5,perStore:{'0006':[serverMeta.storeSections[0]]},sheets:serverMeta.sheets,
+ editableColumns:serverMeta.editableColumns
+},[{codigo:'0006',nome:'LJ 0006'}]);
+assert.ok(scopedMeta.editableColumns&&scopedMeta.editableColumns['Para loja pedir - LCP'],
+ 'Regras precisam chegar à sessão autenticada da loja');
+assert.ok(scripts.includes('id="storeResponseForm"') &&
+ scripts.includes('submitStoreResponse('),'Resposta é enviada por ação explícita');
+assert.ok(modern.includes('validateSheetCellAnswers_(input.answers||{},detail)'),
+ 'Login com senha deve validar as células autorizadas no backend');
+assert.ok(styleSource.includes('bacio-sheet-editable'),'Destaque de campos editáveis indispensável');
+console.log('OK — Sim/Não inline, observações, restrição por loja, validação e persistência protegida.');
+
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
