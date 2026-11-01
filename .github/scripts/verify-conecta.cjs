@@ -338,6 +338,9 @@ const simulatorCtx=vm.createContext({
  safe:v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'),
  requestFieldsForStore:fields=>fields,
  responseInput:()=>'<textarea class="answer-input" data-key="observacao"></textarea>',
+ campaignSpreadsheetLayouts:meta=>[{sheet:'LCP',width:2,headerRows:[['Loja','Insumos recebidos?']],rows:[{sourceRow:3,cells:['LJ0006','Sim']}]}],
+ campaignSheetTableHtml:()=>'<table class="bacio-sheet-grid"><tr><td>Seletor Sim/Não</td></tr></table>',
+ campaignSheetRules_:()=>({1:{type:'boolean',required:true}}),
  storeTemplateSectionHtml:()=>{oldTableCalls++;return '<div class="old-vertical-table">ANTIGA TABELA</div>';}
 });
 vm.runInContext(simCode,simulatorCtx);
