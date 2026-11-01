@@ -1594,11 +1594,11 @@ function evaluateDemandDelivery(
     .trim()
     .toLowerCase();
 
-  var stars =
-    Number(
-      input.stars ||
-      0
-    );
+  // Sem nota é NULL, não zero. Aprovada exige uma avaliação por estrelas;
+  // ajustes e reprovações podem voltar à loja só com o feedback.
+  var rawStars = input.stars;
+  var stars = rawStars===null||rawStars===undefined||
+    rawStars===''||Number(rawStars)===0 ? null : Number(rawStars);
 
   var comment =
     String(
@@ -1637,16 +1637,16 @@ function evaluateDemandDelivery(
   }
 
   if (
-    stars < 1 ||
-    stars > 5 ||
-    Math.floor(stars) !==
-    stars
+    (status === 'aprovada' && stars === null) ||
+    (stars !== null &&
+      (stars < 1 || stars > 5 || Math.floor(stars) !== stars ||
+        !isFinite(stars)))
   ) {
-
     throw new Error(
-      'A nota deve ser de 1 a 5 estrelas.'
+      status === 'aprovada' ?
+        'Para aprovar, selecione uma nota de 1 a 5 estrelas.' :
+        'Quando informada, a nota deve ser de 1 a 5 estrelas.'
     );
-
   }
 
   var visibleIds =
@@ -2103,24 +2103,11 @@ function buildEvaluationWorkspaceV2_(
             storeId
           ] || {};
 
-        var starTotal =
-          list.reduce(
-            function (
-              sum,
-              i
-            ) {
-
-              return (
-                sum +
-                Number(
-                  i.stars ||
-                  0
-                )
-              );
-
-            },
-            0
-          );
+        // Não computar devoluções sem estrelas como nota zero.
+        var rated = list.filter(function(i){
+          return i.stars !== null && i.stars >= 1 && i.stars <= 5;
+        });
+        var starTotal = rated.reduce(function(sum,i){return sum+i.stars;},0);
 
         var slaKnown =
           list.filter(
@@ -2158,11 +2145,7 @@ function buildEvaluationWorkspaceV2_(
           total:
             list.length,
 
-          avgStars:
-            roundOneV2_(
-              starTotal /
-              list.length
-            ),
+          avgStars: rated.length ? roundOneV2_(starTotal/rated.length) : null,
 
           slaRate:
             slaKnown.length
@@ -2226,24 +2209,10 @@ function buildEvaluationWorkspaceV2_(
       }
     );
 
-  var totalStars =
-    items.reduce(
-      function (
-        sum,
-        i
-      ) {
-
-        return (
-          sum +
-          Number(
-            i.stars ||
-            0
-          )
-        );
-
-      },
-      0
-    );
+  var ratedItems = items.filter(function(i){
+    return i.stars !== null && i.stars >= 1 && i.stars <= 5;
+  });
+  var totalStars = ratedItems.reduce(function(sum,i){return sum+i.stars;},0);
 
   var slaItems =
     items.filter(
@@ -2280,13 +2249,8 @@ function buildEvaluationWorkspaceV2_(
       total:
         items.length,
 
-      avgStars:
-        items.length
-          ? roundOneV2_(
-              totalStars /
-              items.length
-            )
-          : 0,
+      avgStars: ratedItems.length ?
+        roundOneV2_(totalStars/ratedItems.length) : null,
 
       slaRate:
         slaItems.length
@@ -2355,11 +2319,7 @@ function mapEvaluationRowV2_(
         store
       ),
 
-    stars:
-      Number(
-        a.estrelas ||
-        0
-      ),
+    stars: a.estrelas == null ? null : Number(a.estrelas),
 
     slaMet:
       a.sla_cumprido === null ||
@@ -2480,9 +2440,7 @@ function evaluationMessageV2_(
     ) +
     ' · ' +
     result +
-    ' Nota: ' +
-    stars +
-    '/5.' +
+    (stars == null ? '' : ' Nota: ' + stars + '/5.') +
     slaText +
     commentText
   );
