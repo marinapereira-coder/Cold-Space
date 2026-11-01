@@ -2716,4 +2716,32 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
  .bacio-sheet-hrail-hint{display:none;}
 }
 
+
+/* A grade XLSX é a fonte visual principal. Simulador de resposta é opcional e
+   não deve repetir produtos/quantidades já apresentados na planilha. */
+#detailModal .bacio-optional-simulator{
+  align-self:start;min-width:0;padding:0;overflow:hidden;
+  border-color:var(--line);box-shadow:none;
+}
+#detailModal .bacio-optional-simulator > summary{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;cursor:pointer;list-style:none;padding:17px 19px;
+  color:var(--brown);font:600 17px Georgia,"Times New Roman",serif;
+}
+#detailModal .bacio-optional-simulator > summary::-webkit-details-marker{display:none}
+#detailModal .bacio-optional-simulator > summary::after{
+  content:"▾";font:700 15px Arial,sans-serif;color:var(--caramel);
+}
+#detailModal .bacio-optional-simulator[open] > summary::after{content:"▴"}
+#detailModal .bacio-optional-simulator[open] > summary{
+  border-bottom:1px solid var(--line);background:var(--cream);
+}
+#detailModal .bacio-optional-simulator-body{padding:16px 19px 20px;}
+#detailModal .bacio-optional-simulator .response-status-note{margin:12px 0;}
+#detailModal .bacio-optional-simulator .helper{line-height:1.5;}
+@media(max-width:860px){
+ #detailModal .detail-grid{grid-template-columns:1fr;}
+ #detailModal .bacio-optional-simulator{align-self:stretch;}
+}
+
 </style>
