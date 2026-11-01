@@ -1169,7 +1169,9 @@ function validateSheetCellAnswers_(answers,detail) {
  var meta=detail&&detail.importMeta||{},sections=meta.storeSections||[];
  if(!sections.length)return;
  var keys=Object.keys(answers).filter(function(k){return k.indexOf('sheetcell_')===0;});
- if(!keys.length)return; // Compatibilidade: respostas antigas de conferência continuam legíveis.
+ // Versões anteriores aceitam a conferência legada. Modelos novos exigem
+ // preenchimento das confirmações da própria planilha, inclusive via API.
+ if(!keys.length&&Number(meta.version||0)<5)return;
  if(keys.length>600)throw new Error('Número de células preenchidas excede o limite.');
  var allowed={},required={};
  sections.forEach(function(sec){
