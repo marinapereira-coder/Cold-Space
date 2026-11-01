@@ -2999,4 +2999,18 @@ body.dark-mode .bacio-sheet-filter-field label{color:#f0d7c1;}
  }
 }
 
+
+/* Avaliação: estrelas obrigatórias na aprovação, opcionais na devolução.
+   O botão limpar evita salvar uma nota acidental em um feedback de ajuste. */
+.bacio-rating-guidance{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ gap:8px 16px;min-height:24px;margin-top:8px;
+}
+.bacio-rating-guidance small{
+ color:var(--brown2);font-size:11px;line-height:1.4;
+}
+.bacio-rating-guidance button{
+ padding:5px 11px;font-size:11px;flex:none;
+}
+
 </style>
