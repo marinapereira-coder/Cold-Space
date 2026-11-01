@@ -256,7 +256,7 @@ function getRealBootstrap_(email,authOverride) {
 
   var tasks = buildTasks_(published, respostas, lojas, role, user);
   var campaigns = buildCampaigns_(published, tasks);
-  var announcements = buildAnnouncements_(published);
+  var announcements = role==='loja' ? buildStoreCorrectionNotices_(published,respostas,lojas).concat(buildAnnouncements_(published)) : buildAnnouncements_(published);
   // Defence in depth: filter the final payload as well as source rows.
   // This prevents cross-department records leaking through any future mapper.
   var managementItems = buildManagementItems_(demandas, respostas, lojas);
@@ -321,15 +321,7 @@ function getRealBootstrap_(email,authOverride) {
     campaigns: campaigns,
     managementItems: managementItems,
     announcements: announcements,
-    notifications: notifications.map(function (n) {
-      return {
-        id: n.id,
-        title: n.titulo || n.title || 'Notificação',
-        message: n.mensagem || n.message || '',
-        read: Boolean(n.lida || n.read),
-        createdAt: n.created_at || n.createdAt || ''
-      };
-    })
+    notifications: notifications.map(mapBacioNotification_)
   };
 }
 
@@ -623,6 +615,67 @@ function buildAnnouncements_(demandas) {
         dateLabel: formatShortDate_(d.created_at || d.createdAt)
       };
     });
+}
+
+
+function mapBacioNotification_(n) {
+ var message=String(n.mensagem||n.message||'');
+ var tag=message.match(/\s*\[\[bacio-demand:([a-z0-9-]{1,80})\]\]\s*$/i);
+ return {id:n.id,title:n.titulo||n.title||'Notificação',
+  message:tag?message.slice(0,tag.index).trim():message,
+  demandId:tag?tag[1]:(n.demanda_id||n.demandId||null),
+  requiresCorrection:Boolean(tag),read:Boolean(n.lida||n.read),
+  createdAt:n.created_at||n.createdAt||''};
+}
+function getResponseCorrectionFeedback_(demandId,storeId,responseId){
+ if(!demandId||!storeId||!responseId)return '';
+ var rows=safeSupabaseSelect_('/rest/v1/bacio_avaliacoes?select=resposta_id,status,comentario'+
+  '&demanda_id=eq.'+encodeURIComponent(String(demandId))+
+  '&loja_id=eq.'+encodeURIComponent(String(storeId))+'&limit=10',[]);
+ var evaluation=rows.find(function(row){
+  return String(row.resposta_id||'')===String(responseId)&&
+   ['ajuste_necessario','reprovada'].indexOf(String(row.status||''))>=0;
+ });
+ return evaluation?String(evaluation.comentario||''):'';
+}
+// Comunicados de correção são derivados de avaliações oficiais da própria loja.
+// Não criam conteúdo global e desaparecem após novo envio.
+function buildStoreCorrectionNotices_(demandas,respostas,lojas){
+ var visible={};(lojas||[]).forEach(function(store){visible[String(store.id)]=true;});
+ var latest={};
+ (respostas||[]).forEach(function(row){
+  var key=String(row.demanda_id||'')+'|'+String(row.loja_id||'');
+  if(!latest[key]||String(row.created_at||'')>String(latest[key].created_at||''))latest[key]=row;
+ });
+ var activeDemands={};
+ (demandas||[]).forEach(function(d){
+  if(d.ativa===false||String(d.status||'active').toLowerCase()==='draft')return;
+  activeDemands[String(d.id)]=d;
+ });
+ var notices=[];
+ Object.keys(latest).forEach(function(key){
+  var response=latest[key],storeId=String(response.loja_id||''),status=String(response.status||'');
+  var demand=activeDemands[String(response.demanda_id||'')];
+  if(!visible[storeId]||!demand||['ajuste_necessario','reprovada'].indexOf(status)<0)return;
+  var feedback=getResponseCorrectionFeedback_(demand.id,storeId,response.id);
+  notices.push({id:'correcao-'+String(response.id),demandId:String(demand.id),
+   title:(status==='reprovada'?'Resposta reprovada · ':'Ajuste solicitado · ')+String(demand.titulo||'Solicitação'),
+   excerpt:feedback||'A gestão solicitou a revisão desta resposta.',
+   kind:'action',kindLabel:'Aguardando correção',requiresCorrection:true,
+   dateLabel:formatShortDate_(response.created_at)});
+ });
+ return notices.sort(function(a,b){return a.title.localeCompare(b.title);});
+}
+// A verificação de reenvio ocorre no servidor e considera a última resposta da loja.
+function assertStoreResponseResubmissionAllowed_(demandId,storeId){
+ var table=table_('TABLE_RESPOSTAS','bacio_demanda_respostas');
+ var rows=supabaseRequest_('/rest/v1/'+table+'?select=id,status,created_at'+
+  '&demanda_id=eq.'+encodeURIComponent(String(demandId))+
+  '&loja_id=eq.'+encodeURIComponent(String(storeId))+
+  '&order=created_at.desc&limit=1','get')||[];
+ if(!rows.length)return;
+ if(['ajuste_necessario','reprovada'].indexOf(String(rows[0].status||''))<0)
+  throw new Error('Uma nova resposta só pode ser enviada após a gestão solicitar correção.');
 }
 
 function getContextLabel_(role, user, loja, lojas) {
@@ -1145,7 +1198,9 @@ function getDemandDetail(demandaId,authOverride) {
       answers: myResponse.resposta_json || {},
       observacao: myResponse.observacao || '',
       createdAt: myResponse.created_at || '',
-      userEmail: myResponse.usuario_email || ''
+      userEmail: myResponse.usuario_email || '',
+      feedback: ['ajuste_necessario','reprovada'].indexOf(String(myResponse.status||''))>=0 ?
+        getResponseCorrectionFeedback_(demandaId,String(user.loja_id||user.lojaId||''),myResponse.id) : ''
     } : null,
     role: role
   };
@@ -1225,14 +1280,17 @@ function submitDemandResponse(input) {
   if (targetIds.indexOf(lojaId) < 0) {
     throw new Error('Esta loja não faz parte desta campanha/demanda.');
   }
-  if(role==='loja')validateSheetCellAnswers_(input.answers||{},detail);
+  if(role==='loja'){
+    validateSheetCellAnswers_(input.answers||{},detail);
+    assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId);
+  }
 
   var respostasTable = table_('TABLE_RESPOSTAS', 'bacio_demanda_respostas');
   var payload = {
     demanda_id: String(input.demandaId),
     loja_id: lojaId,
     usuario_email: auth.email,
-    status: input.status || 'respondido',
+    status: role==='loja' ? 'respondido' : (input.status || 'respondido'),
     resposta_json: input.answers || {},
     observacao: input.observacao || '',
     created_at: new Date().toISOString()
