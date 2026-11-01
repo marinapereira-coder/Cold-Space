@@ -527,13 +527,20 @@ function parseMultiSheetCampaign(file,done,fail){
  var reader=new FileReader();
  reader.onload=function(e){try{
   if(typeof XLSX==='undefined')throw new Error('Leitor XLSX indisponível');
-  var wb=XLSX.read(e.target.result,{type:'array',raw:false,cellDates:false});
+  var wb=XLSX.read(e.target.result,{type:'array',raw:false,cellDates:false,cellStyles:true});
   var perStore={},source=[],sheetLayouts=[],maxRows=800,maxCols=35,used=0;
   wb.SheetNames.forEach(function(name){
    var key=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
    // Nunca enviar bases de apoio/adm, respostas ou logs como modelo operacional.
    if(/base\s*(lojas|adm)|respostas|pendencias|historico|log\s*de\s*envios/.test(key))return;
-   var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
+   var sheet=wb.Sheets[name];
+   var excelCols=Array.isArray(sheet['!cols'])?sheet['!cols']:[];
+   var hiddenColumns=excelCols.map(function(c,j){return c&&c.hidden===true?j:-1;}).filter(function(j){return j>=0;});
+   var columnWidths=excelCols.map(function(c){
+     var px=c&&Number(c.wpx||0);
+     return px>0&&isFinite(px)?Math.round(px):null;
+   });
+   var rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
    var hi=-1,storeCol=-1;
    for(var h=0;h<Math.min(rows.length,8);h++){
     var vals=(rows[h]||[]).map(function(v){return normalizeHeader(String(v||''));});
@@ -559,7 +566,8 @@ function parseMultiSheetCampaign(file,done,fail){
         value:value,editable:false,unit:''};
     });
     var item={sheet:name,store:label,sourceRow:ri+1,rowCells:cells,
-      sheetHeaders:headers,fields:fields,code:'',product:'',sentQuantity:'',unit:''};
+      sheetHeaders:headers,hiddenColumns:hiddenColumns,columnWidths:columnWidths,
+      fields:fields,code:'',product:'',sentQuantity:'',unit:''};
     codes.forEach(function(code){
       if(!perStore[code])perStore[code]=[];
       // A mesma linha de operação dupla é visível a ambas as lojas, sem duplicar na visão global.
@@ -571,7 +579,8 @@ function parseMultiSheetCampaign(file,done,fail){
    }
    if(tableRows.length){
     source.push({sheet:name,rows:tableRows.length});
-    sheetLayouts.push({sheet:name,headerRows:headers,rows:tableRows,width:width});
+    sheetLayouts.push({sheet:name,headerRows:headers,rows:tableRows,width:width,
+      hiddenColumns:hiddenColumns,columnWidths:columnWidths});
    }
   });
   if(!Object.keys(perStore).length)throw new Error('Nenhuma loja identificada nas abas operacionais do arquivo.');
@@ -593,6 +602,7 @@ function campaignSpreadsheetLayouts(meta){
   if(!sec||!Array.isArray(sec.rowCells)||!Array.isArray(sec.sheetHeaders))return;
   var key=String(sec.sheet||'Planilha');
   if(!grouped[key]){grouped[key]={sheet:key,headerRows:sec.sheetHeaders,
+     hiddenColumns:sec.hiddenColumns||[],columnWidths:sec.columnWidths||[],
      rows:[],width:sec.rowCells.length};order.push(key);}
   grouped[key].rows.push({sourceRow:sec.sourceRow,cells:sec.rowCells});
  });
@@ -600,10 +610,21 @@ function campaignSpreadsheetLayouts(meta){
 }
 // Visualização compacta como Excel: preservar índices originais para respostas,
 // mas ocultar APENAS colunas 100% vazias e ajustar largura conforme o conteúdo.
+function campaignSheetAuxiliaryColumn_(layout,j,opts){
+ if(opts&&opts.showAuxiliary)return false;
+ if(opts&&opts.rules&&Object.prototype.hasOwnProperty.call(opts.rules,j))return false;
+ if(Array.isArray(layout.hiddenColumns)&&layout.hiddenColumns.indexOf(j)>=0)return true;
+ // Compatibilidade com campanhas já importadas antes de armazenar !cols.
+ // Só ocultar colunas comprovadamente auxiliares, como B/C/D na Crema.
+ var heads=layout.headerRows||[],last=heads.length?String(heads[heads.length-1][j]||''):'';
+ var h=last.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+ return /^(uf|estado|producao|tipo op|tipo operacao|tipo de operacao)$/.test(h);
+}
 function campaignSheetDisplayColumns_(layout,opts){
  var n=Number(layout.width||0),rows=layout.rows||[],headers=layout.headerRows||[],rules=opts&&opts.rules||{};
  var indices=[];
  for(var j=0;j<n;j++){
+  if(campaignSheetAuxiliaryColumn_(layout,j,opts))continue;
   var inHeader=headers.some(function(row){return String(row&&row[j]!=null?row[j]:'').trim()!=='';});
   var inData=rows.some(function(row){return String(row.cells&&row.cells[j]!=null?row.cells[j]:'').trim()!=='';});
   if(inHeader||inData||Object.prototype.hasOwnProperty.call(rules,j))indices.push(j);
@@ -615,17 +636,47 @@ function campaignSheetColumnWidth_(layout,j,opts){
  var h=headers.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
  var sample=(layout.rows||[]).slice(0,30).map(function(r){return String(r.cells&&r.cells[j]!=null?r.cells[j]:'').trim();}).filter(Boolean);
  var kind=String(opts&&opts.rules&&opts.rules[j]&&opts.rules[j].type||'');
- if(/observa|comentario|justificativa/.test(h)||kind==='text')return 260;
- if(/insumos?\s+recebidos?|recebimento|recebeu/.test(h))return 147;
- if(/plaquinhas?/.test(h))return 146;
- if(kind==='boolean')return 144;
- if(kind==='number')return 92;
- if(/(?:^|\s)(loja|centro de custo)(?:\s|$)/.test(h)||sample.some(function(v){return /^LJ\s*0*\d+/i.test(v);}))return 242;
+ // Correspondem às proporções do Excel: A larga, E pequena, F-J estreitas e M larga.
+ if(/observa|comentario|justificativa/.test(h)||kind==='text')return 405;
+ if(/insumos?\s+recebidos?|recebimento|recebeu/.test(h))return 122;
+ if(/plaquinhas?/.test(h))return 116;
+ if(kind==='boolean')return 122;
+ if(kind==='number')return 94;
+ if(/(?:^|\s)(loja|centro de custo)(?:\s|$)/.test(h)||sample.some(function(v){return /^LJ\s*0*\d+/i.test(v);}))return 265;
  if(/(?:^|\s)(uf|estado)(?:\s|$)/.test(h))return 56;
- if(/tipo\s*(?:op|operacao)|producao|formato/.test(h))return 72;
- if(/forecast|previsao|quantidade|qtd|participacao|percentual|%/.test(h))return 88;
- if(sample.length&&sample.filter(function(v){return /^-?\d+(?:[.,]\d+)?$/.test(v);}).length/sample.length>=.75)return 83;
- return h.length>75?126:h.length>36?112:100;
+ if(/tipo\s*(?:op|operacao)|producao|formato/.test(h))return 70;
+ if(/forecast|previsao|quantidade|qtd|participacao|percentual|%/.test(h))return 97;
+ if(sample.length&&sample.filter(function(v){return /^-?\d+(?:[.,]\d+)?$/.test(v);}).length/sample.length>=.75)return 98;
+ if(/mp\d{6,}|pa\d{6,}|em\d{6,}/.test(h))return 112;
+ return h.length>75?135:h.length>36?120:109;
+}
+// A linha "ATENÇÃO: ..." do Excel usa células mescladas. Reproduzir o grupo
+// sem alterar a matriz de colunas ou as chaves de preenchimento.
+function campaignSheetHeaderCells_(layout,cols,ri){
+ var row=(layout.headerRows||[])[ri]||[];
+ if(ri!==0)return cols.map(function(j){
+   var value=String(row[j]||'');
+   return '<th title="'+safe(value)+'" scope="col">'+safe(value)+'</th>';
+ }).join('');
+ var output='',pos=0;
+ var obs=cols.findIndex(function(j){
+   var title=(layout.headerRows||[]).map(function(h){return String(h[j]||'');}).join(' ')
+     .normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   return /observac|comentario|justificativa/.test(title);
+ });
+ while(pos<cols.length){
+  var original=cols[pos],value=String(row[original]||''),span=1;
+  if(value&&/ATEN[CÇ][AÃ]O|ENVIO AUTOM[AÁ]TICO/i.test(value)){
+   var limit=obs>pos?obs:cols.length;
+   for(var k=pos+1;k<limit;k++){
+    if(String(row[cols[k]]||'').trim())break;
+    span++;
+   }
+  }
+  output+='<th title="'+safe(value)+'" colspan="'+span+'" scope="colgroup">'+safe(value)+'</th>';
+  pos+=span;
+ }
+ return output;
 }
 function campaignSheetTableHtml(layout,opts){
  opts=opts||{};
