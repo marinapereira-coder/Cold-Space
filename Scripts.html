@@ -945,20 +945,31 @@ function requestFieldsForStore(fields,sections){
 }
 function storeSimulationBody(d,store){
  if(!store)return '<div class="empty">Loja não encontrada.</div>';
- var sections=d.importMeta&&d.importMeta.perStore&&d.importMeta.perStore[store.code]||[];
+ var meta=d.importMeta||{},sections=meta.perStore&&meta.perStore[store.code]||[];
  var fields=requestFieldsForStore(d.modelFields||[],sections);
- var isImportedSheet=!!(d.importMeta&&Array.isArray(d.importMeta.sheetLayouts)&&d.importMeta.sheetLayouts.length);
+ var isImportedSheet=!!(Array.isArray(meta.sheetLayouts)&&meta.sheetLayouts.length);
  var content=fields.map(function(f){
-  return '<div style="margin-bottom:12px"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,'')+'</div>';
+  return '<div class="bacio-sim-extra-field"><label class="label">'+safe(f.label)+(f.required?' *':'')+'</label>'+responseInput(f,'')+'</div>';
  }).join('');
- return '<div class="response-status-note">Modo teste — '+safe(store.label)+'. Você pode preencher e simular o envio sem registrar respostas reais.</div>'+
- (isImportedSheet?
-   '<p class="helper">Os itens e quantidades da loja já estão disponíveis na planilha acima. Aqui você testa somente os campos de resposta, sem reenviar os dados.</p>':
-   (sections.length?storeTemplateSectionHtml(sections):'<p class="helper">Não há dados de planilha específicos associados a esta loja neste modelo.</p>'))+
- '<div id="storeResponsePreviewForm">'+(content||'<div class="empty">Sem perguntas de resposta configuradas.</div>')+
- '<div><label class="label">Observação</label><textarea id="storeResponsePreviewObs" class="textarea" placeholder="Digite sua observação de teste"></textarea></div>'+
- '<button type="button" class="btn primary" style="margin-top:12px" onclick="simulateStoreResponse()">Enviar resposta de teste</button>'+
- '<div id="storeResponsePreviewResult" role="status" style="margin-top:12px"></div></div>';
+ var inline='';
+ if(isImportedSheet&&sections.length){
+  var layouts=campaignSpreadsheetLayouts({storeSections:sections});
+  inline='<div class="bacio-sim-inline-note"><strong>Prévia real da loja:</strong> preencha as células coloridas como ela faria. O envio de teste fica somente nesta sessão.</div>'+
+   layouts.map(function(layout){
+    var index=(meta.sheets||[]).findIndex(function(item){return item.sheet===layout.sheet;});
+    return '<div class="bacio-sim-sheet"><h4>'+safe(layout.sheet)+'</h4>'+
+     campaignSheetTableHtml(layout,{mode:'store',sheetIndex:index,rules:campaignSheetRules_(meta,layout),
+       answers:{},readonly:false})+'</div>';
+   }).join('');
+ }
+ return '<div class="response-status-note">Modo teste — '+safe(store.label)+'. Nenhuma notificação será enviada às lojas.</div>'+
+ '<div id="storeResponsePreviewForm">'+
+  (isImportedSheet?inline:(sections.length?storeTemplateSectionHtml(sections):
+    '<p class="helper">Não há dados de planilha específicos associados a esta loja neste modelo.</p>'))+
+  content+
+  '<div><label class="label">Observação geral (opcional)</label><textarea id="storeResponsePreviewObs" class="textarea" placeholder="Digite sua observação de teste"></textarea></div>'+
+  '<button type="button" class="btn primary" style="margin-top:12px" onclick="simulateStoreResponse()">Enviar resposta de teste</button>'+
+  '<div id="storeResponsePreviewResult" role="status" style="margin-top:12px"></div></div>';
 }
 // Respostas de teste são mantidas SOMENTE em memória nesta sessão.
 var BACIO_TEST_RESPONSES=[];
