@@ -261,6 +261,58 @@ const ratingWorkspace=operationsCtx.buildEvaluationWorkspaceV2_({role:'admin'});
 assert.equal(responseWorkspace.items.length,1,'Apenas resposta de demanda ativa deve aparecer');
 assert.equal(responseWorkspace.items[0].demandaId,'d-active');
 assert.equal(responseWorkspace.stats.total,1);
+assert.equal(responseWorkspace.items[0].displayStatus,'respondido',
+ 'Primeira entrega continua Aguardando análise');
+assert.equal(responseWorkspace.items[0].isCorrectionResubmission,false,
+ 'Primeira resposta não pode sinalizar correção sem histórico');
+
+// Segunda entrega após ajuste necessário: status oficial continua respondido,
+// mas a gestão deve visualizar "Conferir ajuste" até avaliá-la.
+responseFixture[0].status='ajuste_necessario';
+responseFixture.unshift({
+ id:'r-corrigida',demanda_id:'d-active',loja_id:'1',
+ usuario_email:'loja@bdil.com.br',created_at:'2026-11-02T12:00:00Z',
+ status:'respondido',resposta_json:{}
+});
+let correctionWorkspace=operationsCtx.buildResponsesWorkspaceV2_({role:'admin'});
+assert.equal(correctionWorkspace.items.length,1,'Histórico não cria duas linhas na gestão');
+assert.equal(correctionWorkspace.items[0].responseId,'r-corrigida');
+assert.equal(correctionWorkspace.items[0].status,'respondido',
+ 'Status persistido deve permanecer respondido');
+assert.equal(correctionWorkspace.items[0].displayStatus,'conferir_ajuste',
+ 'Reenvio deve ser identificado como Conferir ajuste');
+assert.equal(correctionWorkspace.items[0].isCorrectionResubmission,true);
+assert.equal(correctionWorkspace.items[0].firstResponseAt,'2026-10-31T14:30:00Z',
+ 'SLA mantém data da primeira entrega');
+assert.equal(correctionWorkspace.stats.aguardando,1,
+ 'Correção aguardando avaliação permanece no KPI Aguardando análise');
+
+// O mesmo comportamento se a avaliação anterior era reprovada.
+responseFixture[1].status='reprovada';
+correctionWorkspace=operationsCtx.buildResponsesWorkspaceV2_({role:'admin'});
+assert.equal(correctionWorkspace.items[0].displayStatus,'conferir_ajuste');
+
+// Após avaliação, o estado exibido é a avaliação, nunca Conferir ajuste.
+evaluationFixture.push({id:'e-corrigida',resposta_id:'r-corrigida',demanda_id:'d-active',
+ loja_id:'1',status:'aprovada',estrelas:5,sla_cumprido:true});
+correctionWorkspace=operationsCtx.buildResponsesWorkspaceV2_({role:'admin'});
+assert.equal(correctionWorkspace.items[0].displayStatus,'aprovada');
+assert.equal(correctionWorkspace.items[0].isCorrectionResubmission,false);
+
+// Não confundir resposta reenviada sem solicitação anterior de ajuste.
+evaluationFixture.pop();
+responseFixture[1].status='respondido';
+correctionWorkspace=operationsCtx.buildResponsesWorkspaceV2_({role:'admin'});
+assert.equal(correctionWorkspace.items[0].displayStatus,'respondido');
+assert.equal(correctionWorkspace.items[0].isCorrectionResubmission,false);
+
+// Regressão: o filtro, o rótulo e o botão da gestão usam somente apresentação.
+assert.ok(scripts.includes("(i.displayStatus||i.status)===sf") &&
+ scripts.includes("responseStatusLabel(i.displayStatus||i.status)") &&
+ scripts.includes("i.isCorrectionResubmission?'Conferir ajuste':'Avaliar'"),
+ 'Listagem, filtro e botão de avaliação devem mostrar Conferir ajuste');
+assert.ok(index.includes('value="conferir_ajuste"'),
+ 'Filtro de status inclui Conferir ajuste');
 assert.equal(ratingWorkspace.items.length,1,'Apenas avaliação ativa deve aparecer');
 assert.equal(ratingWorkspace.items[0].demandaId,'d-active');
 assert.equal(ratingWorkspace.summary.total,1,'Média e SLA não devem incluir avaliações arquivadas');
