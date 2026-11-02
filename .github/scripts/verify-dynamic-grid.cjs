@@ -22,7 +22,7 @@ assert.ok(pickerHost.innerHTML.includes('LOJA TESTE - HOMOLOGAÇÃO')&&!pickerHo
 assert.ok(pickerHost.innerHTML.includes('checked'),'Seleção aparece marcada');
 pickerSearch.value='oscar';pickerCtx.renderStorePicker();
 assert.ok(pickerHost.innerHTML.includes('OSCAR FREIRE')&&!pickerHost.innerHTML.includes('LOJA TESTE'),'Termo filtra corretamente');
-assert.deepEqual(Array.from(pickerCtx.getSelectedStoreIds()),['TESTE_CONECTA'],'Seleção continua ativa mesmo invisível');
+assert.deepEqual(Object.keys(pickerCtx.STORE_PICKER_SELECTED),['TESTE_CONECTA'],'Seleção continua ativa mesmo invisível');
 // Testa a grade com zero linhas na definição e quantidade variável por resposta.
 const gridStart=client.indexOf('function manualGridRows_('),gridEnd=client.indexOf('function newField(',gridStart);
 assert.ok(gridStart>=0&&gridEnd>gridStart);
