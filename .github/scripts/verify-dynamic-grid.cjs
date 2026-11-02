@@ -28,7 +28,7 @@ const gridStart=client.indexOf('function manualGridRows_('),gridEnd=client.index
 assert.ok(gridStart>=0&&gridEnd>gridStart);
 const gridCtx=vm.createContext({safe});
 vm.runInContext(client.slice(gridStart,gridEnd),gridCtx);
-const grid={id:'manual_grid',label:'Levantamento',rows:[],columns:[
+const grid={id:'manual_grid',type:'grid',label:'Levantamento',rows:[],columns:[
  {label:'Produto',type:'text',required:true},{label:'Quantidade',type:'number',required:true},
  {label:'Obs.',type:'text',required:false}]};
 const response1={gridcell_manual_grid_0_0:'Sorvete',gridcell_manual_grid_0_1:'12',
