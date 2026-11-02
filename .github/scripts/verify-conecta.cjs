@@ -885,7 +885,7 @@ assert.equal(ops.slaRate,50);
 assert.equal(ops.respondedStores,2);
 assert.equal(testReport.id,'d-test');
 assert.equal(testReport.total,1);
-assert.equal(ops.items[0].responseHistory.length,1);
+assert.equal(ops.items.find(i=>i.id==='a2').responseHistory.length,1);
 const returnRow=ops.items.find(i=>i.id==='a1');
 assert.equal(returnRow.responseHistory.length,2,'Histórico de reenvios visível por avaliação');
 assert.ok(reportQueries.every(url=>!url.includes('post')&&!url.includes('patch')),'Relatórios só fazem leituras');
