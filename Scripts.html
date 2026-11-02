@@ -21,7 +21,6 @@ var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
 var REPORTS_DATA=null;
-var REPORTS_MODE='operacao';
 var REPORTS_SELECTED='';
 var ACCESS_DATA=null;
 
@@ -1773,48 +1772,57 @@ function loadReports(){
    safe(error&&error.message?error.message:String(error))+'</div>';
  }).getDemandReportsWorkspace();
 }
-function setReportMode(mode){
- REPORTS_MODE=mode==='homologacao'?'homologacao':'operacao';
- REPORTS_SELECTED='';document.getElementById('reportSearch').value='';
- renderReports();
-}
 function selectDemandReport(id){REPORTS_SELECTED=String(id||'');renderReports();}
 function renderReports(){
  if(!REPORTS_DATA)return;
- var test=REPORTS_MODE==='homologacao';
- document.getElementById('reportOperationMode').className='btn '+(test?'soft':'primary');
- document.getElementById('reportTestMode').className='btn '+(test?'primary':'soft');
- document.getElementById('reportModeDescription').textContent=test?
-   'Ambiente de homologação: avaliações de teste separadas dos indicadores oficiais.':
-   'Relatórios operacionais: avaliações das lojas reais, sem registros da homologação.';
- var list=(REPORTS_DATA.groups||[]).filter(function(g){return Boolean(g.isHomologacao)===test;});
- var filtered=list.filter(function(g){return String(g.title||'').toLowerCase().indexOf(
-  String(document.getElementById('reportSearch').value||'').trim().toLowerCase())>=0;});
- var total=list.reduce(function(sum,g){return sum+Number(g.total||0);},0);
- var approved=list.reduce(function(sum,g){return sum+Number(g.approved||0);},0);
- var adjustments=list.reduce(function(sum,g){return sum+Number(g.adjustment||0);},0);
- document.getElementById('reportSummary').innerHTML=[
-  [list.length,'Demandas com entregas'],[total,'Avaliações realizadas'],
-  [approved,'Aprovadas'],[adjustments,'Ajustes solicitados']
- ].map(kpiHtml).join('');
+ var list=REPORTS_DATA.groups||[];
+ var query=String(document.getElementById('reportSearch').value||'').trim().toLowerCase();
+ var filtered=list.filter(function(g){
+  return !query||String(g.title||'').toLowerCase().indexOf(query)>=0||
+   String(g.department||'').toLowerCase().indexOf(query)>=0;
+ });
  if(!filtered.some(function(g){return String(g.id)===String(REPORTS_SELECTED)})){
   REPORTS_SELECTED=filtered.length?String(filtered[0].id):'';
  }
  document.getElementById('reportDemandList').innerHTML=filtered.map(function(g){
-  return '<button type="button" class="report-demand-card'+(String(g.id)===String(REPORTS_SELECTED)?' selected':'')+
-    '" onclick="selectDemandReport(\''+safeJs(g.id)+'\')">'+
-    '<strong>'+safe(g.title)+'</strong>'+
-    '<span>'+g.respondedStores+' loja(s) responderam · '+g.total+' avaliação(ões)</span>'+
-    '<small>'+g.approved+' aprovadas · '+g.adjustment+' ajustes · '+g.rejected+' reprovadas</small>'+
-    '</button>';
- }).join('')||'<div class="empty">Nenhuma demanda encontrada neste ambiente.</div>';
+  return '<button type="button" class="report-demand-card'+
+   (String(g.id)===String(REPORTS_SELECTED)?' selected':'')+
+   '" onclick="selectDemandReport(\''+safeJs(g.id)+'\')">'+
+   '<strong>'+safe(g.title)+'</strong>'+
+   '<span>'+safe(g.department||'Operações')+' · '+safe(g.requestCategory||g.type)+'</span>'+
+   '<small>'+g.respondedStores+' de '+g.totalStores+' lojas responderam · '+
+   g.total+' avaliação(ões)</small>'+
+   (g.isHomologacao?'<span class="report-test-label">Homologação · fora dos indicadores oficiais</span>':'')+
+   '</button>';
+ }).join('')||'<div class="empty">Nenhuma demanda publicada encontrada.</div>';
  var selected=filtered.find(function(g){return String(g.id)===String(REPORTS_SELECTED)});
  var host=document.getElementById('reportDetail');
- if(!selected){host.innerHTML='<div class="empty">Nenhuma avaliação disponível para este filtro.</div>';return;}
- host.innerHTML='<div class="report-detail-head"><div><span class="eyebrow">'+
-  (test?'Homologação':'Relatório da demanda')+'</span><h3>'+safe(selected.title)+'</h3>'+
-  '<p class="muted">'+selected.respondedStores+' de '+selected.totalStores+
-  ' lojas responderam · '+selected.assessedStores+' avaliadas</p></div></div>'+
+ if(!selected){host.innerHTML='<div class="empty">Selecione uma demanda para visualizar seu relatório.</div>';return;}
+ var detail=function(label,value){return '<div class="report-info-item"><span>'+safe(label)+
+  '</span><strong>'+safe(value||'Não informado')+'</strong></div>';};
+ var dateValue=function(value){return value?formatDateTime(value):'Não informado';};
+ var statusText=selected.publishStatus==='closed'?'Encerrada':
+  selected.publishStatus==='scheduled'?'Agendada':'Publicada';
+ host.innerHTML='<div class="report-detail-head"><div><span class="eyebrow">DADOS DA DEMANDA'+
+  (selected.isHomologacao?' · HOMOLOGAÇÃO':'')+'</span><h3>'+safe(selected.title)+'</h3>'+
+  (selected.isHomologacao?'<span class="report-test-label">Ambiente de teste · fora dos indicadores oficiais</span>':'')+
+  '</div></div>'+
+  '<div class="report-info-grid">'+
+   detail('Assunto',selected.title)+detail('Departamento',selected.department||'Operações')+
+   detail('Tipo de solicitação',selected.requestCategory||selected.type)+
+   detail('Situação',statusText)+
+   detail('Publicada em',dateValue(selected.publishedAt))+
+   detail('Início',dateValue(selected.startsAt))+
+   detail('Prazo para responder',dateValue(selected.deadline))+
+   detail('Encerramento',dateValue(selected.closesAt))+
+  '</div>'+
+  '<div class="report-description"><span class="eyebrow">Descrição da solicitação</span>'+
+   '<p>'+safe(selected.description||'Nenhuma descrição cadastrada.')+'</p></div>'+
+  '<div class="report-progress"><strong>Acompanhamento das lojas</strong><p>'+
+   selected.respondedStores+' de '+selected.totalStores+' lojas responderam · '+
+   selected.assessedStores+' loja(s) avaliadas</p></div>'+
+  '<div class="report-section-heading"><h4>Resumo das avaliações</h4>'+
+  '<p class="muted">Notas e SLA calculados apenas sobre os registros desta demanda.</p></div>'+
   '<div class="report-mini-stats">'+
   '<div><strong>'+selected.total+'</strong><span>Avaliações</span></div>'+
   '<div><strong>'+selected.approved+'</strong><span>Aprovadas</span></div>'+
@@ -1822,7 +1830,7 @@ function renderReports(){
   '<div><strong>'+selected.rejected+'</strong><span>Reprovadas</span></div>'+
   '<div><strong>'+safe(selected.avgStars==null?'—':selected.avgStars)+'</strong><span>Média de estrelas</span></div>'+
   '<div><strong>'+safe(selected.slaRate==null?'—':selected.slaRate+'%')+'</strong><span>SLA cumprido</span></div></div>'+
-  '<div class="report-evals"><div class="report-eval-header">Avaliações individuais</div>'+
+  '<div class="report-evals"><div class="report-eval-header">Avaliações das lojas</div>'+
   ((selected.items||[]).length?selected.items.map(function(i){
    return '<div class="report-eval-row"><div><strong>'+safe(i.storeLabel||'Loja')+'</strong>'+
     '<small>'+safe(i.comment||'Sem comentário')+'</small></div>'+
@@ -1832,7 +1840,7 @@ function renderReports(){
     '<div><small>'+safe(formatDateTime(i.evaluatedAt)||'—')+'</small>'+
     '<button type="button" class="btn soft" onclick="openDemandReportEvaluation(\''+
     safeJs(selected.id)+'\',\''+safeJs(i.id)+'\')">Ver avaliação</button></div></div>';
-  }).join(''):'<div class="empty">Esta demanda ainda não tem avaliações registradas.</div>')+'</div>';
+  }).join(''):'<div class="empty">Nenhuma avaliação registrada para esta demanda até o momento.</div>')+'</div>';
 }
 function openDemandReportEvaluation(demandId,evaluationId){
  var group=((REPORTS_DATA||{}).groups||[]).find(function(g){return String(g.id)===String(demandId);});
