@@ -1283,9 +1283,9 @@ function renderResponses(){
   renderTestResponses();
   var data=RESPONSES_DATA||{items:[],stats:{}},st=data.stats||{};document.getElementById('responseKpis').innerHTML=[[st.total||0,'Recebidas'],[st.aprovadas||0,'Aprovadas'],[st.aguardando||0,'Aguardando análise'],[st.ajuste||0,'Ajuste necessário']].map(kpiHtml).join('');
   var q=(document.getElementById('responseSearch').value||'').toLowerCase().trim(),sf=document.getElementById('responseStatusFilter').value,df=document.getElementById('responseDemandFilter').value;
-  var list=(data.items||[]).filter(function(i){var text=((i.storeName||'')+' '+(i.demandaTitle||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(sf==='all'||i.status===sf)&&(df==='all'||String(i.demandaId)===df);});
+  var list=(data.items||[]).filter(function(i){var text=((i.storeName||'')+' '+(i.demandaTitle||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(sf==='all'||(i.displayStatus||i.status)===sf)&&(df==='all'||String(i.demandaId)===df);});
   var header='<div class="row header"><div>Loja</div><div>Demanda</div><div>Status</div><div>Atualização</div><div>Ação</div></div>';
-  document.getElementById('responsesTable').innerHTML=header+(list.length?list.map(function(i){return '<div class="row"><div><h4>'+safe(i.storeLabel)+'</h4><div class="muted">'+safe(i.userEmail||'')+'</div></div><div class="muted">'+safe(i.demandaTitle)+'</div><div><span class="status '+safe(i.status)+'">'+safe(responseStatusLabel(i.status))+'</span></div><div class="muted">'+safe(formatDateTime(i.createdAt))+'</div><div><button class="btn soft" onclick="openEvaluation(\''+safeJs(i.responseId)+'\')">Avaliar</button></div></div>';}).join(''):'<div class="empty">Nenhuma resposta encontrada.</div>');
+  document.getElementById('responsesTable').innerHTML=header+(list.length?list.map(function(i){return '<div class="row"><div><h4>'+safe(i.storeLabel)+'</h4><div class="muted">'+safe(i.userEmail||'')+'</div></div><div class="muted">'+safe(i.demandaTitle)+'</div><div><span class="status '+safe(i.displayStatus||i.status)+'">'+safe(responseStatusLabel(i.displayStatus||i.status))+'</span></div><div class="muted">'+safe(formatDateTime(i.createdAt))+'</div><div><button class="btn soft" onclick="openEvaluation(\''+safeJs(i.responseId)+'\')">'+(i.isCorrectionResubmission?'Conferir ajuste':'Avaliar')+'</button></div></div>';}).join(''):'<div class="empty">Nenhuma resposta encontrada.</div>');
 }
 // O prazo é calculado pela primeira resposta, conforme a regra de SLA do servidor.
 // Uma correção posterior não muda a classificação da primeira entrega.
@@ -1922,7 +1922,7 @@ function setSelectOptions(id,allLabel,values){var el=document.getElementById(id)
 function kpiHtml(x){return '<div class="kpi"><strong>'+Number(x[0]||0)+'</strong><span>'+safe(x[1])+'</span></div>';}
 function typeLabel(t){return String(t||'').toLowerCase()==='campanha'?'Campanha':String(t||'').toLowerCase()==='comunicado'?'Comunicado':'Demanda';}
 function timelineLabel(s){return ({draft:'Rascunho',scheduled:'Agendada',active:'Em andamento',due_today:'Vence hoje',late:'Em atraso',completed:'Concluída',closed:'Encerrada',ajuste_necessario:'Ajuste necessário',reprovada:'Reprovada',aguardando_analise:'Aguardando análise'})[s]||'Em andamento';}
-function responseStatusLabel(s){return ({respondido:'Aguardando análise',aprovada:'Aprovada',ajuste_necessario:'Ajuste necessário',reprovada:'Reprovada'})[s]||s||'Aguardando análise';}
+function responseStatusLabel(s){return ({respondido:'Aguardando análise',aprovada:'Aprovada',ajuste_necessario:'Ajuste necessário',reprovada:'Reprovada',conferir_ajuste:'Conferir ajuste'})[s]||s||'Aguardando análise';}
 function fieldTypeLabel(t){return ({text:'Texto curto',textarea:'Texto longo',number:'Número',boolean:'Sim / Não',date:'Data',select:'Lista de opções'})[t]||'Texto curto';}
 function hasReminder(arr,tipo){return (arr||[]).some(function(r){return typeof r==='string'?r===tipo:String((r||{}).tipo||'')===tipo&&r.ativo!==false;});}
 function formatAnswer(v){if(v===null||v===undefined||v==='')return'—';if(typeof v==='object')return JSON.stringify(v);return String(v);}

@@ -1361,6 +1361,21 @@ function buildResponsesWorkspaceV2_(
     }
   );
 
+  // Detectar o reenvio de uma correção sem alterar a situação persistida
+  // (respondido) nem a lista de avaliações. A resposta anterior mais recente
+  // deve ter sido devolvida como ajuste necessário ou reprovada.
+  var previousResponseByKey = {};
+  respostas.forEach(function(r){
+    var key=String(r.demanda_id||'')+'|'+String(r.loja_id||'');
+    var newest=latest[key];
+    if(!newest || String(r.id)===String(newest.id))return;
+    if(String(r.created_at||'')>=String(newest.created_at||''))return;
+    if(!previousResponseByKey[key]||
+      String(r.created_at||'')>String(previousResponseByKey[key].created_at||'')){
+      previousResponseByKey[key]=r;
+    }
+  });
+
   var items =
     Object.keys(
       latest
@@ -1387,6 +1402,12 @@ function buildResponsesWorkspaceV2_(
 
         var evaluation =
           evaluationMap[key] && String(evaluationMap[key].resposta_id||'')===String(r.id) ? evaluationMap[key] : null;
+
+        var previous=previousResponseByKey[key];
+        var isCorrectionResubmission = !evaluation &&
+          String(r.status||'respondido').toLowerCase()==='respondido' &&
+          !!previous &&
+          ['ajuste_necessario','reprovada'].indexOf(String(previous.status||'').toLowerCase())>=0;
 
         return {
           responseId:
@@ -1437,6 +1458,14 @@ function buildResponsesWorkspaceV2_(
                   r.status ||
                   'respondido'
                 ),
+
+          // Somente visual: manter status oficial "respondido" no banco.
+          displayStatus:
+            isCorrectionResubmission ? 'conferir_ajuste' :
+              (evaluation ? String(evaluation.status||'respondido') : String(r.status||'respondido')),
+
+          isCorrectionResubmission:
+            Boolean(isCorrectionResubmission),
 
           answers:
             normalizeJsonObject_(
