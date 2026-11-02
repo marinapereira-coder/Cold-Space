@@ -922,3 +922,6 @@ console.log('OK — Relatórios por demanda, histórico de reenvios, SLA, homolo
 
 // Contrato de homologação separada de lojas reais.
 require('./verify-homologacao.cjs');
+
+// BR-044: Criação manual em formato planilha, relatório ou formulário.
+require('./verify-new-builders.cjs');
