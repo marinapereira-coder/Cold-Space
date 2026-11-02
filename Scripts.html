@@ -21,6 +21,13 @@ var STORE_IMPORT_PREVIEW=null;
 var AUTH_MODE='';
 var STORE_ACCESS_TOKEN='';
 var STORE_REFRESH_TOKEN='';
+var STORE_LIVE_TIMER=null;
+var STORE_LIVE_GENERATION=0;
+var STORE_LIVE_LOADING=false;
+var STORE_LIVE_SIGNAL_ID='';
+var STORE_LIVE_LAST_CHECK=0;
+var STORE_LIVE_LAST_FULL_REFRESH=0;
+var STORE_LIVE_POLL_MS=25000;
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
@@ -73,6 +80,8 @@ function bindEvents(){
   document.getElementById('notificationPanel').onclick=function(e){e.stopPropagation();};
   document.addEventListener('click',closeNotificationPanel);
   document.getElementById('markAllReadBtn').onclick=markAllNotificationsRead;
+  document.addEventListener('visibilitychange',handleStoreLiveVisibility_);
+  window.addEventListener('focus',handleStoreLiveVisibility_);
 
   document.getElementById('storeLoginBtn').onclick=doStoreLogin;
   document.getElementById('storeLoginPassword').addEventListener('keydown',function(e){if(e.key==='Enter'){doStoreLogin();}});
@@ -182,6 +191,7 @@ function startApp(data){
 
     CALENDAR_DATA=null;EVALUATION_DATA=null;REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     renderAllCore();
+    startStoreLiveSync_();
     if(AUTH_MODE==='corporate')syncVerifiedPortalRole_();
   }catch(error){showError('Erro ao montar a interface: '+error.message);}
 }
@@ -1892,6 +1902,107 @@ function applyStoreImport(){if(!STORE_IMPORT_PREVIEW)return;var btn=document.get
 function openGeneric(eyebrow,title,body,onSave){document.getElementById('genericModal').classList.remove('bacio-evaluation-modal');document.getElementById('genericEyebrow').textContent=eyebrow;document.getElementById('genericTitle').textContent=title;document.getElementById('genericBody').innerHTML=body;document.getElementById('genericSaveBtn').onclick=onSave;document.getElementById('genericSaveBtn').textContent='Salvar';openModal('genericModal');}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){var el=document.getElementById(id);if(el)el.classList.remove('open');}
+
+// BR-046: receber demandas/notificações na sessão aberta, sem atualizar o documento.
+// O sinal é leve, pertence à loja autenticada e não transporta dados de outras lojas.
+function stopStoreLiveSync_(){
+ STORE_LIVE_GENERATION++;
+ if(STORE_LIVE_TIMER)clearTimeout(STORE_LIVE_TIMER);
+ STORE_LIVE_TIMER=null;STORE_LIVE_LOADING=false;
+}
+function storeLiveActive_(){
+ return AUTH_MODE==='store'&&CURRENT_ROLE==='loja'&&!!STORE_ACCESS_TOKEN;
+}
+function scheduleStoreLivePoll_(delay){
+ if(STORE_LIVE_TIMER)clearTimeout(STORE_LIVE_TIMER);
+ if(!storeLiveActive_())return;
+ var generation=STORE_LIVE_GENERATION;
+ STORE_LIVE_TIMER=setTimeout(function(){
+  STORE_LIVE_TIMER=null;
+  if(generation===STORE_LIVE_GENERATION)pollStoreLiveUpdates_();
+ },delay);
+}
+function startStoreLiveSync_(){
+ stopStoreLiveSync_();
+ if(!storeLiveActive_())return;
+ STORE_LIVE_SIGNAL_ID=String(((APP_DATA.notifications||[])[0]||{}).id||'');
+ STORE_LIVE_LAST_CHECK=Date.now();
+ STORE_LIVE_LAST_FULL_REFRESH=Date.now();
+ scheduleStoreLivePoll_(STORE_LIVE_POLL_MS);
+}
+function handleStoreLiveVisibility_(){
+ if(storeLiveActive_()&&!document.hidden&&Date.now()-STORE_LIVE_LAST_CHECK>=10000)
+  pollStoreLiveUpdates_();
+}
+function pollStoreLiveUpdates_(){
+ if(!storeLiveActive_())return;
+ if(document.hidden){scheduleStoreLivePoll_(STORE_LIVE_POLL_MS);return;}
+ if(STORE_LIVE_LOADING)return;
+ var generation=STORE_LIVE_GENERATION;
+ STORE_LIVE_LOADING=true;
+ STORE_LIVE_LAST_CHECK=Date.now();
+ google.script.run.withSuccessHandler(function(signal){
+  if(generation!==STORE_LIVE_GENERATION)return;
+  var newest=String((signal||{}).latestNotificationId||'');
+  if(newest!==STORE_LIVE_SIGNAL_ID||Date.now()-STORE_LIVE_LAST_FULL_REFRESH>=180000){
+   fetchStoreLiveUpdates_(generation);return;
+  }
+  STORE_LIVE_LOADING=false;
+  scheduleStoreLivePoll_(STORE_LIVE_POLL_MS);
+ }).withFailureHandler(function(error){
+  if(generation!==STORE_LIVE_GENERATION)return;
+  STORE_LIVE_LOADING=false;
+  var message=String(error&&error.message||error||'');
+  if(STORE_REFRESH_TOKEN&&/sess[aã]o|token|jwt|expirad|invalid/i.test(message)){
+   refreshStoreLiveSession_(generation);return;
+  }
+  scheduleStoreLivePoll_(60000);
+ }).getStoreLiveSignal(STORE_ACCESS_TOKEN);
+}
+function applyStoreLiveUpdates_(data,generation){
+ if(generation!==STORE_LIVE_GENERATION)return;
+ var known={};
+ ((APP_DATA||{}).notifications||[]).forEach(function(n){known[String(n.id)]=true;});
+ var received=(data.notifications||[]).filter(function(n){return !known[String(n.id)];});
+ APP_DATA=data;APP_DATA.authMode='store';
+ // Nunca chamar startApp ou recarregar o documento: preserva a planilha
+ // e qualquer formulário aberto enquanto a gestão publica a solicitação.
+ renderHome();renderCampaignManagement();renderNotices();renderNotifications();renderAgenda();
+ STORE_LIVE_SIGNAL_ID=String(((data.notifications||[])[0]||{}).id||'');
+ STORE_LIVE_LAST_FULL_REFRESH=Date.now();
+ STORE_LIVE_LOADING=false;
+ scheduleStoreLivePoll_(STORE_LIVE_POLL_MS);
+ if(received.some(function(n){return String(n.title||'')==='Nova solicitação publicada';}))
+  showToast('Nova demanda recebida! Abra o sino de notificações para responder.');
+ else if(received.some(function(n){return n.requiresCorrection===true;}))
+  showToast('Ajuste solicitado. Abra as notificações para revisar sua resposta.');
+}
+function fetchStoreLiveUpdates_(generation){
+ google.script.run.withSuccessHandler(function(data){
+  if(generation===STORE_LIVE_GENERATION)applyStoreLiveUpdates_(data,generation);
+ }).withFailureHandler(function(error){
+  if(generation!==STORE_LIVE_GENERATION)return;
+  STORE_LIVE_LOADING=false;
+  scheduleStoreLivePoll_(60000);
+  console.warn('Falha na atualização automática da loja:',error);
+ }).getStoreBootstrap(STORE_ACCESS_TOKEN);
+}
+function refreshStoreLiveSession_(generation){
+ google.script.run.withSuccessHandler(function(result){
+  if(generation!==STORE_LIVE_GENERATION)return;
+  STORE_ACCESS_TOKEN=String(result.accessToken||STORE_ACCESS_TOKEN);
+  STORE_REFRESH_TOKEN=String(result.refreshToken||STORE_REFRESH_TOKEN);
+  sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);
+  sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);
+  applyStoreLiveUpdates_(result.bootstrap||{},generation);
+ }).withFailureHandler(function(error){
+  if(generation!==STORE_LIVE_GENERATION)return;
+  STORE_LIVE_LOADING=false;
+  scheduleStoreLivePoll_(60000);
+  console.warn('Falha ao renovar sessão para avisos automáticos:',error);
+ }).storeRefreshSession(STORE_REFRESH_TOKEN);
+}
+
 function refreshBootstrap(page){
   var ok=function(data){startApp(data);showPage(page||CURRENT_PAGE||'home');};
   var run=google.script.run.withSuccessHandler(ok).withFailureHandler(serverError);
@@ -1927,7 +2038,7 @@ function showStorePasswordChange(){document.getElementById('app').style.display=
 function doStoreLogin(){var email=document.getElementById('storeLoginEmail').value.trim(),password=document.getElementById('storeLoginPassword').value;setBusy('storeLoginBtn',true,'Entrando...');document.getElementById('storeLoginMessage').textContent='';google.script.run.withSuccessHandler(function(result){setBusy('storeLoginBtn',false,'Entrar');STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||'';sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store';var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(e){setBusy('storeLoginBtn',false,'Entrar');document.getElementById('storeLoginMessage').textContent=e&&e.message?e.message:String(e);}).storeLogin(email,password);}
 function doStorePasswordChange(){var a=document.getElementById('storeNewPassword').value,b=document.getElementById('storeNewPassword2').value;if(a.length<8){showToast('A senha deve ter pelo menos 8 caracteres.');return;}if(a!==b){showToast('As senhas não são iguais.');return;}setBusy('storeChangePasswordBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');showToast('Senha alterada.');google.script.run.withSuccessHandler(function(data){data.authMode='store';startApp(data);}).withFailureHandler(serverError).getStoreBootstrap(STORE_ACCESS_TOKEN);}).withFailureHandler(function(e){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');serverError(e);}).storeChangePassword(STORE_ACCESS_TOKEN,a);}
 function tryStoreRefreshOrLogin(){if(!STORE_REFRESH_TOKEN){clearStoreSession();showStoreLogin();return;}google.script.run.withSuccessHandler(function(result){STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||STORE_REFRESH_TOKEN;sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(){clearStoreSession();showStoreLogin();}).storeRefreshSession(STORE_REFRESH_TOKEN);}
-function clearStoreSession(){STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
+function clearStoreSession(){stopStoreLiveSync_();STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
 
 /* ============================================================
    V2: CALENDÁRIO

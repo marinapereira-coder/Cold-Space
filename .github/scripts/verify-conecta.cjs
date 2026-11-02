@@ -929,3 +929,6 @@ require('./verify-new-builders.cjs');
 
 // BR-045: filtro de lojas e planilha dinâmica com exportação.
 require('./verify-dynamic-grid.cjs');
+
+// BR-046: avisos e demandas na loja sem F5, por sinal autenticado.
+require('./verify-live-store.cjs');

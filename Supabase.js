@@ -678,7 +678,7 @@ function mapBacioNotification_(n) {
  return {id:n.id,title:n.titulo||n.title||'Notificação',
   message:tag?message.slice(0,tag.index).trim():message,
   demandId:tag?tag[1]:(n.demanda_id||n.demandId||null),
-  requiresCorrection:Boolean(tag),read:Boolean(n.lida||n.read),
+  requiresCorrection:Boolean(tag) && /^(ajuste solicitado|entrega reprovada)$/i.test(String(n.titulo||n.title||'').trim()),read:Boolean(n.lida||n.read),
   createdAt:n.created_at||n.createdAt||''};
 }
 function getResponseCorrectionFeedback_(demandId,storeId,responseId){
@@ -1033,6 +1033,9 @@ function notifyDemandPublished_(auth, demand) {
   var emails=Object.keys(recipients);
   if(!emails.length)return {sent:0,reason:'no_active_recipients'};
   var now=new Date().toISOString(),message='Nova '+(demand.type==='campanha'?'campanha':'demanda')+' publicada: '+demand.title;
+  // Abrir a demanda pelo ID, sem depender de correspondência do título.
+  var demandId=String(demand.id||'');
+  if(/^[a-z0-9-]{1,80}$/i.test(demandId))message+=' [[bacio-demand:'+demandId+']]';
   var payload=emails.map(function(email){return {
     usuario_email:email,titulo:'Nova solicitação publicada',mensagem:message,
     lida:false,created_at:now
