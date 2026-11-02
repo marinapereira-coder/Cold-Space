@@ -134,6 +134,16 @@ function getStoreBootstrap(accessToken) {
 }
 
 
+// Sinal leve e restrito ao último aviso da própria loja, sem dados de outras unidades.
+function getStoreLiveSignal(accessToken) {
+ var ctx=getStoreAuthContext_(accessToken);
+ if(roleOf_(ctx.user)!=='loja')throw new Error('Disponível somente para o acesso de loja.');
+ var rows=supabaseRequest_('/rest/v1/'+table_('TABLE_NOTIFICACOES','bacio_notificacoes')+
+  '?select=id&usuario_email=eq.'+encodeURIComponent(String(ctx.email))+
+  '&order=created_at.desc&limit=1','get')||[];
+ return {latestNotificationId:rows.length?String(rows[0].id||''):''};
+}
+
 function getStoreAuthContext_(accessToken) {
   accessToken = String(accessToken || '').trim();
 
