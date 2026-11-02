@@ -297,6 +297,11 @@
         </button>
 
 
+        <button id="reportsNavBtn" class="nav-btn" data-page="relatorios">
+          <span class="nav-dot"></span>
+          Relatórios
+        </button>
+
         <button
           class="nav-btn"
           data-page="lojas">
@@ -1467,6 +1472,35 @@
 
           </div>
 
+        </section>
+
+
+        <!-- RELATÓRIOS DE AVALIAÇÕES POR DEMANDA -->
+        <section id="page-relatorios" class="page">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">Gestão · Indicadores por solicitação</span>
+              <h2 class="page-title">Relatórios</h2>
+              <p class="subtitle">Acompanhe cada demanda e consulte as avaliações individuais das lojas.</p>
+            </div>
+            <button id="refreshReportsBtn" class="btn soft">Atualizar</button>
+          </div>
+          <div class="report-mode" role="group" aria-label="Ambiente dos relatórios">
+            <button type="button" id="reportOperationMode" class="btn primary" onclick="setReportMode('operacao')">Operação</button>
+            <button type="button" id="reportTestMode" class="btn soft" onclick="setReportMode('homologacao')">Homologação</button>
+          </div>
+          <p id="reportModeDescription" class="helper">Somente dados operacionais reais entram nos indicadores.</p>
+          <div id="reportSummary" class="kpi-grid"></div>
+          <div class="report-layout">
+            <div class="report-demand-panel">
+              <label class="label" for="reportSearch">Demandas</label>
+              <input id="reportSearch" class="field" type="search" placeholder="Buscar uma demanda...">
+              <div id="reportDemandList" class="report-demand-list"></div>
+            </div>
+            <div id="reportDetail" class="report-detail-panel">
+              <div class="empty">Selecione uma demanda para visualizar o relatório.</div>
+            </div>
+          </div>
         </section>
 
 
