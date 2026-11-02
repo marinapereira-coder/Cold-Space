@@ -823,5 +823,84 @@ console.log('OK — Central sem painel visual, aprovação preservada, devoluç�
 console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, planilhas, abas privadas e permissões.');
 
 
+
+/* BR-042 — Relatórios de avaliações por demanda, seguros e sem escrita. */
+const reportSlice=modern.slice(modern.indexOf('function getDemandReportsWorkspace()'));
+assert.ok(reportSlice.includes('function buildDemandReportsWorkspaceV2_('),'Relatórios no servidor');
+const reportFixtureDemands=[
+ {id:'d-real',titulo:'Conferência Real',tipo:'demanda',ativa:true,loja_ids:['1'],created_at:'2026-11-02'},
+ {id:'d-test',titulo:'Teste',tipo:'demanda',ativa:true,loja_ids:['TESTE_CONECTA'],created_at:'2026-11-02'},
+ {id:'d-old',titulo:'Excluída',tipo:'demanda',ativa:false,loja_ids:['1']}
+];
+const reportFixtureEvals=[
+ {id:'a1',demanda_id:'d-real',loja_id:'1',resposta_id:'r1',status:'ajuste_necessario',estrelas:null,sla_cumprido:true},
+ {id:'a2',demanda_id:'d-real',loja_id:'2',resposta_id:'r2',status:'aprovada',estrelas:5,sla_cumprido:false},
+ {id:'a3',demanda_id:'d-test',loja_id:'TESTE_CONECTA',resposta_id:'rt',status:'aprovada',estrelas:5,sla_cumprido:true},
+ {id:'a4',demanda_id:'d-old',loja_id:'1',resposta_id:'rold',status:'aprovada',estrelas:5,sla_cumprido:true}
+];
+const reportFixtureResponses=[
+ {id:'r-old',demanda_id:'d-real',loja_id:'1',status:'ajuste_necessario',created_at:'2026-11-01T08:00:00Z'},
+ {id:'r1',demanda_id:'d-real',loja_id:'1',status:'respondido',created_at:'2026-11-02T08:00:00Z'},
+ {id:'r2',demanda_id:'d-real',loja_id:'2',status:'respondido',created_at:'2026-11-01T09:00:00Z'},
+ {id:'rt',demanda_id:'d-test',loja_id:'TESTE_CONECTA',status:'respondido',created_at:'2026-11-02T09:00:00Z'},
+ {id:'rold',demanda_id:'d-old',loja_id:'1',status:'respondido',created_at:'2026-11-02T09:00:00Z'}
+];
+const reportQueries=[];
+const reportCtx=vm.createContext({
+ getCurrentAuthContext_:()=>({user:{role:'admin'}}),
+ roleOf_:u=>u.role,
+ getVisibleStores_:()=>[
+  {id:'1',nome:'LJ 0001',codigo:'0001'},
+  {id:'2',nome:'LJ 0002',codigo:'0002'},
+  {id:'TESTE_CONECTA',nome:'LOJA TESTE',codigo:'TESTE'}],
+ table_:(_key,def)=>def,
+ safeSupabaseSelect_:url=>{
+  reportQueries.push(url);
+  if(url.includes('bacio_demandas'))return reportFixtureDemands.filter(d=>d.ativa===true);
+  if(url.includes('bacio_avaliacoes'))return reportFixtureEvals;
+  if(url.includes('bacio_demanda_respostas'))return reportFixtureResponses;
+  return [];
+ },
+ getTargetStoreIds_:(d,ids)=>(d.loja_ids||[]).filter(id=>ids.includes(id)),
+ isConectaTestDemand_:d=>(d.loja_ids||[]).length===1&&d.loja_ids[0]==='TESTE_CONECTA',
+ mapEvaluationRowV2_:(a,d,s)=>({
+  id:a.id,responseId:a.resposta_id,storeId:a.loja_id,storeLabel:s.nome,
+  status:a.status,stars:a.estrelas,slaMet:a.sla_cumprido,
+  evaluatedAt:'2026-11-02T10:00:00Z',comment:'',demandId:a.demanda_id}),
+ roundOneV2_:n=>Math.round(10*n)/10,
+ Date
+});
+vm.runInContext(reportSlice,reportCtx);
+assert.throws(()=>reportCtx.buildDemandReportsWorkspaceV2_({role:'loja'}),/não autorizado/,
+ 'Lojas não podem consultar relatórios administrativos');
+const reports=reportCtx.getDemandReportsWorkspace();
+assert.equal(reports.groups.length,2,'Excluídas não aparecem e relatórios são por demanda');
+const ops=reports.groups.find(g=>!g.isHomologacao),testReport=reports.groups.find(g=>g.isHomologacao);
+assert.equal(ops.id,'d-real');
+assert.equal(ops.total,2);
+assert.equal(ops.approved,1);
+assert.equal(ops.adjustment,1);
+assert.equal(ops.avgStars,5,'Nota ausente nunca é zero');
+assert.equal(ops.slaRate,50);
+assert.equal(ops.respondedStores,2);
+assert.equal(testReport.id,'d-test');
+assert.equal(testReport.total,1);
+assert.equal(ops.items.find(i=>i.id==='a2').responseHistory.length,1);
+const returnRow=ops.items.find(i=>i.id==='a1');
+assert.equal(returnRow.responseHistory.length,2,'Histórico de reenvios visível por avaliação');
+assert.ok(reportQueries.length===3 && reportQueries.every(url=>url.startsWith('/rest/v1/')) && !reportSlice.includes('supabaseRequest_('), 'Relatórios só fazem consultas de leitura');
+const reportView=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
+const reportIndex=fs.readFileSync(path.join(__dirname,'../../Index.html'),'utf8');
+assert.ok(reportView.includes("REPORTS_MODE==='homologacao'")&&
+ reportView.includes("openDemandReportEvaluation(")&&
+ reportView.includes("getDemandReportsWorkspace()"),
+ 'Visões de relatórios precisam ser separadas, pesquisáveis e detalhadas');
+assert.ok(reportIndex.includes('id="page-relatorios"')&&
+ reportIndex.includes('id="reportsNavBtn"')&&
+ reportView.includes("page==='relatorios'&&CURRENT_ROLE!=='admin'"),
+ 'Página de Relatórios protegida na navegação');
+assert.ok(rules.includes('BR-042'),'Banco de Regras inclui relatórios por demanda');
+console.log('OK — Relatórios por demanda, histórico de reenvios, SLA, homologação e autorização.');
+
 // Contrato de homologação separada de lojas reais.
 require('./verify-homologacao.cjs');

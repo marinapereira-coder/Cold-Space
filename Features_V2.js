@@ -6219,3 +6219,78 @@ function sendStoreChatDirectMessage(token,input){
   var ctx=getStoreAuthContext_(token),v=input||{};
   return writeChatDirectMessageV2_(ctx.user,ctx.email,v.recipientEmail,v.message);
 }
+
+
+// Relatórios de avaliações por demanda — somente a administração.
+// A homologação é entregue em seção própria, sem integrar os KPIs oficiais.
+// Busca apenas demandas ativas e não altera qualquer resposta ou avaliação.
+function getDemandReportsWorkspace() {
+  var auth=getCurrentAuthContext_();
+  if(roleOf_(auth.user)!=='admin')throw new Error('Relatórios disponíveis apenas para administradores.');
+  return buildDemandReportsWorkspaceV2_(auth.user);
+}
+function buildDemandReportsWorkspaceV2_(user) {
+  if(roleOf_(user)!=='admin')throw new Error('Perfil não autorizado para relatórios.');
+  var stores=getVisibleStores_(user),storeById={},visible={};
+  stores.forEach(function(store){
+    var id=String(store.id);
+    visible[id]=true;
+    storeById[id]=store;
+  });
+  var demands=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=id,titulo,tipo,status,ativa,loja_ids,created_at,prazo_sla&ativa=eq.true&order=created_at.desc&limit=5000',[])
+    .filter(function(d){return d.ativa===true;});
+  var demandById={};
+  demands.forEach(function(d){demandById[String(d.id)]=d;});
+  var rawEvals=safeSupabaseSelect_('/rest/v1/bacio_avaliacoes?select=*&order=updated_at.desc&limit=10000',[])
+    .filter(function(a){return !!demandById[String(a.demanda_id)] && !!visible[String(a.loja_id)];});
+  var rawResponses=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_RESPOSTAS','bacio_demanda_respostas')+
+    '?select=id,demanda_id,loja_id,status,created_at&order=created_at.desc&limit=10000',[])
+    .filter(function(r){return !!demandById[String(r.demanda_id)] && !!visible[String(r.loja_id)];});
+  var historyByKey={};
+  rawResponses.forEach(function(r){
+    var key=String(r.demanda_id)+'|'+String(r.loja_id);
+    if(!historyByKey[key])historyByKey[key]=[];
+    historyByKey[key].push({responseId:String(r.id),status:String(r.status||'respondido'),
+      sentAt:r.created_at||''});
+  });
+  var evaluationsByDemand={};
+  rawEvals.forEach(function(a){
+    var id=String(a.demanda_id),key=id+'|'+String(a.loja_id);
+    var item=mapEvaluationRowV2_(a,demandById[id],storeById[String(a.loja_id)]||{});
+    // Só a avaliação correspondente à sua resposta fica associada àquela versão.
+    var history=historyByKey[key]||[];
+    item.responseHistory=history.map(function(h){return {
+      responseId:h.responseId,status:h.status,sentAt:h.sentAt,
+      evaluatedHere:String(item.responseId)===String(h.responseId)
+    };});
+    if(!evaluationsByDemand[id])evaluationsByDemand[id]=[];
+    evaluationsByDemand[id].push(item);
+  });
+  var groups=demands.filter(function(d){
+    var id=String(d.id);
+    return (evaluationsByDemand[id]||[]).length>0 || rawResponses.some(function(r){return String(r.demanda_id)===id;});
+  }).map(function(d){
+    var id=String(d.id),rows=evaluationsByDemand[id]||[];
+    var historyKeys=Object.keys(historyByKey).filter(function(key){return key.indexOf(id+'|')===0;});
+    var assessed={},responseStores={};
+    rows.forEach(function(i){assessed[String(i.storeId)]=true;});
+    historyKeys.forEach(function(key){responseStores[key.slice(id.length+1)]=true;});
+    var rated=rows.filter(function(i){return i.stars!=null&&i.stars>=1&&i.stars<=5;});
+    var sla=rows.filter(function(i){return i.slaMet===true||i.slaMet===false;});
+    var targetIds=getTargetStoreIds_(d,stores.map(function(s){return String(s.id);}));
+    return {
+      id:id,title:String(d.titulo||'Demanda'),type:String(d.tipo||'demanda'),
+      isHomologacao:isConectaTestDemand_(d),createdAt:d.created_at||'',
+      totalStores:targetIds.length,respondedStores:Object.keys(responseStores).length,
+      assessedStores:Object.keys(assessed).length,total:rows.length,
+      approved:rows.filter(function(i){return i.status==='aprovada';}).length,
+      adjustment:rows.filter(function(i){return i.status==='ajuste_necessario';}).length,
+      rejected:rows.filter(function(i){return i.status==='reprovada';}).length,
+      avgStars:rated.length?roundOneV2_(rated.reduce(function(sum,i){return sum+i.stars;},0)/rated.length):null,
+      slaRate:sla.length?Math.round(100*sla.filter(function(i){return i.slaMet===true;}).length/sla.length):null,
+      items:rows.sort(function(a,b){return String(b.evaluatedAt||'').localeCompare(String(a.evaluatedAt||''));})
+    };
+  });
+  return {generatedAt:new Date().toISOString(),groups:groups};
+}
