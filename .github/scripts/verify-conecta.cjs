@@ -828,8 +828,11 @@ console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, pl
 const reportSlice=modern.slice(modern.indexOf('function getDemandReportsWorkspace()'));
 assert.ok(reportSlice.includes('function buildDemandReportsWorkspaceV2_('),'Relatórios no servidor');
 const reportFixtureDemands=[
- {id:'d-real',titulo:'Conferência Real',tipo:'demanda',ativa:true,loja_ids:['1'],created_at:'2026-11-02'},
- {id:'d-test',titulo:'Teste',tipo:'demanda',ativa:true,loja_ids:['TESTE_CONECTA'],created_at:'2026-11-02'},
+ {id:'d-real',titulo:'Conferência Real',descricao:'Conferir produtos',tipo:'demanda',status:'active',ativa:true,loja_ids:['1'],cronograma:{departamentoSolicitante:'Qualidade',tipoSolicitacao:'Auditoria'},publicada_em:'2026-11-02',created_at:'2026-11-02'},
+ {id:'d-test',titulo:'Teste',tipo:'demanda',status:'active',ativa:true,loja_ids:['TESTE_CONECTA'],created_at:'2026-11-02'},
+ {id:'d-empty',titulo:'Sem respostas',tipo:'demanda',status:'active',ativa:true,loja_ids:['1'],created_at:'2026-11-01'},
+ {id:'d-draft',titulo:'Rascunho',tipo:'demanda',status:'draft',ativa:true,loja_ids:['1']},
+ {id:'d-note',titulo:'Comunicado',tipo:'comunicado',status:'active',ativa:true,loja_ids:['1']},
  {id:'d-old',titulo:'Excluída',tipo:'demanda',ativa:false,loja_ids:['1']}
 ];
 const reportFixtureEvals=[
@@ -862,6 +865,8 @@ const reportCtx=vm.createContext({
   return [];
  },
  getTargetStoreIds_:(d,ids)=>(d.loja_ids||[]).filter(id=>ids.includes(id)),
+ isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
+ normalizeJsonObject_:v=>v||{},
  isConectaTestDemand_:d=>(d.loja_ids||[]).length===1&&d.loja_ids[0]==='TESTE_CONECTA',
  mapEvaluationRowV2_:(a,d,s)=>({
   id:a.id,responseId:a.resposta_id,storeId:a.loja_id,storeLabel:s.nome,
@@ -874,9 +879,15 @@ vm.runInContext(reportSlice,reportCtx);
 assert.throws(()=>reportCtx.buildDemandReportsWorkspaceV2_({role:'loja'}),/não autorizado/,
  'Lojas não podem consultar relatórios administrativos');
 const reports=reportCtx.getDemandReportsWorkspace();
-assert.equal(reports.groups.length,2,'Excluídas não aparecem e relatórios são por demanda');
+assert.equal(reports.groups.length,3,'Apenas demandas publicadas, incluindo as sem resposta, entram no relatório');
+assert.ok(reports.groups.find(g=>g.id==='d-empty'&&g.total===0&&g.respondedStores===0),'Demanda ainda não respondida deve aparecer');
+assert.ok(!reports.groups.some(g=>['d-draft','d-note','d-old'].includes(g.id)),'Rascunhos, comunicados e excluídas ficam de fora');
 const ops=reports.groups.find(g=>!g.isHomologacao),testReport=reports.groups.find(g=>g.isHomologacao);
 assert.equal(ops.id,'d-real');
+assert.equal(ops.department,'Qualidade');
+assert.equal(ops.requestCategory,'Auditoria');
+assert.equal(ops.description,'Conferir produtos');
+assert.equal(ops.publishedAt,'2026-11-02');
 assert.equal(ops.total,2);
 assert.equal(ops.approved,1);
 assert.equal(ops.adjustment,1);
@@ -891,15 +902,22 @@ assert.equal(returnRow.responseHistory.length,2,'Histórico de reenvios visível
 assert.ok(reportQueries.length===3 && reportQueries.every(url=>url.startsWith('/rest/v1/')) && !reportSlice.includes('supabaseRequest_('), 'Relatórios só fazem consultas de leitura');
 const reportView=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
 const reportIndex=fs.readFileSync(path.join(__dirname,'../../Index.html'),'utf8');
-assert.ok(reportView.includes("REPORTS_MODE==='homologacao'")&&
- reportView.includes("openDemandReportEvaluation(")&&
- reportView.includes("getDemandReportsWorkspace()"),
- 'Visões de relatórios precisam ser separadas, pesquisáveis e detalhadas');
+assert.ok(!reportView.includes('REPORTS_MODE') &&
+ !reportIndex.includes('reportOperationMode') &&
+ !reportIndex.includes('reportTestMode'),
+ 'Relatórios exibem uma lista única, sem abas Operação/Homologação');
+assert.ok(reportView.includes('openDemandReportEvaluation(') &&
+ reportView.includes('getDemandReportsWorkspace()') &&
+ reportView.indexOf("detail('Assunto'")>=0 &&
+ reportView.indexOf("detail('Assunto'")<reportView.indexOf("Avaliações das lojas") &&
+ reportView.includes("detail('Departamento'") &&
+ reportView.includes('report-test-label'),
+ 'Dados da demanda vêm antes de avaliações e homologação tem marcador discreto');
 assert.ok(reportIndex.includes('id="page-relatorios"')&&
  reportIndex.includes('id="reportsNavBtn"')&&
  reportView.includes("page==='relatorios'&&CURRENT_ROLE!=='admin'"),
  'Página de Relatórios protegida na navegação');
-assert.ok(rules.includes('BR-042'),'Banco de Regras inclui relatórios por demanda');
+assert.ok(rules.includes('BR-042')&&rules.includes('BR-043'),'Banco de Regras inclui relatório por demanda e novo layout');
 console.log('OK — Relatórios por demanda, histórico de reenvios, SLA, homologação e autorização.');
 
 // Contrato de homologação separada de lojas reais.
