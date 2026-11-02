@@ -5,6 +5,9 @@ var CURRENT_PAGE='home';
 var CAMPAIGN_EDIT_ID=null;
 var MODEL_TAB='manual';
 var MANUAL_FIELDS=[];
+var MODEL_FORMAT='form';
+var GRID_CONFIG={title:'Planilha de conferência',columns:[],rows:[]};
+var REPORT_FIELDS=[];
 var IMPORTED_FIELDS=[];
 var RESPONSES_DATA=null;
 var CHAT_DATA=null;
@@ -94,6 +97,19 @@ function bindEvents(){
   document.getElementById('campaignDepartmentFilter').onchange=renderCampaignManagement;
   document.getElementById('saveCampaignBtn').onclick=saveCampaign;
   document.getElementById('addQuestionBtn').onclick=function(){addManualQuestion();};
+  document.querySelectorAll('[data-builder-choice]').forEach(function(btn){
+    btn.onclick=function(){setBuilderFormat(btn.getAttribute('data-builder-choice'));};
+  });
+  document.getElementById('addGridColumnBtn').onclick=function(){
+    if(GRID_CONFIG.columns.length>=10){showToast('Limite de 10 colunas por planilha.');return;}
+    GRID_CONFIG.columns.push({label:'',type:'text',required:false});renderGridBuilder();
+  };
+  document.getElementById('addGridRowBtn').onclick=function(){
+    if(GRID_CONFIG.rows.length>=50){showToast('Limite de 50 linhas por planilha.');return;}
+    GRID_CONFIG.rows.push('');renderGridBuilder();
+  };
+  document.getElementById('gridBuilderTitle').oninput=function(){GRID_CONFIG.title=this.value;};
+  document.getElementById('addReportSectionBtn').onclick=addReportSection;
   document.querySelectorAll('[data-model-tab]').forEach(function(btn){btn.onclick=function(){setModelTab(btn.getAttribute('data-model-tab'));};});
   document.getElementById('fAudience').onchange=toggleStorePicker;
   document.getElementById('fAudienceGroup').onchange=renderAudienceRouting;
@@ -465,7 +481,7 @@ function markAllNotificationsRead(){
 
 function openCampaignModal(type,id){
   if(CURRENT_ROLE!=='admin'&&['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)<0){showToast('Seu perfil não permite criar solicitações.');return;}
-  CAMPAIGN_EDIT_ID=id||null;MODEL_TAB='manual';MANUAL_FIELDS=[];IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=false;
+  CAMPAIGN_EDIT_ID=id||null;MODEL_TAB='manual';MODEL_FORMAT='form';MANUAL_FIELDS=[];REPORT_FIELDS=[];GRID_CONFIG={title:'Planilha de conferência',columns:[{label:'Resposta',type:'boolean',required:true},{label:'Observações',type:'text',required:false}],rows:['Item 1']};IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=false;
   document.getElementById('campaignModalTitle').textContent=id?'Editar solicitação':'Nova solicitação';
   populateRequestDepartments();
   document.getElementById('fType').value=type||'demanda';
@@ -477,7 +493,7 @@ function openCampaignModal(type,id){
   document.getElementById('fDepartment').disabled=CURRENT_ROLE!=='admin';
   if(type==='campanha')document.getElementById('fRequestCategory').value='Campanha';syncRequestLegacyType();
   document.getElementById('fStatus').value='draft';document.getElementById('fTitle').value='';document.getElementById('fDescription').value='';document.getElementById('fStart').value='';document.getElementById('fDeadline').value='';document.getElementById('fEnd').value='';document.getElementById('fRequired').value='yes';document.getElementById('r24').checked=true;document.getElementById('r2').checked=true;document.getElementById('rDue').checked=true;document.getElementById('fAudience').value='all';document.getElementById('fAudienceGroup').value='lojas';renderAudienceRouting();
-  setModelTab('manual');addManualQuestion('text','');renderStorePicker();toggleStorePicker();openModal('campaignModal');
+  setModelTab('manual');setBuilderFormat('form');addManualQuestion('text','');renderGridBuilder();renderReportSections();renderStorePicker();toggleStorePicker();openModal('campaignModal');
   if(id){var editRun=google.script.run.withSuccessHandler(fillCampaignEdit).withFailureHandler(serverError);if(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')editRun.getPasswordDemandDetail(STORE_ACCESS_TOKEN,id);else editRun.getDemandDetail(id);}
 }
 function fillCampaignEdit(d){
@@ -487,8 +503,18 @@ function fillCampaignEdit(d){
   if(!document.getElementById('fRequestCategory').value)document.getElementById('fRequestCategory').value='Demanda geral';
   document.getElementById('fType').value=d.type==='campanha'?'campanha':'demanda';document.getElementById('fStatus').value=d.publishStatus||'active';document.getElementById('fTitle').value=d.title||'';document.getElementById('fDescription').value=d.description||'';document.getElementById('fStart').value=toLocalInput(d.inicioEm||(d.timeline||{}).startAt);document.getElementById('fDeadline').value=toLocalInput(d.deadline||(d.timeline||{}).deadline);document.getElementById('fEnd').value=toLocalInput(d.encerramentoEm||(d.timeline||{}).endAt);document.getElementById('fRequired').value=d.responseRequired===false?'no':'yes';
   var rem=(d.cronograma||{}).lembretes||(d.timeline||{}).reminders||[];document.getElementById('r24').checked=hasReminder(rem,'24h_antes');document.getElementById('r2').checked=hasReminder(rem,'2h_antes');document.getElementById('rDue').checked=hasReminder(rem,'vencimento');
-  MANUAL_FIELDS=(d.modelFields||[]).map(function(f,i){return {id:f.id||'q'+(i+1),label:f.label||'',type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});if(!MANUAL_FIELDS.length)MANUAL_FIELDS=[newField('text','')];renderManualQuestions();
-  if(d.importMeta&&d.importMeta.perStore){CAMPAIGN_STORE_TEMPLATE=d.importMeta;IMPORTED_FIELDS=(d.modelFields||[]).map(function(f){return {id:f.id,label:f.label,type:f.type,required:f.required,options:f.options||[]};});setModelTab('import');renderStoreTemplateInfo(CAMPAIGN_STORE_TEMPLATE);}
+  MANUAL_FIELDS=(d.modelFields||[]).filter(function(f){return f.type!=='grid';}).map(function(f,i){return {id:f.id||'q'+(i+1),label:f.label||'',type:f.type||'text',required:f.required!==false,options:Array.isArray(f.options)?f.options:[]};});if(!MANUAL_FIELDS.length)MANUAL_FIELDS=[newField('text','')];renderManualQuestions();
+  if(d.modelSource==='grid'&&d.modelFields&&d.modelFields[0]){
+    var field=d.modelFields[0];
+    GRID_CONFIG={title:field.label||'Planilha de conferência',columns:(field.columns||[]).map(function(c){return {label:c.label||'',type:c.type||'text',required:c.required===true};}),rows:(field.rows||[]).map(String)};
+    document.getElementById('gridBuilderTitle').value=GRID_CONFIG.title;setBuilderFormat('grid');
+  }else if(d.modelSource==='report'){
+    REPORT_FIELDS=MANUAL_FIELDS.map(function(f){return {id:f.id,label:f.label,type:f.type,required:f.required,options:[]};});
+    setBuilderFormat('report');
+  }else if(d.importMeta&&d.importMeta.perStore){
+    CAMPAIGN_STORE_TEMPLATE=d.importMeta;IMPORTED_FIELDS=(d.modelFields||[]).map(function(f){return {id:f.id,label:f.label,type:f.type,required:f.required,options:f.options||[]};});
+    setModelTab('import');renderStoreTemplateInfo(CAMPAIGN_STORE_TEMPLATE);
+  }else setBuilderFormat('form');
   var direcionamento=(d.cronograma&&d.cronograma.direcionamento)||{};
   document.getElementById('fAudienceGroup').value=direcionamento.modo||'lojas';
   renderAudienceRouting();
@@ -496,6 +522,98 @@ function fillCampaignEdit(d){
   var ids=(d.lojaIds||[]).map(String);document.getElementById('fAudience').value=ids.length?'selected':'all';renderStorePicker(ids);toggleStorePicker();
 }
 function setModelTab(tab){MODEL_TAB=tab;document.querySelectorAll('[data-model-tab]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-model-tab')===tab);});document.getElementById('manualModelTab').style.display=tab==='manual'?'block':'none';document.getElementById('importModelTab').style.display=tab==='import'?'block':'none';}
+
+function setBuilderFormat(format){
+ MODEL_FORMAT=['form','grid','report'].indexOf(format)>=0?format:'form';
+ document.querySelectorAll('[data-builder-choice]').forEach(function(btn){
+  var active=btn.getAttribute('data-builder-choice')===MODEL_FORMAT;
+  btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');
+ });
+ document.getElementById('formBuilderPane').style.display=MODEL_FORMAT==='form'?'':'none';
+ document.getElementById('gridBuilderPane').style.display=MODEL_FORMAT==='grid'?'':'none';
+ document.getElementById('reportBuilderPane').style.display=MODEL_FORMAT==='report'?'':'none';
+ if(MODEL_FORMAT==='grid')renderGridBuilder();
+ if(MODEL_FORMAT==='report')renderReportSections();
+}
+function renderGridBuilder(){
+ var host=document.getElementById('gridColumnList');
+ host.innerHTML=GRID_CONFIG.columns.map(function(c,i){
+  return '<div class="bacio-grid-builder-row"><input class="field grid-col-label" data-ci="'+i+
+   '" maxlength="100" placeholder="Nome da coluna" value="'+safe(c.label)+'">'+
+   '<select class="select grid-col-type" data-ci="'+i+'">'+
+    [['text','Texto'],['number','Número'],['boolean','Sim / Não']].map(function(v){
+     return '<option value="'+v[0]+'"'+(v[0]===c.type?' selected':'')+'>'+v[1]+'</option>';
+    }).join('')+'</select>'+
+   '<label class="check"><input type="checkbox" class="grid-col-required" data-ci="'+i+'"'+
+    (c.required?' checked':'')+'>Obrigatória</label>'+
+   '<button type="button" class="remove-btn grid-col-remove" data-ci="'+i+'" aria-label="Remover coluna">×</button></div>';
+ }).join('');
+ document.getElementById('gridRowList').innerHTML=GRID_CONFIG.rows.map(function(row,i){
+  return '<div class="bacio-grid-builder-row bacio-grid-builder-item">'+
+   '<span class="bacio-row-counter">'+(i+1)+'</span>'+
+   '<input class="field grid-row-label" data-ri="'+i+'" maxlength="120" placeholder="Nome da linha (ex.: Item ou produto)" value="'+safe(row)+'">'+
+   '<button class="remove-btn grid-row-remove" type="button" data-ri="'+i+'" aria-label="Remover linha">×</button></div>';
+ }).join('');
+ document.querySelectorAll('.grid-col-label').forEach(function(el){el.oninput=function(){
+  GRID_CONFIG.columns[+this.dataset.ci].label=this.value;renderGridPreview();};});
+ document.querySelectorAll('.grid-col-type').forEach(function(el){el.onchange=function(){
+  GRID_CONFIG.columns[+this.dataset.ci].type=this.value;renderGridPreview();};});
+ document.querySelectorAll('.grid-col-required').forEach(function(el){el.onchange=function(){
+  GRID_CONFIG.columns[+this.dataset.ci].required=this.checked;renderGridPreview();};});
+ document.querySelectorAll('.grid-col-remove').forEach(function(el){el.onclick=function(){
+  GRID_CONFIG.columns.splice(+this.dataset.ci,1);renderGridBuilder();};});
+ document.querySelectorAll('.grid-row-label').forEach(function(el){el.oninput=function(){
+  GRID_CONFIG.rows[+this.dataset.ri]=this.value;renderGridPreview();};});
+ document.querySelectorAll('.grid-row-remove').forEach(function(el){el.onclick=function(){
+  GRID_CONFIG.rows.splice(+this.dataset.ri,1);renderGridBuilder();};});
+ renderGridPreview();
+}
+function renderGridPreview(){
+ var field={id:'manual_grid',label:GRID_CONFIG.title,rows:GRID_CONFIG.rows,columns:GRID_CONFIG.columns};
+ document.getElementById('gridBuilderPreview').innerHTML=manualGridTableHtml_(field,{},true);
+}
+function addReportSection(){
+ if(REPORT_FIELDS.length>=30){showToast('Limite de 30 seções no relatório.');return;}
+ REPORT_FIELDS.push({id:'section_'+Date.now().toString(36)+'_'+REPORT_FIELDS.length,label:'',type:'textarea',required:true,options:[]});
+ renderReportSections();
+}
+function renderReportSections(){
+ var host=document.getElementById('reportSectionList');
+ host.innerHTML=REPORT_FIELDS.map(function(f,i){
+  return '<div class="question bacio-report-section"><input class="field report-section-label" data-rs="'+i+
+   '" placeholder="Título da seção (ex.: Resumo da visita)" maxlength="160" value="'+safe(f.label)+'">'+
+   '<select class="select report-section-type" data-rs="'+i+'">'+
+   [['textarea','Texto longo'],['text','Texto curto'],['number','Número'],['date','Data']].map(function(v){
+    return '<option value="'+v[0]+'"'+(f.type===v[0]?' selected':'')+'>'+v[1]+'</option>';
+   }).join('')+'</select><label class="check"><input class="report-section-required" type="checkbox" data-rs="'+i+
+   '"'+(f.required?' checked':'')+'>Obrigatória</label>'+
+   '<button class="remove-btn report-section-remove" type="button" data-rs="'+i+'">×</button></div>';
+ }).join('');
+ host.querySelectorAll('.report-section-label').forEach(function(el){el.oninput=function(){REPORT_FIELDS[+this.dataset.rs].label=this.value;};});
+ host.querySelectorAll('.report-section-type').forEach(function(el){el.onchange=function(){REPORT_FIELDS[+this.dataset.rs].type=this.value;};});
+ host.querySelectorAll('.report-section-required').forEach(function(el){el.onchange=function(){REPORT_FIELDS[+this.dataset.rs].required=this.checked;};});
+ host.querySelectorAll('.report-section-remove').forEach(function(el){el.onclick=function(){REPORT_FIELDS.splice(+this.dataset.rs,1);renderReportSections();};});
+}
+function manualGridTableHtml_(field,answers,readonly){
+ var columns=Array.isArray(field.columns)?field.columns:[],rows=Array.isArray(field.rows)?field.rows:[];
+ var id=String(field.id||'manual_grid');answers=answers||{};
+ if(!rows.length||!columns.length)return '<div class="helper">Adicione ao menos uma linha e uma coluna.</div>';
+ return '<div class="bacio-manual-grid-scroll"><table class="bacio-manual-grid" aria-label="'+safe(field.label||'Planilha')+'">'+
+  '<thead><tr><th scope="col">Item / linha</th>'+columns.map(function(col){
+   return '<th scope="col">'+safe(col.label||'Nova coluna')+(col.required?' *':'')+'</th>';
+  }).join('')+'</tr></thead><tbody>'+rows.map(function(row,ri){
+   return '<tr><th scope="row">'+safe(row||'Item '+(ri+1))+'</th>'+columns.map(function(col,ci){
+    var key='gridcell_'+id+'_'+ri+'_'+ci,raw=answers[key],value=raw==null?'':String(raw);
+    if(readonly)return '<td class="bacio-grid-readonly">'+safe(value||'—')+'</td>';
+    var attr=' class="answer-input bacio-grid-answer" data-key="'+safe(key)+'"'+
+     (col.required?' data-required="1"':'');
+    if(col.type==='boolean')return '<td><select'+attr+'><option value="">Selecione</option>'+
+     ['Sim','Não','Não se aplica'].map(function(o){return '<option value="'+o+'"'+(value===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></td>';
+    if(col.type==='number')return '<td><input type="number" step="any"'+attr+' value="'+safe(value)+'"></td>';
+    return '<td><textarea rows="2" maxlength="2000"'+attr+'>'+safe(value)+'</textarea></td>';
+   }).join('')+'</tr>';
+  }).join('')+'</tbody></table></div>';
+}
 function newField(type,label){return {id:'q'+Date.now()+Math.random().toString(36).slice(2,5),label:label||'',type:type||'text',required:true,options:[]};}
 function addManualQuestion(type,label){MANUAL_FIELDS.push(newField(type,label));renderManualQuestions();}
 function renderManualQuestions(){
