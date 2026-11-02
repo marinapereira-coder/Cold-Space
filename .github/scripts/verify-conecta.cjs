@@ -866,6 +866,7 @@ const reportCtx=vm.createContext({
  },
  getTargetStoreIds_:(d,ids)=>(d.loja_ids||[]).filter(id=>ids.includes(id)),
  isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
+ normalizeObjectArray_:v=>Array.isArray(v)?v:[],
  normalizeJsonObject_:v=>v||{},
  isConectaTestDemand_:d=>(d.loja_ids||[]).length===1&&d.loja_ids[0]==='TESTE_CONECTA',
  mapEvaluationRowV2_:(a,d,s)=>({
@@ -925,3 +926,6 @@ require('./verify-homologacao.cjs');
 
 // BR-044: Criação manual em formato planilha, relatório ou formulário.
 require('./verify-new-builders.cjs');
+
+// BR-045: filtro de lojas e planilha dinâmica com exportação.
+require('./verify-dynamic-grid.cjs');

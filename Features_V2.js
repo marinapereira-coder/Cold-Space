@@ -6239,7 +6239,7 @@ function buildDemandReportsWorkspaceV2_(user) {
     storeById[id]=store;
   });
   var demands=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
-    '?select=id,titulo,descricao,tipo,status,ativa,loja_ids,created_at,prazo_sla,publicada_em,inicio_em,encerramento_em,cronograma&ativa=eq.true&order=created_at.desc&limit=5000',[])
+    '?select=id,titulo,descricao,tipo,status,ativa,loja_ids,model_source,model_fields,created_at,prazo_sla,publicada_em,inicio_em,encerramento_em,cronograma&ativa=eq.true&order=created_at.desc&limit=5000',[])
     .filter(function(d){return d.ativa===true &&
        String(d.status||'active').toLowerCase()!=='draft' &&
        String(d.tipo||'demanda').toLowerCase()!=='comunicado';});
@@ -6252,12 +6252,19 @@ function buildDemandReportsWorkspaceV2_(user) {
         isConectaTestStoreId_(a.loja_id)===isConectaTestDemand_(d);
     });
   var rawResponses=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_RESPOSTAS','bacio_demanda_respostas')+
-    '?select=id,demanda_id,loja_id,status,created_at&order=created_at.desc&limit=10000',[])
+    '?select=id,demanda_id,loja_id,usuario_email,status,resposta_json,observacao,created_at&order=created_at.desc&limit=10000',[])
     .filter(function(r){
       var d=demandById[String(r.demanda_id)];
       return !!d && !!visible[String(r.loja_id)] &&
         isConectaTestStoreId_(r.loja_id)===isConectaTestDemand_(d);
     });
+  var latestReportResponseByStore={};
+  rawResponses.forEach(function(r){
+    var key=String(r.demanda_id)+'|'+String(r.loja_id);
+    if(!latestReportResponseByStore[key]||
+       String(r.created_at||'')>String(latestReportResponseByStore[key].created_at||''))
+      latestReportResponseByStore[key]=r;
+  });
   var historyByKey={};
   rawResponses.forEach(function(r){
     var key=String(r.demanda_id)+'|'+String(r.loja_id);
@@ -6289,6 +6296,43 @@ function buildDemandReportsWorkspaceV2_(user) {
     var sla=rows.filter(function(i){return i.slaMet===true||i.slaMet===false;});
     var targetIds=getTargetStoreIds_(d,stores.map(function(s){return String(s.id);}));
     var schedule=normalizeJsonObject_(d.cronograma);
+    var modelFields=normalizeObjectArray_(d.model_fields||[]);
+    var gridField=String(d.model_source||'')==='grid'?
+      modelFields.find(function(f){return f.type==='grid';}):null;
+    var gridRows=[];
+    if(gridField){
+      var prefix='gridcell_'+String(gridField.id)+'_';
+      Object.keys(latestReportResponseByStore).forEach(function(key){
+        if(key.indexOf(id+'|')!==0)return;
+        var response=latestReportResponseByStore[key],store=storeById[String(response.loja_id)];
+        if(!store)return;
+        var answers=normalizeJsonObject_(response.resposta_json),rowIndexes={};
+        Object.keys(answers).forEach(function(cell){
+          if(cell.indexOf(prefix)!==0)return;
+          var indexes=cell.slice(prefix.length).split('_');
+          var ri=Number(indexes[0]),ci=Number(indexes[1]);
+          if(indexes.length!==2||!/^[0-9]+$/.test(indexes[0])||!/^[0-9]+$/.test(indexes[1])||
+             !Number.isInteger(ri)||ri<0||ri>=50||!Number.isInteger(ci)||
+             ci<0||ci>=(gridField.columns||[]).length)return;
+          if(String(answers[cell]||'').trim())rowIndexes[ri]=true;
+        });
+        Object.keys(rowIndexes).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(index){
+          var ri=Number(index),storeLabel=(store.codigo?String(store.codigo)+' · ':'')+
+            String(store.nome||'Loja');
+          gridRows.push({
+            storeId:String(store.id),storeName:storeLabel,storeCode:String(store.codigo||''),
+            storeEmail:String(response.usuario_email||''),sentAt:response.created_at||'',
+            status:String(response.status||'respondido'),rowNumber:ri+1,
+            itemLabel:(gridField.rows||[])[ri]||'',
+            values:(gridField.columns||[]).map(function(col,ci){
+              var value=answers[prefix+ri+'_'+ci];
+              return value==null?'':String(value);
+            })
+          });
+        });
+      });
+    }
+    gridRows.sort(function(a,b){return a.storeName.localeCompare(b.storeName)||a.rowNumber-b.rowNumber;});
     return {
       id:id,title:String(d.titulo||'Demanda'),type:String(d.tipo||'demanda'),
       department:String(schedule.departamentoSolicitante||'Operações'),
@@ -6298,6 +6342,11 @@ function buildDemandReportsWorkspaceV2_(user) {
       publishedAt:d.publicada_em||'',startsAt:d.inicio_em||'',
       deadline:d.prazo_sla||'',closesAt:d.encerramento_em||'',
       isHomologacao:isConectaTestDemand_(d),createdAt:d.created_at||'',
+      modelSource:String(d.model_source||'manual'),
+      gridTitle:gridField?String(gridField.label||'Planilha'):'',
+      gridColumns:gridField?(gridField.columns||[]).map(function(col){return String(col.label||'');}):[],
+      gridHasFixedRows:!!(gridField&&(gridField.rows||[]).length),
+      gridRows:gridRows,
       totalStores:targetIds.length,respondedStores:Object.keys(responseStores).length,
       assessedStores:Object.keys(assessed).length,total:rows.length,
       approved:rows.filter(function(i){return i.status==='aprovada';}).length,

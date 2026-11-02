@@ -832,7 +832,7 @@ function saveDemand(input,authOverride) {
   if(sourceType==='grid'){
     var grids=modelFields.filter(function(field){return field.type==='grid';});
     if(grids.length!==1||modelFields.length!==1||grids[0].columns.length<1||grids[0].columns.length>10||
-       grids[0].rows.length<1||grids[0].rows.length>50||
+       grids[0].rows.length>50||
        grids[0].columns.some(function(col){return !col.label;})||
        grids[0].rows.some(function(row){return !row;}))throw new Error('Defina de 1 a 10 colunas e de 1 a 50 linhas válidas na planilha.');
   }
@@ -1348,13 +1348,36 @@ function validateCustomModelAnswers_(answers,detail){
     var field=fields.find(function(f){return f.type==='grid';});
     if(!field||!Array.isArray(field.rows)||!Array.isArray(field.columns)||
         field.rows.length>50||field.columns.length>10)throw new Error('Planilha inválida.');
-    field.rows.forEach(function(row,ri){
-      field.columns.forEach(function(col,ci){
-        var key='gridcell_'+String(field.id)+'_'+ri+'_'+ci;
-        allowed[key]=String(col.type||'text');
-        if(detail.responseRequired!==false&&col.required===true)required[key]=true;
+    if(field.rows.length){
+      // Compatibilidade: planilhas antigas seguem com linhas fixas.
+      field.rows.forEach(function(row,ri){
+        field.columns.forEach(function(col,ci){
+          var key='gridcell_'+String(field.id)+'_'+ri+'_'+ci;
+          allowed[key]=String(col.type||'text');
+          if(detail.responseRequired!==false&&col.required===true)required[key]=true;
+        });
       });
-    });
+    }else{
+      // Cada loja define suas próprias linhas; não se importa a linha de outra unidade.
+      var prefix='gridcell_'+String(field.id)+'_',present={};
+      keys.forEach(function(key){
+        if(key.indexOf(prefix)!==0)return;
+        var parts=key.slice(prefix.length).split('_'),ri=Number(parts[0]),ci=Number(parts[1]);
+        if(parts.length!==2||!/^\d+$/.test(parts[0])||!/^\d+$/.test(parts[1])||
+           !Number.isInteger(ri)||!Number.isInteger(ci)||ri<0||ri>=50||
+           ci<0||ci>=field.columns.length||key!==prefix+ri+'_'+ci)return;
+        allowed[key]=String(field.columns[ci].type||'text');
+        if(String(answers[key]||'').trim())present[ri]=true;
+      });
+      if(detail.responseRequired!==false&&!Object.keys(present).length)
+        throw new Error('Preencha ao menos uma linha da planilha antes de enviar.');
+      Object.keys(present).forEach(function(ri){
+        field.columns.forEach(function(col,ci){
+          if(detail.responseRequired!==false&&col.required===true)
+            required[prefix+ri+'_'+ci]=true;
+        });
+      });
+    }
   }else{
     fields.forEach(function(f){allowed[String(f.id)]=String(f.type||'text');
       if(detail.responseRequired!==false&&f.required===true)required[String(f.id)]=true;});

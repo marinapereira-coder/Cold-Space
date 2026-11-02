@@ -7,6 +7,7 @@ var MODEL_TAB='manual';
 var MANUAL_FIELDS=[];
 var MODEL_FORMAT='form';
 var GRID_CONFIG={title:'Planilha de conferência',columns:[],rows:[]};
+var STORE_PICKER_SELECTED={};
 var REPORT_FIELDS=[];
 var IMPORTED_FIELDS=[];
 var RESPONSES_DATA=null;
@@ -113,7 +114,7 @@ function bindEvents(){
   document.querySelectorAll('[data-model-tab]').forEach(function(btn){btn.onclick=function(){setModelTab(btn.getAttribute('data-model-tab'));};});
   document.getElementById('fAudience').onchange=toggleStorePicker;
   document.getElementById('fAudienceGroup').onchange=renderAudienceRouting;
-  document.getElementById('storePickerSearch').oninput=renderStorePicker;
+  document.getElementById('storePickerSearch').oninput=function(){renderStorePicker();};
   document.getElementById('formSpreadsheet').onchange=handleFormSpreadsheet;
 
   document.getElementById('newNoticeBtn').onclick=openNoticeModal;
@@ -481,7 +482,7 @@ function markAllNotificationsRead(){
 
 function openCampaignModal(type,id){
   if(CURRENT_ROLE!=='admin'&&['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)<0){showToast('Seu perfil não permite criar solicitações.');return;}
-  CAMPAIGN_EDIT_ID=id||null;MODEL_TAB='manual';MODEL_FORMAT='form';MANUAL_FIELDS=[];REPORT_FIELDS=[];GRID_CONFIG={title:'Planilha de conferência',columns:[{label:'Resposta',type:'boolean',required:true},{label:'Observações',type:'text',required:false}],rows:['Item 1']};IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=false;
+  CAMPAIGN_EDIT_ID=id||null;STORE_PICKER_SELECTED={};document.getElementById('storePickerSearch').value='';MODEL_TAB='manual';MODEL_FORMAT='form';MANUAL_FIELDS=[];REPORT_FIELDS=[];GRID_CONFIG={title:'Planilha de conferência',columns:[{label:'Resposta',type:'boolean',required:true},{label:'Observações',type:'text',required:false}],rows:[]};IMPORTED_FIELDS=[];CAMPAIGN_STORE_TEMPLATE=null;window.BACIO_IMPORT_REQUIRES_MAPPING=false;
   document.getElementById('campaignModalTitle').textContent=id?'Editar solicitação':'Nova solicitação';
   populateRequestDepartments();
   document.getElementById('fType').value=type||'demanda';
@@ -548,6 +549,7 @@ function renderGridBuilder(){
     (c.required?' checked':'')+'>Obrigatória</label>'+
    '<button type="button" class="remove-btn grid-col-remove" data-ci="'+i+'" aria-label="Remover coluna">×</button></div>';
  }).join('');
+ document.getElementById('gridRowsSection').style.display=GRID_CONFIG.rows.length?'':'none';
  document.getElementById('gridRowList').innerHTML=GRID_CONFIG.rows.map(function(row,i){
   return '<div class="bacio-grid-builder-row bacio-grid-builder-item">'+
    '<span class="bacio-row-counter">'+(i+1)+'</span>'+
@@ -594,17 +596,33 @@ function renderReportSections(){
  host.querySelectorAll('.report-section-required').forEach(function(el){el.onchange=function(){REPORT_FIELDS[+this.dataset.rs].required=this.checked;};});
  host.querySelectorAll('.report-section-remove').forEach(function(el){el.onclick=function(){REPORT_FIELDS.splice(+this.dataset.rs,1);renderReportSections();};});
 }
-function manualGridTableHtml_(field,answers,readonly){
- var columns=Array.isArray(field.columns)?field.columns:[],rows=Array.isArray(field.rows)?field.rows:[];
+function manualGridRows_(field,answers,extraRows){
+ var fixed=Array.isArray(field.rows)?field.rows:[];
+ if(fixed.length)return fixed;
+ var count=0,prefix='gridcell_'+String(field.id||'manual_grid')+'_';
+ Object.keys(answers||{}).forEach(function(key){
+  if(key.indexOf(prefix)!==0)return;
+  var bits=key.slice(prefix.length).split('_'),ri=Number(bits[0]),ci=Number(bits[1]);
+  if(bits.length===2&&Number.isInteger(ri)&&ri>=0&&ri<50&&Number.isInteger(ci)&&ci>=0&&ci<10)
+   count=Math.max(count,ri+1);
+ });
+ count=Math.min(50,Math.max(1,count,Number(extraRows)||0));
+ return Array.from({length:count},function(){return '';});
+}
+function manualGridTableHtml_(field,answers,readonly,extraRows){
+ var columns=Array.isArray(field.columns)?field.columns:[];
+ var fixed=Array.isArray(field.rows)&&field.rows.length>0;
+ var rows=manualGridRows_(field,answers,extraRows);
  var id=String(field.id||'manual_grid');answers=answers||{};
- if(!rows.length||!columns.length)return '<div class="helper">Adicione ao menos uma linha e uma coluna.</div>';
+ if(!rows.length||!columns.length)return '<div class="helper">Adicione ao menos uma coluna.</div>';
  return '<div class="bacio-manual-grid-scroll"><table class="bacio-manual-grid" aria-label="'+safe(field.label||'Planilha')+'">'+
-  '<thead><tr><th scope="col">Item / linha</th>'+columns.map(function(col){
+  '<thead><tr><th scope="col">'+(fixed?'Item / linha':'Linha')+'</th>'+columns.map(function(col){
    return '<th scope="col">'+safe(col.label||'Nova coluna')+(col.required?' *':'')+'</th>';
   }).join('')+'</tr></thead><tbody>'+rows.map(function(row,ri){
-   return '<tr><th scope="row">'+safe(row||'Item '+(ri+1))+'</th>'+columns.map(function(col,ci){
+   return '<tr><th scope="row">'+(fixed?safe(row||'Item '+(ri+1)):String(ri+1))+'</th>'+columns.map(function(col,ci){
     var key='gridcell_'+id+'_'+ri+'_'+ci,raw=answers[key],value=raw==null?'':String(raw);
-    if(readonly)return '<td class="bacio-grid-readonly">'+safe(value|| (answers&&Object.keys(answers).length?'—':col.type==='boolean'?'Sim / Não':col.type==='number'?'Número':'Texto'))+'</td>';
+    if(readonly)return '<td class="bacio-grid-readonly">'+safe(value||
+      (Object.keys(answers).length?'—':col.type==='boolean'?'Sim / Não':col.type==='number'?'Número':'Texto'))+'</td>';
     var attr=' class="answer-input bacio-grid-answer" data-key="'+safe(key)+'"'+
      (col.required?' data-required="1"':'');
     if(col.type==='boolean')return '<td><select'+attr+'><option value="">Selecione</option>'+
@@ -613,6 +631,24 @@ function manualGridTableHtml_(field,answers,readonly){
     return '<td><textarea rows="2" maxlength="2000"'+attr+'>'+safe(value)+'</textarea></td>';
    }).join('')+'</tr>';
   }).join('')+'</tbody></table></div>';
+}
+function addManualGridResponseRow_(change){
+ var d=window.BACIO_CURRENT_DETAIL,field=d&&d.modelFields&&d.modelFields[0];
+ var host=document.getElementById('manualStoreGridTable');
+ if(!field||!host||field.type!=='grid'||(field.rows||[]).length)return;
+ var count=host.querySelectorAll('tbody tr').length;
+ var next=count+(change===-1?-1:1);
+ if(next<1)return;
+ if(next>50){showToast('O limite é de 50 linhas por loja.');return;}
+ var answers={};
+ host.querySelectorAll('.answer-input').forEach(function(input){answers[input.dataset.key]=input.value;});
+ if(change===-1){
+  Object.keys(answers).forEach(function(key){
+   var match=key.match(/_(\d+)_(\d+)$/);
+   if(match&&Number(match[1])>=next)delete answers[key];
+  });
+ }
+ host.innerHTML=manualGridTableHtml_(field,answers,false,next);
 }
 function newField(type,label){return {id:'q'+Date.now()+Math.random().toString(36).slice(2,5),label:label||'',type:type||'text',required:true,options:[]};}
 function addManualQuestion(type,label){MANUAL_FIELDS.push(newField(type,label));renderManualQuestions();}
@@ -1131,8 +1167,8 @@ function saveCampaign(){
     var columns=GRID_CONFIG.columns.map(function(c){return {label:String(c.label||'').trim(),type:c.type||'text',required:c.required===true};});
     var rows=GRID_CONFIG.rows.map(function(row){return String(row||'').trim();});
     var gridTitle=String(document.getElementById('gridBuilderTitle').value||'').trim();
-    if(!gridTitle||!columns.length||!rows.length||columns.some(function(c){return !c.label;})||rows.some(function(row){return !row;})){
-      showToast('Na planilha, preencha o título, as linhas e os nomes das colunas.');return;
+    if(!gridTitle||!columns.length||columns.some(function(c){return !c.label;})||rows.some(function(row){return !row;})){
+      showToast('Na planilha, informe o título e as colunas; a loja preencherá as linhas.');return;
     }
     fields=[{id:'manual_grid',label:gridTitle,type:'grid',required:requiredResponse,columns:columns,rows:rows,options:[]}];
   }
@@ -1148,7 +1184,39 @@ function saveCampaign(){
   var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:document.getElementById('fStart').value||null,deadline:document.getElementById('fDeadline').value||null,endAt:document.getElementById('fEnd').value||null,publishStatus:(CURRENT_ROLE!=='admin'||routeMode==='consultor')?'draft':document.getElementById('fStatus').value,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':MODEL_FORMAT==='grid'?'grid':MODEL_FORMAT==='report'?'report':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{departamentoSolicitante:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,direcionamento:{modo:routeMode,valor:routeTarget},lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
   setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(response){setBusy('saveCampaignBtn',false,'Salvar');closeModal('campaignModal');showToast(response&&response.notificationError?'Solicitação salva, mas houve erro ao enviar notificações. Confira os registros.':'Conteúdo salvo.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);})[(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?'savePasswordDepartmentDemand':'saveDemand'](...((AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?[STORE_ACCESS_TOKEN,payload]:[payload]));
 }
-function renderStorePicker(selected){var host=document.getElementById('storePickerList'),q=(document.getElementById('storePickerSearch').value||'').toLowerCase().trim(),sel={};(selected||getSelectedStoreIds()).forEach(function(id){sel[String(id)]=1;});host.innerHTML=(APP_DATA.stores||[]).filter(function(s){var text=((s.codigo||'')+' '+(s.nome||'')+' '+(s.cidade||'')).toLowerCase();return !q||text.indexOf(q)>=0;}).map(function(s){return '<label class="store-option"><input class="store-check" type="checkbox" value="'+safe(s.id)+'" '+(sel[String(s.id)]?'checked':'')+'><span><strong>'+safe((s.codigo?s.codigo+' · ':'')+s.nome)+'</strong><br><span class="muted">'+safe((s.regional||'')+(s.consultor?' · '+s.consultor:''))+'</span></span></label>';}).join('');}
+function normalizePickerQuery_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+function renderStorePicker(selected){
+ if(Array.isArray(selected)){
+  STORE_PICKER_SELECTED={};
+  selected.forEach(function(id){STORE_PICKER_SELECTED[String(id)]=true;});
+ }else{
+  // Preservar lojas selecionadas mesmo se não estiverem visíveis no filtro.
+  document.querySelectorAll('#storePickerList .store-check').forEach(function(el){
+   if(el.checked)STORE_PICKER_SELECTED[String(el.value)]=true;
+   else delete STORE_PICKER_SELECTED[String(el.value)];
+  });
+ }
+ var host=document.getElementById('storePickerList');
+ var q=normalizePickerQuery_(document.getElementById('storePickerSearch').value);
+ var stores=(APP_DATA.stores||[]).filter(function(store){
+  var terms=[store.id,store.codigo,store.nome,store.cidade,store.regional,store.consultor]
+   .map(normalizePickerQuery_).join(' ');
+  return !q||terms.indexOf(q)>=0;
+ });
+ host.innerHTML=stores.map(function(store){
+  var id=String(store.id);
+  return '<label class="store-option"><input class="store-check" type="checkbox" value="'+safe(id)+'" '+
+   (STORE_PICKER_SELECTED[id]?'checked':'')+'><span><strong>'+
+   safe((store.codigo?store.codigo+' · ':'')+store.nome)+'</strong><br><span class="muted">'+
+   safe((store.regional||'')+(store.consultor?' · '+store.consultor:''))+'</span></span></label>';
+ }).join('')||'<div class="empty">Nenhuma loja encontrada para esta pesquisa.</div>';
+ host.querySelectorAll('.store-check').forEach(function(input){
+  input.onchange=function(){
+   if(this.checked)STORE_PICKER_SELECTED[String(this.value)]=true;
+   else delete STORE_PICKER_SELECTED[String(this.value)];
+  };
+ });
+}
 function renderAudienceRouting(){
  var mode=document.getElementById('fAudienceGroup').value,host=document.getElementById('fRoutingOptions'),hint=document.getElementById('fRoutingHint');
  var key=mode==='regional'?'regional':'consultor';
@@ -1167,7 +1235,7 @@ function toggleStorePicker(){
  var mode=document.getElementById('fAudienceGroup').value;
  document.getElementById('storePicker').classList.toggle('show',mode==='lojas'&&document.getElementById('fAudience').value==='selected');
 }
-function getSelectedStoreIds(){return Array.prototype.slice.call(document.querySelectorAll('.store-check:checked')).map(function(el){return String(el.value);});}
+function getSelectedStoreIds(){return Object.keys(STORE_PICKER_SELECTED).filter(function(id){return STORE_PICKER_SELECTED[id]===true;});}
 
 function openDemandDetail(id){
   openModal('detailModal');document.getElementById('detailBody').innerHTML='<div class="empty">Carregando detalhes...</div>';
@@ -1387,7 +1455,11 @@ function renderStoreResponseSection(d,answerHtml){
     return (current?'<div class="response-status-note ajuste_necessario"><strong>Aguardando correção</strong><p>'+
       safe(current.feedback||'Revise a planilha e envie uma nova resposta.')+'</p></div>':'')+
       '<div id="storeResponseForm" class="bacio-manual-store-grid"><h4>'+safe(d.modelFields[0].label)+'</h4>'+
-      manualGridTableHtml_(d.modelFields[0],previousAnswers,false)+
+      '<div class="helper">Preencha a planilha e use + Adicionar linha para incluir quantos itens precisar.</div>'+
+      '<div id="manualStoreGridTable">'+manualGridTableHtml_(d.modelFields[0],previousAnswers,false)+'</div>'+
+      (!(d.modelFields[0].rows||[]).length?
+       '<div class="bacio-grid-toolbar"><button class="btn soft" type="button" onclick="addManualGridResponseRow_(1)">+ Adicionar linha</button>'+
+       '<button class="btn soft" type="button" onclick="addManualGridResponseRow_(-1)">Remover última linha</button></div>':'')+
       '<label class="label" style="margin-top:14px">Observações gerais</label>'+
       '<textarea id="storeResponseObs" class="textarea">'+safe(current&&current.observacao||'')+'</textarea>'+
       '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+
@@ -1419,7 +1491,31 @@ function renderStoreResponseSection(d,answerHtml){
 function responseInput(f,current){var req=f.required?' data-required="1"':'',val=current==null?'':String(current);if(f.type==='textarea')return '<textarea class="textarea answer-input" data-key="'+safe(f.id)+'"'+req+'>'+safe(val)+'</textarea>';if(f.type==='boolean')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option><option value="Sim" '+(val==='Sim'?'selected':'')+'>Sim</option><option value="Não" '+(val==='Não'?'selected':'')+'>Não</option></select>';if(f.type==='select')return '<select class="select answer-input" data-key="'+safe(f.id)+'"'+req+'><option value="">Selecione</option>'+(f.options||[]).map(function(o){return '<option value="'+safe(o)+'" '+(val===String(o)?'selected':'')+'>'+safe(o)+'</option>';}).join('')+'</select>';return '<input class="field answer-input" data-key="'+safe(f.id)+'"'+req+' type="'+(f.type==='number'?'number':f.type==='date'?'date':'text')+'" value="'+safe(val)+'">';}
 function submitStoreResponse(demandaId){
   var answers={},missing=false;
-  document.querySelectorAll('#storeResponseForm .answer-input').forEach(function(el){answers[el.dataset.key]=el.value;if(el.getAttribute('data-required')==='1'&&!String(el.value||'').trim())missing=true;});
+  var detail=window.BACIO_CURRENT_DETAIL||{},gridField=detail.modelSource==='grid'?(detail.modelFields||[])[0]:null;
+  var dynamicGrid=!!(gridField&&gridField.type==='grid'&&!(gridField.rows||[]).length);
+  var gridRows={};
+  document.querySelectorAll('#storeResponseForm .answer-input').forEach(function(el){
+   var key=String(el.dataset.key||''),value=String(el.value||'');
+   if(dynamicGrid&&key.indexOf('gridcell_'+gridField.id+'_')===0){
+    var match=key.match(/_(\d+)_(\d+)$/),ri=match?Number(match[1]):-1;
+    if(ri<0)return;
+    if(!gridRows[ri])gridRows[ri]=[];
+    gridRows[ri].push({key:key,value:value,required:el.getAttribute('data-required')==='1'});
+   }else{
+    answers[key]=value;
+    if(el.getAttribute('data-required')==='1'&&!value.trim())missing=true;
+   }
+  });
+  if(dynamicGrid){
+   var filled=0;
+   Object.keys(gridRows).forEach(function(ri){
+    var cells=gridRows[ri],hasData=cells.some(function(c){return c.value.trim();});
+    if(!hasData)return;
+    filled++;
+    cells.forEach(function(c){answers[c.key]=c.value;if(c.required&&!c.value.trim())missing=true;});
+   });
+   if(detail.responseRequired!==false&&!filled){showToast('Preencha pelo menos uma linha antes de enviar.');return;}
+  }
   var confRows=document.querySelectorAll('#storeResponseForm tr[data-conferencia]');
   for(var ci=0;ci<confRows.length;ci++){
     var row=confRows[ci],key=row.getAttribute('data-conferencia');
@@ -1938,6 +2034,52 @@ function loadReports(){
  }).getDemandReportsWorkspace();
 }
 function selectDemandReport(id){REPORTS_SELECTED=String(id||'');renderReports();}
+// Respostas de todas as lojas da demanda, cada linha identificada pelo cadastro da unidade.
+// Somente dados da última entrega por loja são exportados; avaliações ficam no bloco abaixo.
+function renderGridReportSection_(group){
+ if(String(group.modelSource)!=='grid')return '';
+ var cols=group.gridColumns||[],rows=group.gridRows||[];
+ var headers=['Loja','Enviado em'].concat(group.gridHasFixedRows?['Item / linha']:[]).concat(cols);
+ var table='<div class="bacio-manual-grid-scroll"><table class="bacio-manual-grid bacio-consolidated-grid">'+
+  '<thead><tr>'+headers.map(function(h){return '<th scope="col">'+safe(h)+'</th>';}).join('')+'</tr></thead><tbody>'+
+  rows.slice(0,100).map(function(r){
+   return '<tr><th scope="row">'+safe(r.storeName)+'</th><td>'+safe(formatDateTime(r.sentAt)||'—')+
+     '</td>'+(group.gridHasFixedRows?'<td>'+safe(r.itemLabel||r.rowNumber)+'</td>':'')+
+     (r.values||[]).map(function(v){return '<td>'+safe(v)+'</td>';}).join('')+'</tr>';
+  }).join('')+'</tbody></table></div>';
+ return '<section class="bacio-consolidated-report">'+
+   '<div class="report-section-heading"><h4>Respostas consolidadas da planilha</h4>'+
+    '<p class="muted">Cada linha está associada automaticamente à loja que respondeu.</p></div>'+
+   (rows.length?'<div class="bacio-grid-toolbar"><strong>'+rows.length+' linha(s) preenchida(s) por '+
+     new Set(rows.map(function(r){return r.storeId;})).size+' loja(s)</strong>'+
+     '<button type="button" class="btn soft" onclick="exportGridReportCSV_(\''+
+       safeJs(group.id)+'\')">Exportar planilha (CSV)</button></div>'+
+     table+(rows.length>100?'<p class="helper">Exibindo 100 linhas na tela; a exportação inclui todas.</p>':''):
+     '<div class="empty">Nenhuma loja preencheu esta planilha até o momento.</div>')+'</section>';
+}
+function exportGridReportCSV_(demandaId){
+ var group=((REPORTS_DATA||{}).groups||[]).find(function(g){return String(g.id)===String(demandaId);});
+ if(!group||String(group.modelSource)!=='grid')return;
+ var headers=['Loja','Código da loja','E-mail do envio','Enviado em','Status']
+    .concat(group.gridHasFixedRows?['Item / linha']:[]).concat(group.gridColumns||[]);
+ var rows=(group.gridRows||[]).map(function(row){
+  return [row.storeName,row.storeCode,row.storeEmail,row.sentAt,row.status]
+   .concat(group.gridHasFixedRows?[row.itemLabel]:[]).concat(row.values||[]);
+ });
+ function csv(value){
+  var text=String(value==null?'':value);
+  if(/^[=+\-@\t\r]/.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+ }
+ var content='\uFEFF'+[headers].concat(rows).map(function(line){return line.map(csv).join(';');}).join('\r\n');
+ var blob=new Blob([content],{type:'text/csv;charset=utf-8'});
+ var url=URL.createObjectURL(blob),a=document.createElement('a');
+ var file=String(group.title||'demanda').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,60);
+ a.href=url;a.download='Bacio_Conecta_'+file+'_respostas.csv';
+ document.body.appendChild(a);a.click();document.body.removeChild(a);
+ URL.revokeObjectURL(url);
+}
 function renderReports(){
  if(!REPORTS_DATA)return;
  var list=REPORTS_DATA.groups||[];
@@ -1986,6 +2128,7 @@ function renderReports(){
   '<div class="report-progress"><strong>Acompanhamento das lojas</strong><p>'+
    selected.respondedStores+' de '+selected.totalStores+' lojas responderam · '+
    selected.assessedStores+' loja(s) avaliadas</p></div>'+
+  renderGridReportSection_(selected)+
   '<div class="report-section-heading"><h4>Resumo das avaliações</h4>'+
   '<p class="muted">Notas e SLA calculados apenas sobre os registros desta demanda.</p></div>'+
   '<div class="report-mini-stats">'+
