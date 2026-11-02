@@ -6238,15 +6238,25 @@ function buildDemandReportsWorkspaceV2_(user) {
     storeById[id]=store;
   });
   var demands=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
-    '?select=id,titulo,tipo,status,ativa,loja_ids,created_at,prazo_sla&ativa=eq.true&order=created_at.desc&limit=5000',[])
-    .filter(function(d){return d.ativa===true;});
+    '?select=id,titulo,descricao,tipo,status,ativa,loja_ids,created_at,prazo_sla,publicada_em,inicio_em,encerramento_em,cronograma&ativa=eq.true&order=created_at.desc&limit=5000',[])
+    .filter(function(d){return d.ativa===true &&
+       String(d.status||'active').toLowerCase()!=='draft' &&
+       String(d.tipo||'demanda').toLowerCase()!=='comunicado';});
   var demandById={};
   demands.forEach(function(d){demandById[String(d.id)]=d;});
   var rawEvals=safeSupabaseSelect_('/rest/v1/bacio_avaliacoes?select=*&order=updated_at.desc&limit=10000',[])
-    .filter(function(a){return !!demandById[String(a.demanda_id)] && !!visible[String(a.loja_id)];});
+    .filter(function(a){
+      var d=demandById[String(a.demanda_id)];
+      return !!d && !!visible[String(a.loja_id)] &&
+        isConectaTestStoreId_(a.loja_id)===isConectaTestDemand_(d);
+    });
   var rawResponses=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_RESPOSTAS','bacio_demanda_respostas')+
     '?select=id,demanda_id,loja_id,status,created_at&order=created_at.desc&limit=10000',[])
-    .filter(function(r){return !!demandById[String(r.demanda_id)] && !!visible[String(r.loja_id)];});
+    .filter(function(r){
+      var d=demandById[String(r.demanda_id)];
+      return !!d && !!visible[String(r.loja_id)] &&
+        isConectaTestStoreId_(r.loja_id)===isConectaTestDemand_(d);
+    });
   var historyByKey={};
   rawResponses.forEach(function(r){
     var key=String(r.demanda_id)+'|'+String(r.loja_id);
@@ -6267,10 +6277,8 @@ function buildDemandReportsWorkspaceV2_(user) {
     if(!evaluationsByDemand[id])evaluationsByDemand[id]=[];
     evaluationsByDemand[id].push(item);
   });
-  var groups=demands.filter(function(d){
-    var id=String(d.id);
-    return (evaluationsByDemand[id]||[]).length>0 || rawResponses.some(function(r){return String(r.demanda_id)===id;});
-  }).map(function(d){
+  // Demandas publicadas sem resposta permanecem visíveis no relatório.
+  var groups=demands.map(function(d){
     var id=String(d.id),rows=evaluationsByDemand[id]||[];
     var historyKeys=Object.keys(historyByKey).filter(function(key){return key.indexOf(id+'|')===0;});
     var assessed={},responseStores={};
@@ -6279,8 +6287,15 @@ function buildDemandReportsWorkspaceV2_(user) {
     var rated=rows.filter(function(i){return i.stars!=null&&i.stars>=1&&i.stars<=5;});
     var sla=rows.filter(function(i){return i.slaMet===true||i.slaMet===false;});
     var targetIds=getTargetStoreIds_(d,stores.map(function(s){return String(s.id);}));
+    var schedule=normalizeJsonObject_(d.cronograma);
     return {
       id:id,title:String(d.titulo||'Demanda'),type:String(d.tipo||'demanda'),
+      department:String(schedule.departamentoSolicitante||'Operações'),
+      requestCategory:String(schedule.tipoSolicitacao||d.tipo||'Demanda'),
+      description:String(d.descricao||''),
+      publishStatus:String(d.status||'active'),
+      publishedAt:d.publicada_em||'',startsAt:d.inicio_em||'',
+      deadline:d.prazo_sla||'',closesAt:d.encerramento_em||'',
       isHomologacao:isConectaTestDemand_(d),createdAt:d.created_at||'',
       totalStores:targetIds.length,respondedStores:Object.keys(responseStores).length,
       assessedStores:Object.keys(assessed).length,total:rows.length,
