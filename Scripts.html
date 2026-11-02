@@ -642,6 +642,12 @@ function addManualGridResponseRow_(change){
  if(next>50){showToast('O limite é de 50 linhas por loja.');return;}
  var answers={};
  host.querySelectorAll('.answer-input').forEach(function(input){answers[input.dataset.key]=input.value;});
+ if(change===-1){
+  Object.keys(answers).forEach(function(key){
+   var match=key.match(/_(\d+)_(\d+)$/);
+   if(match&&Number(match[1])>=next)delete answers[key];
+  });
+ }
  host.innerHTML=manualGridTableHtml_(field,answers,false,next);
 }
 function newField(type,label){return {id:'q'+Date.now()+Math.random().toString(36).slice(2,5),label:label||'',type:type||'text',required:true,options:[]};}
@@ -2028,6 +2034,52 @@ function loadReports(){
  }).getDemandReportsWorkspace();
 }
 function selectDemandReport(id){REPORTS_SELECTED=String(id||'');renderReports();}
+// Respostas de todas as lojas da demanda, cada linha identificada pelo cadastro da unidade.
+// Somente dados da última entrega por loja são exportados; avaliações ficam no bloco abaixo.
+function renderGridReportSection_(group){
+ if(String(group.modelSource)!=='grid')return '';
+ var cols=group.gridColumns||[],rows=group.gridRows||[];
+ var headers=['Loja','Enviado em'].concat(group.gridHasFixedRows?['Item / linha']:[]).concat(cols);
+ var table='<div class="bacio-manual-grid-scroll"><table class="bacio-manual-grid bacio-consolidated-grid">'+
+  '<thead><tr>'+headers.map(function(h){return '<th scope="col">'+safe(h)+'</th>';}).join('')+'</tr></thead><tbody>'+
+  rows.slice(0,100).map(function(r){
+   return '<tr><th scope="row">'+safe(r.storeName)+'</th><td>'+safe(formatDateTime(r.sentAt)||'—')+
+     '</td>'+(group.gridHasFixedRows?'<td>'+safe(r.itemLabel||r.rowNumber)+'</td>':'')+
+     (r.values||[]).map(function(v){return '<td>'+safe(v)+'</td>';}).join('')+'</tr>';
+  }).join('')+'</tbody></table></div>';
+ return '<section class="bacio-consolidated-report">'+
+   '<div class="report-section-heading"><h4>Respostas consolidadas da planilha</h4>'+
+    '<p class="muted">Cada linha está associada automaticamente à loja que respondeu.</p></div>'+
+   (rows.length?'<div class="bacio-grid-toolbar"><strong>'+rows.length+' linha(s) preenchida(s) por '+
+     new Set(rows.map(function(r){return r.storeId;})).size+' loja(s)</strong>'+
+     '<button type="button" class="btn soft" onclick="exportGridReportCSV_(\''+
+       safeJs(group.id)+'\')">Exportar planilha (CSV)</button></div>'+
+     table+(rows.length>100?'<p class="helper">Exibindo 100 linhas na tela; a exportação inclui todas.</p>':''):
+     '<div class="empty">Nenhuma loja preencheu esta planilha até o momento.</div>')+'</section>';
+}
+function exportGridReportCSV_(demandaId){
+ var group=((REPORTS_DATA||{}).groups||[]).find(function(g){return String(g.id)===String(demandaId);});
+ if(!group||String(group.modelSource)!=='grid')return;
+ var headers=['Loja','Código da loja','E-mail do envio','Enviado em','Status']
+    .concat(group.gridHasFixedRows?['Item / linha']:[]).concat(group.gridColumns||[]);
+ var rows=(group.gridRows||[]).map(function(row){
+  return [row.storeName,row.storeCode,row.storeEmail,row.sentAt,row.status]
+   .concat(group.gridHasFixedRows?[row.itemLabel]:[]).concat(row.values||[]);
+ });
+ function csv(value){
+  var text=String(value==null?'':value);
+  if(/^[=+\-@\t\r]/.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+ }
+ var content='\uFEFF'+[headers].concat(rows).map(function(line){return line.map(csv).join(';');}).join('\r\n');
+ var blob=new Blob([content],{type:'text/csv;charset=utf-8'});
+ var url=URL.createObjectURL(blob),a=document.createElement('a');
+ var file=String(group.title||'demanda').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,60);
+ a.href=url;a.download='Bacio_Conecta_'+file+'_respostas.csv';
+ document.body.appendChild(a);a.click();document.body.removeChild(a);
+ URL.revokeObjectURL(url);
+}
 function renderReports(){
  if(!REPORTS_DATA)return;
  var list=REPORTS_DATA.groups||[];
@@ -2076,6 +2128,7 @@ function renderReports(){
   '<div class="report-progress"><strong>Acompanhamento das lojas</strong><p>'+
    selected.respondedStores+' de '+selected.totalStores+' lojas responderam · '+
    selected.assessedStores+' loja(s) avaliadas</p></div>'+
+  renderGridReportSection_(selected)+
   '<div class="report-section-heading"><h4>Resumo das avaliações</h4>'+
   '<p class="muted">Notas e SLA calculados apenas sobre os registros desta demanda.</p></div>'+
   '<div class="report-mini-stats">'+
