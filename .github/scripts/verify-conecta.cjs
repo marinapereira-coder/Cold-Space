@@ -888,7 +888,7 @@ assert.equal(testReport.total,1);
 assert.equal(ops.items.find(i=>i.id==='a2').responseHistory.length,1);
 const returnRow=ops.items.find(i=>i.id==='a1');
 assert.equal(returnRow.responseHistory.length,2,'Histórico de reenvios visível por avaliação');
-assert.ok(reportQueries.every(url=>!url.includes('post')&&!url.includes('patch')),'Relatórios só fazem leituras');
+assert.ok(reportQueries.length===3 && reportQueries.every(url=>url.startsWith('/rest/v1/')) && !reportSlice.includes('supabaseRequest_('), 'Relatórios só fazem consultas de leitura');
 const reportView=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
 const reportIndex=fs.readFileSync(path.join(__dirname,'../../Index.html'),'utf8');
 assert.ok(reportView.includes("REPORTS_MODE==='homologacao'")&&
