@@ -62,7 +62,7 @@ assert.throws(()=>ctx.validateCustomModelAnswers_({},report),/obrigatórios/);
 assert.throws(()=>ctx.validateCustomModelAnswers_({sec1:'a',sec2:'amanhã'},report),/Data inválida/);
 assert.throws(()=>ctx.validateCustomModelAnswers_({sec1:'a',admin:'vazar'},report),/não autorizado/);
 assert.doesNotThrow(()=>ctx.validateCustomModelAnswers_({}, {modelSource:'manual'}),'Fluxo antigo preservado');
-const gridStart=client.indexOf('function manualGridTableHtml_('),gridEnd=client.indexOf('function newField(',gridStart);
+const gridStart=client.indexOf('function manualGridRows_('),gridEnd=client.indexOf('function newField(',gridStart);
 assert.ok(gridStart>=0&&gridEnd>gridStart);
 const safe=value=>String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ui=vm.createContext({safe});
