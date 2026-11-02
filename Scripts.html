@@ -20,6 +20,9 @@ var STORE_REFRESH_TOKEN='';
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
+var REPORTS_DATA=null;
+var REPORTS_MODE='operacao';
+var REPORTS_SELECTED='';
 var ACCESS_DATA=null;
 
 function applyTheme(theme){
@@ -106,6 +109,8 @@ function bindEvents(){
 
   document.getElementById('refreshResponsesBtn').onclick=loadResponses;
   document.getElementById('refreshEvaluationsBtn').onclick=loadEvaluations;
+  document.getElementById('refreshReportsBtn').onclick=loadReports;
+  document.getElementById('reportSearch').oninput=renderReports;
   document.getElementById('refreshAccessBtn').onclick=loadAccesses;
   document.getElementById('newStoreAccessBtn').onclick=openUnifiedAccess;
   document.getElementById('refreshChatBtn').onclick=loadChatWorkspace;
@@ -153,12 +158,13 @@ function startApp(data){
     document.getElementById('noticeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('storeAdminActions').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('accessNavBtn').style.display=CURRENT_ROLE==='admin'?'flex':'none';
+    document.getElementById('reportsNavBtn').style.display=CURRENT_ROLE==='admin'?'flex':'none';
     document.getElementById('newCalendarEventBtn').style.display=CURRENT_ROLE==='admin'?'inline-block':'none';
     document.getElementById('evaluationPageTitle').textContent=CURRENT_ROLE==='loja'?'Minhas Avaliações':'Avaliações';
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;EVALUATION_DATA=null;REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     renderAllCore();
     if(AUTH_MODE==='corporate')syncVerifiedPortalRole_();
   }catch(error){showError('Erro ao montar a interface: '+error.message);}
@@ -176,6 +182,7 @@ function syncVerifiedPortalRole_(){
     var admin=cap.isAdmin===true&&verifiedRole==='admin';
     document.getElementById('managementMenu').style.display=verifiedRole==='loja'?'none':'block';
     document.getElementById('accessNavBtn').style.display=admin?'flex':'none';
+    document.getElementById('reportsNavBtn').style.display=admin?'flex':'none';
     document.getElementById('storeAdminActions').style.display=admin?'flex':'none';
     document.getElementById('noticeAdminActions').style.display=admin?'flex':'none';
     document.getElementById('newCalendarEventBtn').style.display=admin?'inline-block':'none';
@@ -198,17 +205,19 @@ function showPage(page){
   var target=document.getElementById('page-'+page);if(!target)return;
   if(page==='cronograma'&&CURRENT_ROLE==='loja'){showToast('Cronograma disponível para a gestão.');return;}
   if(page==='acessos'&&CURRENT_ROLE!=='admin'){showToast('Área exclusiva para administradores.');return;}
+  if(page==='relatorios'&&CURRENT_ROLE!=='admin'){showToast('Relatórios disponíveis para a administração.');return;}
   if(page==='respostas'&&CURRENT_ROLE==='loja'){showToast('Esta área é da gestão.');return;}
   CURRENT_PAGE=page;
   var contentRoot=document.querySelector('.app-shell .content');
   if(contentRoot)contentRoot.classList.toggle('cronograma-expanded',page==='cronograma');
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
-  var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
+  var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',relatorios:'Relatórios',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
   if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();if(page==='respostas')renderTestResponses();
   if(page==='avaliacoes'&&!EVALUATION_DATA)loadEvaluations();
+  if(page==='relatorios'){if(!REPORTS_DATA)loadReports();else renderReports();}
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
   if(page==='acessos'&&CURRENT_ROLE==='admin'&&!ACCESS_DATA)loadAccesses();
@@ -1424,7 +1433,7 @@ function openEvaluation(responseId){
   google.script.run.withSuccessHandler(function(result){
    setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');
    showToast(result&&result.slaCumprido===false?'Avaliação salva · SLA não cumprido.':'Avaliação salva.');
-   loadResponses();EVALUATION_DATA=null;refreshBootstrap(CURRENT_PAGE);
+   loadResponses();EVALUATION_DATA=null;REPORTS_DATA=null;refreshBootstrap(CURRENT_PAGE);
   }).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);})
     .evaluateDemandDelivery({responseId:responseId,demandaId:item.demandaId,lojaId:item.storeId,
       status:rating.status,stars:rating.stars,comment:document.getElementById('evalComment').value.trim()});
@@ -1750,6 +1759,105 @@ function renderEvaluations(){
   }).join('')||'<div class="empty">Nenhuma avaliação encontrada.</div>');
 }
 function starsText(value){var n=Math.round(Number(value||0)),out='';for(var i=1;i<=5;i++)out+=i<=n?'★':'☆';return out;}
+
+
+// Relatórios: uma visão por demanda; a homologação nunca se soma à operação.
+function loadReports(){
+ if(CURRENT_ROLE!=='admin')return;
+ var host=document.getElementById('reportDetail');
+ host.innerHTML='<div class="empty">Carregando relatórios das demandas...</div>';
+ google.script.run.withSuccessHandler(function(data){
+  REPORTS_DATA=data||{groups:[]};renderReports();
+ }).withFailureHandler(function(error){
+  host.innerHTML='<div class="empty"><strong>Não foi possível carregar os relatórios.</strong> '+
+   safe(error&&error.message?error.message:String(error))+'</div>';
+ }).getDemandReportsWorkspace();
+}
+function setReportMode(mode){
+ REPORTS_MODE=mode==='homologacao'?'homologacao':'operacao';
+ REPORTS_SELECTED='';document.getElementById('reportSearch').value='';
+ renderReports();
+}
+function selectDemandReport(id){REPORTS_SELECTED=String(id||'');renderReports();}
+function renderReports(){
+ if(!REPORTS_DATA)return;
+ var test=REPORTS_MODE==='homologacao';
+ document.getElementById('reportOperationMode').className='btn '+(test?'soft':'primary');
+ document.getElementById('reportTestMode').className='btn '+(test?'primary':'soft');
+ document.getElementById('reportModeDescription').textContent=test?
+   'Ambiente de homologação: avaliações de teste separadas dos indicadores oficiais.':
+   'Relatórios operacionais: avaliações das lojas reais, sem registros da homologação.';
+ var list=(REPORTS_DATA.groups||[]).filter(function(g){return Boolean(g.isHomologacao)===test;});
+ var filtered=list.filter(function(g){return String(g.title||'').toLowerCase().indexOf(
+  String(document.getElementById('reportSearch').value||'').trim().toLowerCase())>=0;});
+ var total=list.reduce(function(sum,g){return sum+Number(g.total||0);},0);
+ var approved=list.reduce(function(sum,g){return sum+Number(g.approved||0);},0);
+ var adjustments=list.reduce(function(sum,g){return sum+Number(g.adjustment||0);},0);
+ document.getElementById('reportSummary').innerHTML=[
+  [list.length,'Demandas com entregas'],[total,'Avaliações realizadas'],
+  [approved,'Aprovadas'],[adjustments,'Ajustes solicitados']
+ ].map(kpiHtml).join('');
+ if(!filtered.some(function(g){return String(g.id)===String(REPORTS_SELECTED)})){
+  REPORTS_SELECTED=filtered.length?String(filtered[0].id):'';
+ }
+ document.getElementById('reportDemandList').innerHTML=filtered.map(function(g){
+  return '<button type="button" class="report-demand-card'+(String(g.id)===String(REPORTS_SELECTED)?' selected':'')+
+    '" onclick="selectDemandReport(\''+safeJs(g.id)+'\')">'+
+    '<strong>'+safe(g.title)+'</strong>'+
+    '<span>'+g.respondedStores+' loja(s) responderam · '+g.total+' avaliação(ões)</span>'+
+    '<small>'+g.approved+' aprovadas · '+g.adjustment+' ajustes · '+g.rejected+' reprovadas</small>'+
+    '</button>';
+ }).join('')||'<div class="empty">Nenhuma demanda encontrada neste ambiente.</div>';
+ var selected=filtered.find(function(g){return String(g.id)===String(REPORTS_SELECTED)});
+ var host=document.getElementById('reportDetail');
+ if(!selected){host.innerHTML='<div class="empty">Nenhuma avaliação disponível para este filtro.</div>';return;}
+ host.innerHTML='<div class="report-detail-head"><div><span class="eyebrow">'+
+  (test?'Homologação':'Relatório da demanda')+'</span><h3>'+safe(selected.title)+'</h3>'+
+  '<p class="muted">'+selected.respondedStores+' de '+selected.totalStores+
+  ' lojas responderam · '+selected.assessedStores+' avaliadas</p></div></div>'+
+  '<div class="report-mini-stats">'+
+  '<div><strong>'+selected.total+'</strong><span>Avaliações</span></div>'+
+  '<div><strong>'+selected.approved+'</strong><span>Aprovadas</span></div>'+
+  '<div><strong>'+selected.adjustment+'</strong><span>Ajustes</span></div>'+
+  '<div><strong>'+selected.rejected+'</strong><span>Reprovadas</span></div>'+
+  '<div><strong>'+safe(selected.avgStars==null?'—':selected.avgStars)+'</strong><span>Média de estrelas</span></div>'+
+  '<div><strong>'+safe(selected.slaRate==null?'—':selected.slaRate+'%')+'</strong><span>SLA cumprido</span></div></div>'+
+  '<div class="report-evals"><div class="report-eval-header">Avaliações individuais</div>'+
+  ((selected.items||[]).length?selected.items.map(function(i){
+   return '<div class="report-eval-row"><div><strong>'+safe(i.storeLabel||'Loja')+'</strong>'+
+    '<small>'+safe(i.comment||'Sem comentário')+'</small></div>'+
+    '<div><span class="status '+safe(i.status)+'">'+safe(responseStatusLabel(i.status))+'</span>'+
+    '<small>'+safe(i.stars==null?'Sem nota':i.stars+' / 5 estrelas')+
+    ' · '+safe(i.slaMet==null?'Sem SLA':i.slaMet?'No prazo':'Fora do prazo')+'</small></div>'+
+    '<div><small>'+safe(formatDateTime(i.evaluatedAt)||'—')+'</small>'+
+    '<button type="button" class="btn soft" onclick="openDemandReportEvaluation(\''+
+    safeJs(selected.id)+'\',\''+safeJs(i.id)+'\')">Ver avaliação</button></div></div>';
+  }).join(''):'<div class="empty">Esta demanda ainda não tem avaliações registradas.</div>')+'</div>';
+}
+function openDemandReportEvaluation(demandId,evaluationId){
+ var group=((REPORTS_DATA||{}).groups||[]).find(function(g){return String(g.id)===String(demandId);});
+ var item=group&&(group.items||[]).find(function(i){return String(i.id)===String(evaluationId);});
+ if(!group||!item)return;
+ var rows=(item.responseHistory||[]).slice().reverse();
+ var history=rows.length?rows.map(function(h,index){
+  return '<div class="report-history-line"><strong>'+safe(String(index+1)+'ª entrega')+'</strong>'+
+   '<span>'+safe(formatDateTime(h.sentAt)||'—')+'</span>'+
+   '<span class="status '+safe(h.status)+'">'+safe(responseStatusLabel(h.status))+'</span>'+
+   (h.evaluatedHere?'<small>Avaliação desta entrega</small>':'')+'</div>';
+ }).join(''):'<p class="muted">Não há registros anteriores de entrega.</p>';
+ var body='<div class="report-evaluation-detail">'+
+  '<h3>'+safe(item.storeLabel)+' · '+safe(group.title)+'</h3>'+
+  '<div class="report-mini-stats"><div><strong>'+safe(item.stars==null?'—':item.stars+' / 5')+
+  '</strong><span>Nota</span></div><div><strong>'+safe(item.slaMet==null?'—':item.slaMet?'No prazo':'Fora do prazo')+
+  '</strong><span>SLA</span></div><div><strong>'+safe(responseStatusLabel(item.status))+
+  '</strong><span>Resultado</span></div></div>'+
+  '<div class="detail-box"><h4>Feedback da avaliação</h4><p>'+safe(item.comment||'Sem comentário registrado.')+
+  '</p><p class="muted">Avaliado em '+safe(formatDateTime(item.evaluatedAt)||'—')+
+  (item.evaluatorName?' por '+safe(item.evaluatorName):'')+'</p></div>'+
+  '<div class="detail-box"><h4>Histórico de respostas e ajustes</h4>'+history+'</div></div>';
+ openGeneric('Relatórios','Avaliação da loja',body,function(){closeModal('genericModal');});
+ document.getElementById('genericSaveBtn').textContent='Fechar';
+}
 
 /* ============================================================
    V2: USUÁRIOS & ACESSOS
