@@ -533,7 +533,7 @@ function setBuilderFormat(format){
  document.getElementById('gridBuilderPane').style.display=MODEL_FORMAT==='grid'?'':'none';
  document.getElementById('reportBuilderPane').style.display=MODEL_FORMAT==='report'?'':'none';
  if(MODEL_FORMAT==='grid')renderGridBuilder();
- if(MODEL_FORMAT==='report')renderReportSections();
+ if(MODEL_FORMAT==='report'){if(!REPORT_FIELDS.length)addReportSection();else renderReportSections();}
 }
 function renderGridBuilder(){
  var host=document.getElementById('gridColumnList');
@@ -604,7 +604,7 @@ function manualGridTableHtml_(field,answers,readonly){
   }).join('')+'</tr></thead><tbody>'+rows.map(function(row,ri){
    return '<tr><th scope="row">'+safe(row||'Item '+(ri+1))+'</th>'+columns.map(function(col,ci){
     var key='gridcell_'+id+'_'+ri+'_'+ci,raw=answers[key],value=raw==null?'':String(raw);
-    if(readonly)return '<td class="bacio-grid-readonly">'+safe(value||'—')+'</td>';
+    if(readonly)return '<td class="bacio-grid-readonly">'+safe(value|| (answers&&Object.keys(answers).length?'—':col.type==='boolean'?'Sim / Não':col.type==='number'?'Número':'Texto'))+'</td>';
     var attr=' class="answer-input bacio-grid-answer" data-key="'+safe(key)+'"'+
      (col.required?' data-required="1"':'');
     if(col.type==='boolean')return '<td><select'+attr+'><option value="">Selecione</option>'+
@@ -1513,8 +1513,12 @@ function responseSubmittedSheetHtml_(item){
 function responseEvaluationEvidenceHtml_(item){
  var fields=item.modelFields||[],answers=item.answers||{};
  var sheetHtml=responseSubmittedSheetHtml_(item);
- var extras=fields.map(function(f){return '<div class="answer-line"><strong>'+safe(f.label)+
-  '</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';}).join('');
+ var extras=fields.map(function(f){
+  if(f.type==='grid')return '<div class="bacio-review-block"><h4>'+safe(f.label)+'</h4>'+
+    manualGridTableHtml_(f,answers,true)+'</div>';
+  return '<div class="answer-line"><strong>'+safe(f.label)+
+   '</strong><span>'+safe(formatAnswer(answers[f.id]))+'</span></div>';
+ }).join('');
  return '<div class="detail-box bacio-review-overview"><h4>'+safe(item.storeLabel||'Loja')+'</h4>'+
   '<p class="muted">'+safe(item.demandaTitle||'')+'</p>'+
   (item.userEmail?'<p class="muted">Respondido por '+safe(item.userEmail)+'</p>':'')+
