@@ -2065,11 +2065,14 @@
                   <button type="button" id="addGridColumnBtn" class="btn soft">+ Coluna</button>
                 </div>
                 <div id="gridColumnList" class="question-list"></div>
-                <div class="bacio-grid-toolbar">
-                  <strong>Linhas da planilha</strong>
-                  <button type="button" id="addGridRowBtn" class="btn soft">+ Linha</button>
+                <div id="gridRowsSection" style="display:none">
+                  <div class="bacio-grid-toolbar">
+                    <strong>Linhas fixas (modelo antigo)</strong>
+                    <button type="button" id="addGridRowBtn" class="btn soft">+ Linha</button>
+                  </div>
+                  <div id="gridRowList" class="question-list"></div>
                 </div>
-                <div id="gridRowList" class="question-list"></div>
+                <p class="helper">As linhas ficam em branco e serão acrescentadas por cada loja ao responder. O Conecta identificará a loja na consolidação e na exportação.</p>
                 <strong class="bacio-preview-heading">Prévia da grade</strong>
                 <div id="gridBuilderPreview" class="bacio-manual-sheet-preview"></div>
               </div>
