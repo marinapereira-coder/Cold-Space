@@ -1078,6 +1078,7 @@ function submitStoreDemandResponse(
 
   // Verifica que só células designadas à loja foram preenchidas.
   validateSheetCellAnswers_(input.answers||{},detail);
+  validateCustomModelAnswers_(input.answers||{},detail);
   assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId);
 
   var respostasTable =
