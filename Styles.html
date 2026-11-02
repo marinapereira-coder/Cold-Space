@@ -3048,4 +3048,22 @@ body.dark-mode .report-mini-stats strong{color:#f6e1c7}
 @media(max-width:950px){.report-layout{grid-template-columns:1fr}.report-demand-list{max-height:300px}}
 @media(max-width:600px){.report-eval-row{grid-template-columns:1fr}.report-mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+/* Relatório centrado na demanda: metadados antes das avaliações. */
+.report-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+.report-info-item{display:grid;gap:6px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;min-width:0}
+.report-info-item span{font-size:10px;color:#8b7060}
+.report-info-item strong{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.report-description{padding:15px;margin-top:13px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.report-description p{margin:8px 0 0;font-size:13px;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}
+.report-progress{margin-top:14px;padding:14px;border-radius:12px;border:1px solid var(--line)}
+.report-progress strong{font-size:13px}
+.report-progress p{margin:7px 0 0;font-size:12px;color:#8b7060}
+.report-section-heading{margin-top:22px}
+.report-section-heading h4{font:normal 22px Georgia,"Times New Roman",serif;margin:0 0 6px}
+.report-section-heading p{margin:0}
+.report-test-label{font-size:10px!important;color:#856f61;display:inline-block;line-height:1.5}
+body.dark-mode .report-description{background:#302720}
+@media(max-width:600px){.report-info-grid{grid-template-columns:1fr}}
+
 </style>
