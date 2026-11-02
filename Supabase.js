@@ -817,10 +817,28 @@ function saveDemand(input,authOverride) {
       required: Boolean(f.required),
       options: Array.isArray(f.options) ? f.options.map(String) : [],
       sourceColumn: f.sourceColumn == null ? null : Number(f.sourceColumn),
-      originalLabel: f.originalLabel || null
+      originalLabel: f.originalLabel || null,
+      columns: String(f.type||'')==='grid'&&Array.isArray(f.columns) ?
+        f.columns.slice(0,10).map(function(c){return {label:String(c.label||'').trim().slice(0,100),
+          type:['boolean','number','text'].indexOf(String(c.type))>=0?String(c.type):'text',
+          required:c.required===true};}) : [],
+      rows: String(f.type||'')==='grid'&&Array.isArray(f.rows) ?
+        f.rows.slice(0,50).map(function(value){return String(value||'').trim().slice(0,120);}) : []
     };
   }).filter(function (f) { return Boolean(f.label); });
 
+  var sourceType=String(input.modelSource||'manual');
+  if(['manual','spreadsheet','grid','report'].indexOf(sourceType)<0)throw new Error('Formato de resposta inválido.');
+  if(sourceType==='grid'){
+    var grids=modelFields.filter(function(field){return field.type==='grid';});
+    if(grids.length!==1||modelFields.length!==1||grids[0].columns.length<1||grids[0].columns.length>10||
+       grids[0].rows.length<1||grids[0].rows.length>50||
+       grids[0].columns.some(function(col){return !col.label;})||
+       grids[0].rows.some(function(row){return !row;}))throw new Error('Defina de 1 a 10 colunas e de 1 a 50 linhas válidas na planilha.');
+  }
+  if(sourceType==='report'&&modelFields.some(function(field){
+    return ['text','textarea','number','date'].indexOf(field.type)<0;
+  }))throw new Error('O relatório possui um campo não permitido.');
   var demandasTable = table_('TABLE_DEMANDAS', 'bacio_demandas');
   var existingCronograma = {};
   var existingRow = null;
@@ -900,7 +918,7 @@ function saveDemand(input,authOverride) {
     cronograma: cronograma,
     status: publishStatus,
     resposta_obrigatoria: input.responseRequired !== false,
-    model_source: input.modelSource || 'manual',
+    model_source: sourceType,
     model_fields: modelFields,
     import_meta: input.importMeta || null,
     loja_ids: normalizeArray_(input.lojaIds || []),
@@ -1318,6 +1336,45 @@ function validateSheetCellAnswers_(answers,detail) {
   if(!String(answers[k]||'').trim())throw new Error('Preencha todas as colunas de confirmação destacadas antes de enviar.');
  });
 }
+// Validação no servidor dos novos modelos manuais, sem interferir com Excel importado.
+function validateCustomModelAnswers_(answers,detail){
+  var source=String(detail&&detail.modelSource||'manual'),fields=detail&&detail.modelFields||[];
+  if(['grid','report'].indexOf(source)<0)return;
+  answers=answers||{};
+  if(typeof answers!=='object'||Array.isArray(answers))throw new Error('Dados de resposta inválidos.');
+  var keys=Object.keys(answers),allowed={},required={};
+  if(keys.length>700)throw new Error('Número de campos de resposta excede o limite.');
+  if(source==='grid'){
+    var field=fields.find(function(f){return f.type==='grid';});
+    if(!field||!Array.isArray(field.rows)||!Array.isArray(field.columns)||
+        field.rows.length>50||field.columns.length>10)throw new Error('Planilha inválida.');
+    field.rows.forEach(function(row,ri){
+      field.columns.forEach(function(col,ci){
+        var key='gridcell_'+String(field.id)+'_'+ri+'_'+ci;
+        allowed[key]=String(col.type||'text');
+        if(detail.responseRequired!==false&&col.required===true)required[key]=true;
+      });
+    });
+  }else{
+    fields.forEach(function(f){allowed[String(f.id)]=String(f.type||'text');
+      if(detail.responseRequired!==false&&f.required===true)required[String(f.id)]=true;});
+  }
+  keys.forEach(function(key){
+    var type=allowed[key],val=answers[key];
+    if(!type)throw new Error('Campo não autorizado na resposta: '+key);
+    if(typeof val!=='string'&&typeof val!=='number')throw new Error('Valor de resposta inválido.');
+    var str=String(val).trim();
+    if(str.length>2000)throw new Error('O campo excede 2.000 caracteres.');
+    if(type==='boolean'&&str&&['Sim','Não','Não se aplica'].indexOf(str)<0)
+      throw new Error('Selecione Sim, Não ou Não se aplica.');
+    if(type==='number'&&str&&!isFinite(Number(str)))throw new Error('Número inválido.');
+    if(type==='date'&&str&&!/^\d{4}-\d{2}-\d{2}$/.test(str))throw new Error('Data inválida.');
+  });
+  Object.keys(required).forEach(function(key){
+    if(!String(answers[key]||'').trim())throw new Error('Preencha as colunas e os campos obrigatórios.');
+  });
+}
+
 function submitDemandResponse(input) {
   var auth = getCurrentAuthContext_();
   var user = auth.user;
@@ -1344,6 +1401,7 @@ function submitDemandResponse(input) {
   }
   if(role==='loja'){
     validateSheetCellAnswers_(input.answers||{},detail);
+    validateCustomModelAnswers_(input.answers||{},detail);
     assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId);
   }
 
