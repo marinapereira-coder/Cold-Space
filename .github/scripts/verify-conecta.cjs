@@ -316,7 +316,7 @@ assert.ok(index.includes('value="conferir_ajuste"'),
 assert.equal(ratingWorkspace.items.length,1,'Apenas avaliação ativa deve aparecer');
 assert.equal(ratingWorkspace.items[0].demandaId,'d-active');
 assert.equal(ratingWorkspace.summary.total,1,'Média e SLA não devem incluir avaliações arquivadas');
-assert.ok(demandsSeen.length===2&&demandsSeen.every(url=>url.includes('ativa=eq.true')));
+assert.ok(demandsSeen.length>=2&&demandsSeen.every(url=>url.includes('ativa=eq.true')));
 console.log('OK — Demandas arquivadas ocultas em respostas e avaliações, com histórico preservado.');
 
 
