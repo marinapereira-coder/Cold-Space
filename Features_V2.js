@@ -6449,3 +6449,23 @@ function attachStoreComunicadosLeiturasV2_(announcements,storeId) {
     return item;
   });
 }
+
+
+/* Edição administrativa de comunicado sem construtor de demandas ou SLA. */
+function editAnnouncement(input){
+  requireAdmin_();
+  input=input||{};
+  var id=String(input.id||''),title=String(input.title||'').trim(),
+      message=String(input.message||'').trim();
+  if(!/^[a-f0-9-]{36}$/i.test(id))throw new Error('Comunicado inválido.');
+  if(!title||!message)throw new Error('Informe título e mensagem.');
+  var existing=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=*&id=eq.'+encodeURIComponent(id)+'&limit=1',[])[0];
+  if(!existing||String(existing.tipo)!=='comunicado'||existing.ativa===false)
+    throw new Error('Comunicado não encontrado.');
+  var result=supabaseRequest_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?id=eq.'+encodeURIComponent(id),'patch',
+    {titulo:title,descricao:message,updated_at:new Date().toISOString()},'return=minimal');
+  // Edição não altera destinatários, leituras, status nem gera novo aviso.
+  return {ok:true,id:id};
+}
