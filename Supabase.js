@@ -829,6 +829,17 @@ function saveDemand(input,authOverride) {
 
   var sourceType=String(input.modelSource||'manual');
   if(['manual','spreadsheet','grid','report'].indexOf(sourceType)<0)throw new Error('Formato de resposta inválido.');
+  if(sourceType==='manual'){
+    modelFields.forEach(function(f){
+      if(f.type!=='multi_select')return;
+      var choices=(f.options||[]).map(function(x){return String(x||'').trim();});
+      if(choices.length<2||choices.length>30||choices.some(function(x){return !x||x.length>120;})||
+        new Set(choices.map(function(x){return x.toLowerCase();})).size!==choices.length){
+        throw new Error('Múltipla escolha exige de 2 a 30 opções diferentes e preenchidas.');
+      }
+      f.options=choices;
+    });
+  }
   if(sourceType==='grid'){
     var grids=modelFields.filter(function(field){return field.type==='grid';});
     if(grids.length!==1||modelFields.length!==1||grids[0].columns.length<1||grids[0].columns.length>10||
@@ -1401,6 +1412,32 @@ function validateCustomModelAnswers_(answers,detail){
   });
 }
 
+// Só as opções cadastradas podem ser marcadas pela loja. O payload usa
+// JSON string para continuar compatível com respostas de texto já salvas.
+function validateMultipleChoiceAnswers_(answers,detail){
+ var fields=detail&&detail.modelFields||[];
+ var multi=fields.filter(function(f){return String(f.type||'')==='multi_select';});
+ if(!multi.length)return;
+ if(!answers||typeof answers!=='object'||Array.isArray(answers))
+  throw new Error('Formato de respostas inválido.');
+ multi.forEach(function(f){
+  var id=String(f.id||''),raw=answers[id],selections=[];
+  if(raw!==undefined&&raw!==null&&String(raw)!==''){
+    if(typeof raw!=='string'||raw.length>4000)
+      throw new Error('Múltipla escolha inválida.');
+    try{selections=JSON.parse(raw);}catch(error){throw new Error('Múltipla escolha inválida.');}
+    if(!Array.isArray(selections))throw new Error('Múltipla escolha inválida.');
+  }
+  var choices=(f.options||[]).map(String);
+  if(selections.length>choices.length||selections.length>30||
+     selections.some(function(x){return typeof x!=='string'||choices.indexOf(x)<0;})||
+     new Set(selections).size!==selections.length)
+    throw new Error('A resposta contém uma opção não cadastrada ou repetida.');
+  if(detail.responseRequired!==false&&f.required===true&&!selections.length)
+    throw new Error('Marque pelo menos uma opção na pergunta obrigatória.');
+ });
+}
+
 function submitDemandResponse(input) {
   var auth = getCurrentAuthContext_();
   var user = auth.user;
@@ -1428,6 +1465,7 @@ function submitDemandResponse(input) {
   if(role==='loja'){
     validateSheetCellAnswers_(input.answers||{},detail);
     validateCustomModelAnswers_(input.answers||{},detail);
+    validateMultipleChoiceAnswers_(input.answers||{},detail);
     assertStoreResponseResubmissionAllowed_(input.demandaId,lojaId);
   }
 
