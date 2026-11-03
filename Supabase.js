@@ -1407,13 +1407,14 @@ function validateCustomModelAnswers_(answers,detail){
         });
       });
     }else{
-      // Cada loja define suas próprias linhas; não se importa a linha de outra unidade.
+      // Planilha sem linhas fixas: somente a linha inicial, definida pelo modelo,
+      // pode ser preenchida. A loja nunca pode criar novas linhas no payload.
       var prefix='gridcell_'+String(field.id)+'_',present={};
       keys.forEach(function(key){
         if(key.indexOf(prefix)!==0)return;
         var parts=key.slice(prefix.length).split('_'),ri=Number(parts[0]),ci=Number(parts[1]);
         if(parts.length!==2||!/^\d+$/.test(parts[0])||!/^\d+$/.test(parts[1])||
-           !Number.isInteger(ri)||!Number.isInteger(ci)||ri<0||ri>=50||
+           !Number.isInteger(ri)||!Number.isInteger(ci)||ri!==0||
            ci<0||ci>=field.columns.length||key!==prefix+ri+'_'+ci)return;
         allowed[key]=String(field.columns[ci].type||'text');
         if(String(answers[key]||'').trim())present[ri]=true;
