@@ -825,7 +825,11 @@ console.log('OK — Banco de Regras: chat, solicitações, exclusão lógica, pl
 
 
 /* BR-042 — Relatórios de avaliações por demanda, seguros e sem escrita. */
-const reportSlice=modern.slice(modern.indexOf('function getDemandReportsWorkspace()'));
+const reportStart=modern.indexOf('function getDemandReportsWorkspace()');
+const reportEnd=modern.indexOf('/* BR-053 — Comunicado:',reportStart);
+assert.ok(reportStart>=0&&reportEnd>reportStart,
+ 'Testar apenas o módulo de relatórios, sem incluir endpoints de comunicados');
+const reportSlice=modern.slice(reportStart,reportEnd);
 assert.ok(reportSlice.includes('function buildDemandReportsWorkspaceV2_('),'Relatórios no servidor');
 const reportFixtureDemands=[
  {id:'d-real',titulo:'Conferência Real',descricao:'Conferir produtos',tipo:'demanda',status:'active',ativa:true,loja_ids:['1'],cronograma:{departamentoSolicitante:'Qualidade',tipoSolicitacao:'Auditoria'},publicada_em:'2026-11-02',created_at:'2026-11-02'},
