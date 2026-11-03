@@ -1210,6 +1210,33 @@ function setDemandStatus(demandaId, newStatus) {
   return { ok: true, row: result && result[0] ? result[0] : null, notifications:notificationInfo };
 }
 
+// BR-055: exclusão lógica em lote, apenas admin, escopo/tipo conferidos no servidor.
+// Uma única operação PATCH atualiza os IDs validados sem apagar históricos.
+function archiveConectaItemsBulk(input) {
+ requireAdmin_();
+ input=input||{};
+ var kind=String(input.kind||'');
+ if(kind!=='comunicado'&&kind!=='solicitacao')throw new Error('Tipo de exclusão inválido.');
+ var ids=Array.isArray(input.ids)?input.ids.map(String):[];
+ if(!ids.length||ids.length>100||new Set(ids).size!==ids.length||
+    ids.some(function(id){return !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);}))
+    throw new Error('Selecione de 1 a 100 registros válidos, sem repetições.');
+ var table=table_('TABLE_DEMANDAS','bacio_demandas');
+ var joined='('+ids.join(',')+')';
+ var rows=supabaseRequest_('/rest/v1/'+table+'?select=id,tipo,ativa&id=in.'+encodeURIComponent(joined),'get')||[];
+ if(rows.length!==ids.length||rows.some(function(row){
+    return row.ativa===false||(kind==='comunicado'
+      ? String(row.tipo||'').toLowerCase()!=='comunicado'
+      : String(row.tipo||'').toLowerCase()==='comunicado');
+ }))throw new Error('A seleção contém registros indisponíveis ou de outra categoria. Atualize a lista.');
+ // Filtrar também pela categoria no UPDATE, protegendo contra alterações concorrentes.
+ var category=kind==='comunicado'?'&tipo=eq.comunicado':'&tipo=neq.comunicado';
+ var updated=supabaseRequest_('/rest/v1/'+table+'?id=in.'+encodeURIComponent(joined)+category+'&ativa=eq.true',
+    'patch',{ativa:false,updated_at:new Date().toISOString()},'return=representation')||[];
+ if(updated.length!==ids.length)throw new Error('Alguns registros mudaram durante a operação. Atualize a lista e confira.');
+ return {ok:true,count:updated.length};
+}
+
 function deleteDemand(demandaId) {
   requireAdmin_();
   if (!demandaId) throw new Error('Campanha/demanda não informada.');
