@@ -5,8 +5,8 @@ const client=load('Scripts.html'),backend=load('Supabase.js'),features=load('Fea
 assert.ok(client.includes("oninput=function(){renderStorePicker();}"),'O evento de digitação não passa InputEvent como seleção');
 assert.ok(client.includes('STORE_PICKER_SELECTED'), 'A seleção de outras páginas do filtro deve ser preservada');
 assert.ok(client.includes("rows:[]};IMPORTED_FIELDS=[];"),'Nova planilha não obriga linhas fixas');
-assert.ok(index.includes('id="gridRowsSection" style="display:none"'),'Criador mostra somente colunas em modelos novos');
-assert.ok(client.includes('addManualGridResponseRow_')&&client.includes('gridRows'),'Loja pode adicionar linhas');
+assert.ok(index.includes('id="gridRowsSection"'),'Gestão pode definir as linhas da planilha');
+assert.ok(!client.includes('onclick="addManualGridResponseRow_(1)"')&&!client.includes('onclick="addManualGridResponseRow_(-1)"'),'Loja não pode adicionar ou excluir linhas');
 assert.ok(backend.includes("if(field.rows.length){"),'Compatibilidade de modelos antigos');
 const safe=x=>String(x||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pickerStart=client.indexOf('function normalizePickerQuery_('),pickerEnd=client.indexOf('function renderAudienceRouting(',pickerStart);
@@ -35,7 +35,7 @@ const response1={gridcell_manual_grid_0_0:'Sorvete',gridcell_manual_grid_0_1:'12
  gridcell_manual_grid_1_0:'Cobertura',gridcell_manual_grid_1_1:'7'};
 assert.equal(gridCtx.manualGridRows_(grid,{},0).length,1,'Primeira linha aparece vazia para a loja');
 assert.equal(gridCtx.manualGridRows_(grid,response1,0).length,2,'Correção restaura as linhas da loja');
-assert.equal(gridCtx.manualGridRows_(grid,response1,3).length,3,'Botão acrescenta linha abaixo');
+assert.equal(gridCtx.manualGridRows_(grid,response1,3).length,3,'Helper preserva compatibilidade de histórico sem expor botão à loja');
 assert.ok(gridCtx.manualGridTableHtml_(grid,response1,false).includes('gridcell_manual_grid_1_1'),
  'Planilha editável tem 2 linhas da resposta');
 assert.ok(gridCtx.manualGridTableHtml_(grid,response1,true).includes('Sorvete'),
@@ -47,12 +47,13 @@ assert.ok(validStart>=0&&validEnd>validStart);
 const validate=vm.createContext({});
 vm.runInContext(backend.slice(validStart,validEnd),validate);
 const detail={modelSource:'grid',responseRequired:true,modelFields:[grid]};
-assert.doesNotThrow(()=>validate.validateCustomModelAnswers_(response1,detail),'Duas linhas são aceitas');
+assert.throws(()=>validate.validateCustomModelAnswers_(response1,detail),/não autorizado/,'Loja não pode inventar linhas novas');
+assert.doesNotThrow(()=>validate.validateCustomModelAnswers_(response1,{...detail,myResponse:{answers:response1}}),'Correção antiga pode preservar suas linhas');
 assert.throws(()=>validate.validateCustomModelAnswers_({},detail),/ao menos uma linha/);
 assert.throws(()=>validate.validateCustomModelAnswers_({gridcell_manual_grid_0_0:'Sorvete'},detail),/obrigatórios/);
-assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_1_3:'extra'},detail),/não autorizado/);
-assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_50_0:'outro'},detail),/não autorizado/);
-assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_0_1:'xx'},detail),/Número inválido/);
+assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_1_3:'extra'},{...detail,myResponse:{answers:response1}}),/não autorizado/);
+assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_50_0:'outro'},{...detail,myResponse:{answers:response1}}),/não autorizado/);
+assert.throws(()=>validate.validateCustomModelAnswers_({...response1,gridcell_manual_grid_0_1:'xx'},{...detail,myResponse:{answers:response1}}),/Número inválido/);
 assert.doesNotThrow(()=>validate.validateCustomModelAnswers_({}, {...detail,responseRequired:false}),'Resposta não obrigatória pode ficar vazia');
 // Testa relatório com lojas distintas e correção posterior; apenas última entrega.
 const reportsStart=features.indexOf('function getDemandReportsWorkspace()');
