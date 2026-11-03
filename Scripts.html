@@ -385,10 +385,18 @@ function renderCampaignManagement(){
     '" onclick="document.getElementById(\'campaignDepartmentFilter\').value=\''+safeJs(dept)+
     '\';renderCampaignManagement()"><strong>'+safe(dept)+'</strong><span>'+depts[dept]+' solicitações</span></button>';
   }).join('');
+ var visibleIds=filtered.map(function(item){return String(item.id);});
+ window.CONECTA_VISIBLE_REQUEST_IDS=visibleIds;
+ var bulk=document.getElementById('campaignBulkActions');
+ if(bulk)bulk.innerHTML=conectaBulkToolbar_('solicitacao',visibleIds);
  var header='<div class="row header"><div>Solicitação / Departamento</div><div>Tipo</div><div>Status</div><div>Prazo</div><div>Respostas</div></div>';
  document.getElementById('campaignTable').innerHTML=header+(filtered.length?filtered.map(function(item){
   var st=item.timelineStatus||item.status||'active';
-  return '<div class="row"><div><h4>'+safe(item.title)+'</h4><div class="muted">'+safe(requestDepartment(item))+
+  return '<div class="row"><div>'+(conectaBulkAdmin_('solicitacao')?
+   '<label class="conecta-bulk-check"><input type="checkbox" aria-label="Selecionar solicitação '+safe(item.title)+
+   '" '+(CONECTA_BULK_SELECTION.solicitacao[String(item.id)]?'checked ':'')+
+   'onchange="conectaBulkToggle_(\'solicitacao\',\''+safeJs(item.id)+'\',this.checked)"> Selecionar</label>':'')+
+   '<h4>'+safe(item.title)+'</h4><div class="muted">'+safe(requestDepartment(item))+
    ' · '+safe(item.description||'')+'</div></div><div class="muted">'+safe(typeLabel(item.type))+'</div><div><span class="status '+
    safe(st)+'">'+safe(item.timelineLabel||timelineLabel(st))+'</span></div><div class="muted">'+
    safe(formatDateTime((item.timeline||{}).deadline||item.deadline)||'Sem prazo')+'</div><div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:nowrap"><button class="btn soft" style="white-space:nowrap" onclick="openDemandDetail(\''+
@@ -403,21 +411,94 @@ function renderCampaignManagement(){
  }).join(''):'<div class="empty">Nenhuma solicitação encontrada com esses filtros.</div>');
 }
 
+// BR-055 — seleção individual/múltipla exclusiva do administrador.
+var CONECTA_BULK_SELECTION={comunicado:{},solicitacao:{}};
+function conectaBulkAdmin_(kind){
+ return CURRENT_ROLE==='admin'&&(kind!=='solicitacao'||!CAMPAIGN_PREVIEW_DEPARTMENT);
+}
+function conectaBulkToggle_(kind,id,checked){
+ if(!conectaBulkAdmin_(kind))return;
+ var selection=CONECTA_BULK_SELECTION[kind];
+ if(checked)selection[String(id)]=true;else delete selection[String(id)];
+ if(kind==='comunicado')renderNotices();else renderCampaignManagement();
+}
+function conectaBulkSelectedIds_(kind){
+ return Object.keys(CONECTA_BULK_SELECTION[kind]).filter(function(id){return CONECTA_BULK_SELECTION[kind][id];});
+}
+function conectaBulkSelectVisible_(kind,checked){
+ if(!conectaBulkAdmin_(kind))return;
+ var ids=kind==='comunicado'?window.CONECTA_VISIBLE_NOTICE_IDS||[]:window.CONECTA_VISIBLE_REQUEST_IDS||[];
+ ids.forEach(function(id){
+  if(checked)CONECTA_BULK_SELECTION[kind][String(id)]=true;
+  else delete CONECTA_BULK_SELECTION[kind][String(id)];
+ });
+ if(kind==='comunicado')renderNotices();else renderCampaignManagement();
+}
+function conectaBulkToolbar_(kind,visibleIds){
+ if(!conectaBulkAdmin_(kind))return '';
+ var selected=conectaBulkSelectedIds_(kind),all=visibleIds.length>0&&visibleIds.every(function(id){return !!CONECTA_BULK_SELECTION[kind][String(id)];});
+ return '<div class="conecta-bulk-toolbar">'+
+  '<label class="conecta-bulk-check"><input type="checkbox" '+(all?'checked ':'')+
+  'onchange="conectaBulkSelectVisible_(\''+kind+'\',this.checked)"> Selecionar todos os exibidos</label>'+
+  '<span class="muted">'+selected.length+' selecionado(s)</span>'+
+  '<button type="button" class="btn danger" '+(!selected.length?'disabled ':'')+
+  'onclick="conectaBulkArchive_(\''+kind+'\')">Excluir selecionados</button></div>';
+}
+function conectaBulkArchive_(kind){
+ if(!conectaBulkAdmin_(kind)){showToast('Somente administradores podem excluir registros.');return;}
+ var ids=conectaBulkSelectedIds_(kind);
+ if(!ids.length){showToast('Selecione os registros que deseja excluir.');return;}
+ var label=kind==='comunicado'?'comunicado(s)':'solicitação(ões)';
+ if(!confirm('Retirar '+ids.length+' '+label+' da visualização?\\n\\nA exclusão será lógica: registros e histórico serão preservados. Esta ação não pode ser desfeita pela interface.'))return;
+ google.script.run.withSuccessHandler(function(response){
+  CONECTA_BULK_SELECTION[kind]={};
+  showToast(Number(response&&response.count||0)+' '+label+' retirado(s), com histórico preservado.');
+  refreshBootstrap(kind==='comunicado'?'comunicados':'campanhas');
+ }).withFailureHandler(serverError).archiveConectaItemsBulk({kind:kind,ids:ids});
+}
+function editarComunicadoDaLista_(id){
+ if(CURRENT_ROLE!=='admin')return;
+ var ok=function(d){window.BACIO_CURRENT_DETAIL=d;editarComunicadoUI_(id);};
+ var run=google.script.run.withSuccessHandler(ok).withFailureHandler(serverError);
+ if(AUTH_MODE==='store')run.getPasswordDemandDetail(STORE_ACCESS_TOKEN,id);
+ else run.getDemandDetail(id);
+}
+
 function renderNotices(){
-  var q=(document.getElementById('noticeSearch').value||'').toLowerCase().trim(),f=document.getElementById('noticeTypeFilter').value;
-  var list=(APP_DATA.announcements||[]).filter(function(n){var text=((n.title||'')+' '+(n.excerpt||'')).toLowerCase();return (!q||text.indexOf(q)>=0)&&(f==='all'||String(n.kind||'info')===f);});
-  document.getElementById('noticeList').innerHTML=list.length?list.map(announcementHtml).join(''):'<div class="empty"><strong>Nenhum comunicado</strong>Não há comunicados com esse filtro.</div>';
+ var q=(document.getElementById('noticeSearch').value||'').toLowerCase().trim(),
+     filter=document.getElementById('noticeTypeFilter').value;
+ var list=(APP_DATA.announcements||[]).filter(function(n){
+  var text=((n.title||'')+' '+(n.excerpt||'')).toLowerCase();
+  return (!q||text.indexOf(q)>=0)&&(filter==='all'||String(n.kind||'info')===filter);
+ });
+ // Avisos de correção não são comunicados editáveis/excluíveis por lote.
+ var ids=list.filter(function(n){return n.isComunicado===true;}).map(function(n){return String(n.id);});
+ window.CONECTA_VISIBLE_NOTICE_IDS=ids;
+ var bar=document.getElementById('noticeBulkActions');
+ if(bar)bar.innerHTML=conectaBulkToolbar_('comunicado',ids);
+ document.getElementById('noticeList').innerHTML=list.length?list.map(announcementHtml).join(''):
+  '<div class="empty"><strong>Nenhum comunicado</strong>Não há comunicados com esse filtro.</div>';
 }
 function announcementHtml(n){
  var action=n.requiresCorrection===true&&!!n.demandId;
+ var adm=conectaBulkAdmin_('comunicado')&&n.isComunicado===true;
+ var id=String(n.id||'');
  return '<div class="announcement '+safe(n.kind||'info')+'">'+
-  '<div class="announcement-type">'+safe(n.kindLabel||'Informativo')+'</div>'+
+  '<div class="announcement-type">'+
+  (adm?'<label class="conecta-bulk-check"><input type="checkbox" aria-label="Selecionar comunicado '+safe(n.title||'')+
+    '" '+(CONECTA_BULK_SELECTION.comunicado[id]?'checked ':'')+
+    'onchange="conectaBulkToggle_(\'comunicado\',\''+safeJs(id)+'\',this.checked)"> Selecionar</label>':'')+
+  safe(n.kindLabel||'Informativo')+'</div>'+
   '<div><h4>'+safe(n.title)+'</h4>'+
   (action?'<p><strong>Aguardando correção</strong></p>':'')+
   '<p>'+safe(n.excerpt||'')+'</p>'+
   (action?'<button type="button" class="btn primary" onclick="openDemandDetail(\''+
-   safeJs(n.demandId)+'\')">Revisar resposta</button>':'')+
-  (n.isComunicado?'<div style="margin-top:10px"><button type="button" class="btn soft" onclick="openDemandDetail(\''+safeJs(n.id)+'\')">'+(CURRENT_ROLE==='loja'?(n.readConfirmed?'Ver comunicado · Lido':'Ler comunicado'):'Ver comunicado e leituras')+'</button></div>':'')+
+    safeJs(n.demandId)+'\')">Revisar resposta</button>':'')+
+  (n.isComunicado?'<div class="conecta-notice-actions"><button type="button" class="btn soft" onclick="openDemandDetail(\''+
+    safeJs(id)+'\')">'+(CURRENT_ROLE==='loja'?(n.readConfirmed?'Ver comunicado · Lido':'Ler comunicado'):'Ver comunicado e leituras')+'</button>'+
+    (adm?'<button type="button" class="btn soft" onclick="editarComunicadoDaLista_(\''+safeJs(id)+'\')">Editar</button>'+
+    '<button type="button" class="btn danger" onclick="deleteDemandItem(\''+safeJs(id)+'\',\''+safeJs(n.title||'Comunicado')+'\',\'comunicado\')">Excluir</button>':'')+
+    '</div>':'')+
   '</div><div class="announcement-date">'+safe(n.dateLabel||'')+'</div></div>';
 }
 
@@ -1786,12 +1867,12 @@ function submitStoreResponse(demandaId){
   if(AUTH_MODE==='store')run.submitStoreDemandResponse(STORE_ACCESS_TOKEN,payload);else run.submitDemandResponse(payload);
 }
 
-function deleteDemandItem(id,title){
- if(CURRENT_ROLE!=='admin'){showToast('Apenas administradores podem excluir solicitações.');return;}
+function deleteDemandItem(id,title,kind){
+ if(CURRENT_ROLE!=='admin'){showToast('Apenas administradores podem excluir registros.');return;}
  var label=String(title||((window.BACIO_CURRENT_DETAIL||{}).title)||'esta solicitação');
- if(!confirm('Retirar "'+label+'" da Central de Solicitações?\\n\\nA solicitação ficará inativa, mas o histórico, as respostas e os registros serão preservados. É possível criar uma nova do zero depois.'))return;
+ if(!confirm('Retirar "'+label+'" da '+(kind==='comunicado'?'área de Comunicados':'Central de Solicitações')+'?\\n\\nO registro ficará inativo, mas seu histórico será preservado.'))return;
  google.script.run.withSuccessHandler(function(){
-  closeModal('detailModal');showToast('Solicitação retirada da lista sem apagar o histórico.');refreshBootstrap('campanhas');
+  closeModal('detailModal');if(kind==='comunicado')delete CONECTA_BULK_SELECTION.comunicado[String(id)];else delete CONECTA_BULK_SELECTION.solicitacao[String(id)];showToast('Registro retirado sem apagar o histórico.');refreshBootstrap(kind==='comunicado'?'comunicados':'campanhas');
  }).withFailureHandler(serverError).deleteDemand(id);
 }
 
