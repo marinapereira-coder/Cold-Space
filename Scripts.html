@@ -475,6 +475,28 @@ function openNotificationDemand(id){
     });
     if(matches.length===1)targetId=matches[0].id;
   }
+  // Comunicado sempre abre na aba Comunicados, inclusive avisos antigos
+  // que vieram com título de solicitação. O tipo real é identificado pelo
+  // ID destinatário e não pelo texto exibido na notificação.
+  var announcement=(APP_DATA.announcements||[]).find(function(a){
+    return a.isComunicado&&String(a.id)===String(targetId||'');
+  });
+  var apparentNotice=/comunicad|comunica[çc][aã]o/i.test(String(n.title||''));
+  if(!announcement&&apparentNotice&&!targetId){
+    var candidates=(APP_DATA.announcements||[]).filter(function(a){
+      return a.isComunicado&&text.indexOf(String(a.title||'').toLowerCase().trim())>=0;
+    });
+    if(candidates.length===1){announcement=candidates[0];targetId=announcement.id;}
+  }
+  if(announcement||apparentNotice){
+    showPage('comunicados');
+    if(announcement||targetId){
+      openDemandDetail((announcement&&announcement.id)||targetId);
+    }else{
+      showToast('Comunicado não encontrado entre os destinatários da sua loja.');
+    }
+    return;
+  }
   // O aviso de entrega deve abrir a resposta recebida na avaliação da gestão,
   // nunca redirecionar para o modelo original da demanda.
   if(String(n.title||'').toLowerCase().trim()==='nova resposta recebida'&&CURRENT_ROLE!=='loja'){
