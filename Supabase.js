@@ -337,7 +337,7 @@ function getRealBootstrap_(email,authOverride) {
     campaigns: campaigns,
     managementItems: managementItems,
     announcements: announcements,
-    notifications: notifications.map(mapBacioNotification_)
+    notifications: mapConectaNotificationsByType_(notifications,demandas)
   };
 }
 
@@ -687,6 +687,23 @@ function mapBacioNotification_(n) {
   requiresCorrection:!!demandTag&&/^(ajuste solicitado|entrega reprovada)$/i.test(title.trim()),
   read:Boolean(n.lida||n.read),createdAt:n.created_at||n.createdAt||''
  };
+}
+// Corrige somente a apresentação de avisos históricos vinculados a comunicados.
+// Não altera registros no banco nem reenvia notificações.
+function mapConectaNotificationsByType_(rows,demandas){
+ var comunicadoIds={};
+ (demandas||[]).forEach(function(d){
+  if(String(d.tipo||d.type||'').toLowerCase()==='comunicado')comunicadoIds[String(d.id)]=true;
+ });
+ return (rows||[]).map(function(row){
+  var item=mapBacioNotification_(row),id=String(item.demandId||'');
+  var generic=/^(nova solicita[çc][aã]o publicada|nova demanda publicada|nova comunica[çc][aã]o|novo comunicado(?: publicado)?)$/i;
+  if(comunicadoIds[id]&&generic.test(String(item.title||'').trim())){
+    item.title='Novo comunicado publicado';
+    item.isComunicado=true;
+  }
+  return item;
+ });
 }
 function getResponseCorrectionFeedback_(demandId,storeId,responseId){
  if(!demandId||!storeId||!responseId)return '';
