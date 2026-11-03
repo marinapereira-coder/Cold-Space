@@ -1807,15 +1807,17 @@ function openNoticeModal(){
   '<div style="margin-top:12px"><label class="label">Destinatários</label>'+
   '<select id="gNoticeAudience" class="select" onchange="document.getElementById(\'gNoticeStorePicker\').style.display=this.value===\'selected\'?\'block\':\'none\'">'+
   '<option value="all">Todas as lojas reais do escopo (sem homologação)</option>'+
-  '<option value="selected">Selecionar lojas específicas, inclusive Loja Teste</option></select></div>'+
+  '<option value="test">Somente Loja Teste — Homologação</option>'+
+  '<option value="selected">Selecionar lojas específicas</option></select></div>'+
   '<div id="gNoticeStorePicker" style="display:none;margin-top:10px;max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:8px">'+options+'</div>'+
-  '<p class="helper" style="margin-top:8px">A Loja Teste não recebe comunicados gerais. Para homologar, selecione exclusivamente TESTE - LOJA TESTE.</p>';
+  '<p class="helper" style="margin-top:8px">Para testar sem notificar lojas reais, escolha Somente Loja Teste — Homologação. Comunicados gerais nunca são enviados à Loja Teste.</p>';
  openGeneric('Comunicação','Novo comunicado',body,function(){
   var title=document.getElementById('gNoticeTitle').value.trim();
   var message=document.getElementById('gNoticeText').value.trim();
   if(!title||!message){showToast('Preencha o título e a mensagem.');return;}
   var specific=document.getElementById('gNoticeAudience').value==='selected';
-  var ids=specific?Array.prototype.map.call(document.querySelectorAll('#gNoticeStorePicker .notice-target-store:checked'),function(el){return String(el.value);}):[];
+  var ids=document.getElementById('gNoticeAudience').value==='test'?['TESTE_CONECTA']:
+   specific?Array.prototype.map.call(document.querySelectorAll('#gNoticeStorePicker .notice-target-store:checked'),function(el){return String(el.value);}):[];
   if(specific&&!ids.length){showToast('Selecione ao menos uma loja destinatária.');return;}
   if(ids.indexOf('TESTE_CONECTA')>=0&&ids.length!==1){showToast('A Loja Teste deve ser selecionada sozinha.');return;}
   setBusy('genericSaveBtn',true,'Publicando...');
