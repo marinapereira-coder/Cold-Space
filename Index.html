@@ -1836,8 +1836,8 @@
                 </strong>
 
                 <div class="helper">
-                  Defina início, prazo para resposta,
-                  encerramento e lembretes.
+                  O início é preenchido automaticamente ao criar a solicitação.
+                  Antes de publicar, informe o prazo de resposta e o encerramento.
                 </div>
 
               </div>
@@ -1849,8 +1849,8 @@
 
               <div>
 
-                <label class="label">
-                  Início
+                <label class="label" for="fStart">
+                  Início automático
                 </label>
 
                 <input
@@ -1863,8 +1863,8 @@
 
               <div>
 
-                <label class="label">
-                  Prazo
+                <label class="label" for="fDeadline">
+                  Prazo de resposta *
                 </label>
 
                 <input
@@ -1877,8 +1877,8 @@
 
               <div>
 
-                <label class="label">
-                  Encerramento
+                <label class="label" for="fEnd">
+                  Encerramento *
                 </label>
 
                 <input
@@ -1889,6 +1889,7 @@
               </div>
 
             </div>
+            <p class="helper" id="fScheduleHint">* Obrigatórios para publicar. Rascunhos podem ser salvos sem essas datas.</p>
 
 
             <div class="checks">

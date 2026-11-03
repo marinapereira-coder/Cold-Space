@@ -674,12 +674,17 @@ function buildAnnouncements_(demandas) {
 
 function mapBacioNotification_(n) {
  var message=String(n.mensagem||n.message||'');
- var tag=message.match(/\s*\[\[bacio-demand:([a-z0-9-]{1,80})\]\]\s*$/i);
- return {id:n.id,title:n.titulo||n.title||'Notificação',
-  message:tag?message.slice(0,tag.index).trim():message,
-  demandId:tag?tag[1]:(n.demanda_id||n.demandId||null),
-  requiresCorrection:Boolean(tag) && /^(ajuste solicitado|entrega reprovada)$/i.test(String(n.titulo||n.title||'').trim()),read:Boolean(n.lida||n.read),
-  createdAt:n.created_at||n.createdAt||''};
+ var demandTag=message.match(/\[\[bacio-demand:([a-z0-9-]{1,80})\]\]/i);
+ var responseTag=message.match(/\[\[bacio-response:([a-z0-9-]{1,80})\]\]/i);
+ var title=String(n.titulo||n.title||'Notificação');
+ return {
+  id:n.id,title:title,
+  message:message.replace(/\s*\[\[bacio-(?:demand|response):[a-z0-9-]{1,80}\]\]/ig,'').trim(),
+  demandId:demandTag?demandTag[1]:(n.demanda_id||n.demandId||null),
+  responseId:responseTag?responseTag[1]:(n.resposta_id||n.responseId||null),
+  requiresCorrection:!!demandTag&&/^(ajuste solicitado|entrega reprovada)$/i.test(title.trim()),
+  read:Boolean(n.lida||n.read),createdAt:n.created_at||n.createdAt||''
+ };
 }
 function getResponseCorrectionFeedback_(demandId,storeId,responseId){
  if(!demandId||!storeId||!responseId)return '';
@@ -781,6 +786,26 @@ function validateAdminStoreTargets_(lojaIds) {
     }
   });
   return auth;
+}
+
+// Prazo de resposta e encerramento são obrigatórios para nova publicação.
+// Rascunhos podem ser incompletos. A edição de demandas já publicadas
+// sem prazo legado permanece possível somente após corrigir o prazo.
+function validateDemandDatesForPublication_(startValue,deadlineValue,endValue,nowValue){
+ var now=nowValue?new Date(nowValue):new Date();
+ var start=startValue?new Date(startValue):now;
+ var deadline=deadlineValue?new Date(deadlineValue):null;
+ var end=endValue?new Date(endValue):null;
+ if(!Number.isFinite(start.getTime()))throw new Error('Data e horário de início inválidos.');
+ if(!deadline||!Number.isFinite(deadline.getTime()))
+  throw new Error('Informe um prazo de resposta válido antes de publicar a solicitação.');
+ if(!end||!Number.isFinite(end.getTime()))
+  throw new Error('Informe a data de encerramento antes de publicar a solicitação.');
+ if(deadline.getTime()<=start.getTime())
+  throw new Error('O prazo de resposta deve ser posterior ao início da solicitação.');
+ if(end.getTime()<deadline.getTime())
+  throw new Error('O encerramento não pode ser anterior ao prazo de resposta.');
+ return {startAt:start.toISOString(),deadline:deadline.toISOString(),endAt:end.toISOString()};
 }
 
 function saveDemand(input,authOverride) {
@@ -901,6 +926,16 @@ function saveDemand(input,authOverride) {
 
   var prazoSla = input.deadline || input.prazoSla || input.prazo_sla ||
     (existingRow ? existingRow.prazo_sla : null) || null;
+
+  // Para uma nova solicitação, início é automático. A gestão informa prazo
+  // e encerramento antes de publicar; a validação também é obrigatória aqui.
+  if(!inicioEm && !existingRow)inicioEm=new Date().toISOString();
+  if(publishStatus==='active' && (tipo==='demanda'||tipo==='campanha')){
+    var verifiedDates=validateDemandDatesForPublication_(inicioEm,prazoSla,encerramentoEm);
+    inicioEm=verifiedDates.startAt;
+    prazoSla=verifiedDates.deadline;
+    encerramentoEm=verifiedDates.endAt;
+  }
 
   if (publishStatus === 'active' && !publicadaEm) {
     publicadaEm = new Date().toISOString();
@@ -1487,6 +1522,14 @@ function submitDemandResponse(input) {
     'return=representation'
   );
 
+  // O acesso corporativo de loja precisa ter o mesmo fluxo de aviso da
+  // sessão de loja com senha: quem recebe o aviso é a gestão autorizada.
+  if(role==='loja'&&typeof notifyManagementV2_==='function'){
+    notifyManagementV2_('Nova resposta recebida',
+      String(detail.title||'Demanda')+' · '+String((lojas.find(function(l){return String(l.id)===lojaId;})||{}).nome||'Loja'),
+      lojaId,String(input.demandaId),
+      inserted&&inserted[0]&&inserted[0].id?String(inserted[0].id):'');
+  }
   return { ok: true, row: inserted && inserted[0] ? inserted[0] : null };
 }
 
