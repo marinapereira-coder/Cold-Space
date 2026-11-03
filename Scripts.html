@@ -2218,8 +2218,10 @@ function applyStoreLiveUpdates_(data,generation){
  STORE_LIVE_LAST_FULL_REFRESH=Date.now();
  STORE_LIVE_LOADING=false;
  scheduleStoreLivePoll_(STORE_LIVE_POLL_MS);
- if(received.some(function(n){return String(n.title||'')==='Nova solicitação publicada';}))
-  showToast('Nova demanda recebida! Abra o sino de notificações para responder.');
+ if(received.some(function(n){return String(n.title||'')==='Novo comunicado publicado';}))
+  showToast('Novo comunicado recebido! Acesse Comunicados para ler e confirmar o recebimento.');
+ else if(received.some(function(n){return String(n.title||'')==='Nova solicitação publicada';}))
+  showToast('Nova solicitação recebida! Abra o sino de notificações para responder.');
  else if(received.some(function(n){return n.requiresCorrection===true;}))
   showToast('Ajuste solicitado. Abra as notificações para revisar sua resposta.');
 }
