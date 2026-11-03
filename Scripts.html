@@ -596,7 +596,7 @@ function renderGridBuilder(){
     (c.required?' checked':'')+'>Obrigatória</label>'+
    '<button type="button" class="remove-btn grid-col-remove" data-ci="'+i+'" aria-label="Remover coluna">×</button></div>';
  }).join('');
- document.getElementById('gridRowsSection').style.display=GRID_CONFIG.rows.length?'':'none';
+ document.getElementById('gridRowsSection').style.display='';
  document.getElementById('gridRowList').innerHTML=GRID_CONFIG.rows.map(function(row,i){
   return '<div class="bacio-grid-builder-row bacio-grid-builder-item">'+
    '<span class="bacio-row-counter">'+(i+1)+'</span>'+
@@ -680,25 +680,8 @@ function manualGridTableHtml_(field,answers,readonly,extraRows){
   }).join('')+'</tbody></table></div>';
 }
 function addManualGridResponseRow_(change){
- // Estrutura protegida: lojas não podem adicionar nem remover linhas.
+ // Estrutura da planilha é definida exclusivamente pela gestão.
  showToast('A estrutura da planilha é definida pela gestão.');
- return;
- var d=window.BACIO_CURRENT_DETAIL,field=d&&d.modelFields&&d.modelFields[0];
- var host=document.getElementById('manualStoreGridTable');
- if(!field||!host||field.type!=='grid'||(field.rows||[]).length)return;
- var count=host.querySelectorAll('tbody tr').length;
- var next=count+(change===-1?-1:1);
- if(next<1)return;
- if(next>50){showToast('O limite é de 50 linhas por loja.');return;}
- var answers={};
- host.querySelectorAll('.answer-input').forEach(function(input){answers[input.dataset.key]=input.value;});
- if(change===-1){
-  Object.keys(answers).forEach(function(key){
-   var match=key.match(/_(\d+)_(\d+)$/);
-   if(match&&Number(match[1])>=next)delete answers[key];
-  });
- }
- host.innerHTML=manualGridTableHtml_(field,answers,false,next);
 }
 function newField(type,label){return {id:'q'+Date.now()+Math.random().toString(36).slice(2,5),label:label||'',type:type||'text',required:true,options:[]};}
 function addManualQuestion(type,label){MANUAL_FIELDS.push(newField(type,label));renderManualQuestions();}
