@@ -382,7 +382,7 @@ function buildStoreBootstrapV2_(ctx) {
     );
 
   var announcements =
-    buildStoreCorrectionNotices_(demandas,respostas,lojas).concat(buildAnnouncements_(demandas));
+    attachStoreComunicadosLeiturasV2_(buildStoreCorrectionNotices_(demandas,respostas,lojas).concat(buildAnnouncements_(demandas)),String((lojas[0]||{}).id||''));
 
   var managementItems =
     buildManagementItems_(
@@ -6382,4 +6382,70 @@ function buildDemandReportsWorkspaceV2_(user) {
     };
   });
   return {generatedAt:new Date().toISOString(),groups:groups};
+}
+
+
+/* BR-053 — Comunicado: confirmação explícita por loja, independente do sino. */
+function confirmaLeituraComunicadoV2_(user,email,comunicadoId) {
+  if(roleOf_(user)!=='loja')throw new Error('A confirmação de leitura é exclusiva da loja.');
+  var lojaId=String(user.loja_id||user.lojaId||'');
+  if(!lojaId)throw new Error('Loja do usuário não identificada.');
+  var id=String(comunicadoId||'');
+  if(!/^[a-f0-9-]{36}$/i.test(id))throw new Error('Comunicado inválido.');
+  var demand=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=id,tipo,status,ativa,loja_ids&id=eq.'+encodeURIComponent(id)+'&limit=1',[])[0];
+  if(!demand||String(demand.tipo)!=='comunicado'||demand.ativa===false||
+    String(demand.status)!=='active')throw new Error('Comunicado não disponível.');
+  var scope=getVisibleStores_(user).map(function(store){return String(store.id);});
+  if(scope.indexOf(lojaId)<0||!demandaVisivelNoEscopo_(demand,[lojaId]))
+    throw new Error('A loja não é destinatária deste comunicado.');
+  var path='/rest/v1/bacio_comunicados_leituras';
+  var existing=safeSupabaseSelect_(path+'?select=comunicado_id&comunicado_id=eq.'+
+    encodeURIComponent(id)+'&loja_id=eq.'+encodeURIComponent(lojaId)+'&limit=1',[]);
+  if(!existing.length)supabaseRequest_(path,'post',[{
+    comunicado_id:id,loja_id:lojaId,lido_por:String(email||'').toLowerCase(),lido_em:new Date().toISOString()
+  }],'return=minimal');
+  return {ok:true,comunicadoId:id,lojaId:lojaId};
+}
+function confirmStoreAnnouncementRead(accessToken,comunicadoId) {
+  var ctx=getStoreAuthContext_(accessToken);
+  return confirmaLeituraComunicadoV2_(ctx.user,ctx.email,comunicadoId);
+}
+function confirmAnnouncementRead(comunicadoId) {
+  var auth=getCurrentAuthContext_();
+  return confirmaLeituraComunicadoV2_(auth.user,auth.email,comunicadoId);
+}
+function getAnnouncementReadOverview(comunicadoId) {
+  var auth=requireAdmin_();
+  var id=String(comunicadoId||'');
+  if(!/^[a-f0-9-]{36}$/i.test(id))throw new Error('Comunicado inválido.');
+  var demand=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_DEMANDAS','bacio_demandas')+
+    '?select=*&id=eq.'+encodeURIComponent(id)+'&limit=1',[])[0];
+  if(!demand||String(demand.tipo)!=='comunicado')throw new Error('Comunicado não encontrado.');
+  var allStores=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_LOJAS','bacio_lojas')+
+    '?select=id,codigo,nome,ativa&limit=5000',[]);
+  var targetIds=getTargetStoreIds_(demand,allStores.map(function(store){return String(store.id);}));
+  var target={};targetIds.forEach(function(storeId){target[String(storeId)]=true;});
+  var receipts=safeSupabaseSelect_('/rest/v1/bacio_comunicados_leituras?select=loja_id,lido_por,lido_em&comunicado_id=eq.'+
+    encodeURIComponent(id)+'&limit=5000',[]);
+  var read={};receipts.forEach(function(item){read[String(item.loja_id)]=item;});
+  var rows=allStores.filter(function(store){return !!target[String(store.id)]&&store.ativa!==false;})
+    .map(function(store){var item=read[String(store.id)]||null;return {
+      lojaId:String(store.id),loja:String((store.codigo||'')+' '+(store.nome||'' )).trim(),
+      lido:!!item,lidoEm:item?item.lido_em:null,lidoPor:item?item.lido_por:null
+    };}).sort(function(a,b){return a.loja.localeCompare(b.loja);});
+  return {total:rows.length,lidas:rows.filter(function(row){return row.lido;}).length,lojas:rows};
+}
+function attachStoreComunicadosLeiturasV2_(announcements,storeId) {
+  var id=String(storeId||'');
+  if(!id)return announcements;
+  var rows=safeSupabaseSelect_('/rest/v1/bacio_comunicados_leituras?select=comunicado_id,lido_em&loja_id=eq.'+
+    encodeURIComponent(id)+'&limit=5000',[]);
+  var read={};rows.forEach(function(row){read[String(row.comunicado_id)]=row.lido_em;});
+  return (announcements||[]).map(function(item){
+    if(item.requiresCorrection||!item.isComunicado)return item;
+    item.readConfirmed=!!read[String(item.id)];
+    item.readAt=read[String(item.id)]||null;
+    return item;
+  });
 }
