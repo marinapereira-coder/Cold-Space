@@ -2056,7 +2056,7 @@
               <div id="gridBuilderPane" class="bacio-builder-pane" style="display:none">
                 <div class="builder-head">
                   <div><strong>Criar planilha</strong>
-                    <div class="helper">As linhas serão iguais para todas as lojas, mas cada loja preencherá somente sua própria resposta. Defina as colunas e se são obrigatórias.</div>
+                    <div class="helper">Defina as colunas e, se necessário, as linhas fixas da planilha. Cada loja preencherá somente os campos autorizados, sem alterar sua estrutura.</div>
                   </div>
                 </div>
                 <label class="label" for="gridBuilderTitle">Nome da planilha</label>
@@ -2066,14 +2066,14 @@
                   <button type="button" id="addGridColumnBtn" class="btn soft">+ Coluna</button>
                 </div>
                 <div id="gridColumnList" class="question-list"></div>
-                <div id="gridRowsSection" style="display:none">
+                <div id="gridRowsSection">
                   <div class="bacio-grid-toolbar">
-                    <strong>Linhas fixas (modelo antigo)</strong>
+                    <strong>Linhas da planilha (definidas pela gestão)</strong>
                     <button type="button" id="addGridRowBtn" class="btn soft">+ Linha</button>
                   </div>
                   <div id="gridRowList" class="question-list"></div>
                 </div>
-                <p class="helper">As linhas ficam em branco e serão acrescentadas por cada loja ao responder. O Conecta identificará a loja na consolidação e na exportação.</p>
+                <p class="helper">Somente a gestão pode adicionar ou remover linhas e colunas. Sem linhas fixas, a loja recebe uma única linha para preencher. Adicione linhas aqui antes de publicar se precisar de mais itens.</p>
                 <strong class="bacio-preview-heading">Prévia da grade</strong>
                 <div id="gridBuilderPreview" class="bacio-manual-sheet-preview"></div>
               </div>
