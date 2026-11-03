@@ -417,6 +417,7 @@ function announcementHtml(n){
   '<p>'+safe(n.excerpt||'')+'</p>'+
   (action?'<button type="button" class="btn primary" onclick="openDemandDetail(\''+
    safeJs(n.demandId)+'\')">Revisar resposta</button>':'')+
+  (n.isComunicado?'<div style="margin-top:10px"><button type="button" class="btn soft" onclick="openDemandDetail(\''+safeJs(n.id)+'\')">'+(CURRENT_ROLE==='loja'?(n.readConfirmed?'Ver comunicado · Lido':'Ler comunicado'):'Ver comunicado e leituras')+'</button></div>':'')+
   '</div><div class="announcement-date">'+safe(n.dateLabel||'')+'</div></div>';
 }
 
@@ -1376,6 +1377,7 @@ function openDemandDetail(id){
 function renderDemandDetail(d){
   document.getElementById('detailTitle').textContent=d.title||'Detalhes';var t=d.timeline||{},pct=Number(d.progress||0);
   window.BACIO_CURRENT_DETAIL=d;
+  if(String(d.type||'').toLowerCase()==='comunicado'){renderComunicadoDetail_(d);return;}
   var storeSections=(d.importMeta&&d.importMeta.storeSections)||null;
   var isImportedSheet=!!(d.importMeta&&Array.isArray(d.importMeta.sheetLayouts)&&d.importMeta.sheetLayouts.length);
   var isInlineStore=!!(CURRENT_ROLE==='loja'&&d.importMeta&&Array.isArray(d.importMeta.storeSections)&&
@@ -1405,6 +1407,56 @@ function renderDemandDetail(d){
   }
   var foot='<button class="btn" data-close="detailModal">Fechar</button><div class="actions">';if(CURRENT_ROLE==='admin'){foot+='<button class="btn danger" onclick="deleteDemandItem(\''+safeJs(d.id)+'\')">Excluir</button><button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">Editar</button>';}if(CURRENT_ROLE!=='admin'&&CURRENT_ROLE!=='loja'&&d.publishStatus==='draft'&&decisionStatus!=='reprovada'){foot+='<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">'+(decisionStatus==='ajustes'?'Corrigir e reenviar':'Editar solicitação')+'</button>';} foot+='</div>';document.getElementById('detailFoot').innerHTML=foot;
 }
+
+/* BR-053: comunicado informativo, sem formulário de resposta ou SLA. */
+function renderComunicadoDetail_(d){
+ var role=CURRENT_ROLE,isStore=role==='loja',id=String(d.id||'');
+ var ann=(APP_DATA.announcements||[]).find(function(a){return a.isComunicado&&String(a.id)===id;});
+ var read=ann&&ann.readConfirmed===true;
+ var at=d.publicadaEm||(d.timeline||{}).publishedAt||'';
+ var html='<section class="detail-box bacio-comunicado-detail">'+
+  '<span class="eyebrow">Comunicado · Informação</span>'+
+  '<p class="bacio-comunicado-text">'+safe(d.description||'Sem mensagem.')+'</p>'+
+  '<div class="muted">Publicado em '+safe(formatDateTime(at)||'—')+'</div>'+
+  (isStore?'<div class="bacio-comunicado-receipt">'+(read?
+   '<strong>Leitura confirmada pela loja</strong>':
+   '<button type="button" class="btn primary" onclick="confirmarLeituraComunicadoUI_(\''+safeJs(id)+'\')">Confirmar leitura do comunicado</button>')+'</div>':
+   role==='admin'?'<div class="bacio-comunicado-receipt"><button type="button" class="btn soft" onclick="consultarLeiturasComunicadoUI_(\''+safeJs(id)+'\')">Acompanhar confirmações de leitura</button>'+
+    '<div id="comunicadoReadOverview" style="margin-top:14px"></div></div>':'')+
+  '</section>';
+ document.getElementById('detailBody').innerHTML=html;
+ var foot='<button class="btn" data-close="detailModal">Fechar</button>';
+ if(role==='admin')foot+='<div class="actions"><button class="btn danger" onclick="deleteDemandItem(\''+safeJs(id)+'\')">Excluir</button>'+
+  '<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\'comunicado\',\''+safeJs(id)+'\')">Editar</button></div>';
+ document.getElementById('detailFoot').innerHTML=foot;
+ if(role==='admin')consultarLeiturasComunicadoUI_(id);
+}
+function confirmarLeituraComunicadoUI_(id){
+ var run=google.script.run.withSuccessHandler(function(){
+  var ann=(APP_DATA.announcements||[]).find(function(item){return item.isComunicado&&String(item.id)===String(id);});
+  if(ann)ann.readConfirmed=true;
+  renderNotices();showToast('Leitura confirmada para a sua loja.');
+  var d=window.BACIO_CURRENT_DETAIL;
+  if(d&&String(d.id)===String(id))renderComunicadoDetail_(d);
+ }).withFailureHandler(serverError);
+ if(AUTH_MODE==='store')run.confirmStoreAnnouncementRead(STORE_ACCESS_TOKEN,id);
+ else run.confirmAnnouncementRead(id);
+}
+function consultarLeiturasComunicadoUI_(id){
+ if(CURRENT_ROLE!=='admin')return;
+ var host=document.getElementById('comunicadoReadOverview');
+ if(!host)return;
+ host.innerHTML='<span class="muted">Carregando confirmações de leitura...</span>';
+ google.script.run.withSuccessHandler(function(data){
+  var rows=(data||{}).lojas||[];
+  host.innerHTML='<p><strong>'+Number(data.lidas||0)+' de '+Number(data.total||0)+' lojas confirmaram leitura</strong></p>'+
+    '<div class="bacio-comunicado-read-table"><table class="bacio-manual-grid"><thead><tr><th>Loja</th><th>Situação</th><th>Confirmado em</th></tr></thead>'+
+    '<tbody>'+rows.map(function(item){return '<tr><td>'+safe(item.loja)+'</td><td>'+
+    (item.lido?'Lido':'Pendente')+'</td><td>'+safe(item.lidoEm?formatDateTime(item.lidoEm):'—')+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+ }).withFailureHandler(function(e){host.innerHTML='<span class="muted">'+safe(e&&e.message||'Não foi possível consultar as leituras.')+'</span>';}).getAnnouncementReadOverview(id);
+}
+
 function renderAdminStoreSimulator(d){
  var stores=d.stores||[],template=d.importMeta&&d.importMeta.perStore||{};
  var options=stores.map(function(store){return {id:String(store.id),code:storeCodeFromText(store.codigo||store.nome),label:(store.codigo||'')+' · '+(store.nome||'Loja')};});
