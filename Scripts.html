@@ -1420,7 +1420,7 @@ function renderComunicadoDetail_(d){
   '<div class="muted">Publicado em '+safe(formatDateTime(at)||'—')+'</div>'+
   (isStore?'<div class="bacio-comunicado-receipt">'+(read?
    '<strong>Leitura confirmada pela loja</strong>':
-   '<button type="button" class="btn primary" onclick="confirmarLeituraComunicadoUI_(\''+safeJs(id)+'\')">Confirmar leitura do comunicado</button>')+'</div>':
+   '<button type="button" class="btn primary" onclick="confirmarLeituraComunicadoUI_(\''+safeJs(id)+'\')">Marcar comunicado como lido</button>')+'</div>':
    role==='admin'?'<div class="bacio-comunicado-receipt"><button type="button" class="btn soft" onclick="consultarLeiturasComunicadoUI_(\''+safeJs(id)+'\')">Acompanhar confirmações de leitura</button>'+
     '<div id="comunicadoReadOverview" style="margin-top:14px"></div></div>':'')+
   '</section>';
