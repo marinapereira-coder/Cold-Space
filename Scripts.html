@@ -1427,10 +1427,30 @@ function renderComunicadoDetail_(d){
  document.getElementById('detailBody').innerHTML=html;
  var foot='<button class="btn" data-close="detailModal">Fechar</button>';
  if(role==='admin')foot+='<div class="actions"><button class="btn danger" onclick="deleteDemandItem(\''+safeJs(id)+'\')">Excluir</button>'+
-  '<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\'comunicado\',\''+safeJs(id)+'\')">Editar</button></div>';
+  '<button class="btn primary" onclick="editarComunicadoUI_(\''+safeJs(id)+'\')">Editar</button></div>';
  document.getElementById('detailFoot').innerHTML=foot;
  if(role==='admin')consultarLeiturasComunicadoUI_(id);
 }
+function editarComunicadoUI_(id){
+ if(CURRENT_ROLE!=='admin')return;
+ var d=window.BACIO_CURRENT_DETAIL;
+ if(!d||String(d.id)!==String(id)){showToast('Abra o comunicado antes de editar.');return;}
+ var body='<label class="label">Título</label><input class="field" id="noticeEditTitle" value="'+safe(d.title||'')+'">'+
+  '<label class="label" style="margin-top:12px">Mensagem</label><textarea class="textarea" id="noticeEditMessage" rows="10">'+safe(d.description||'')+'</textarea>'+
+  '<p class="helper">A edição não altera destinatários, leituras confirmadas ou notificações já enviadas.</p>';
+ openGeneric('Comunicação','Editar comunicado',body,function(){
+  var title=document.getElementById('noticeEditTitle').value.trim(),
+      message=document.getElementById('noticeEditMessage').value.trim();
+  if(!title||!message){showToast('Preencha título e mensagem.');return;}
+  setBusy('genericSaveBtn',true,'Salvando...');
+  google.script.run.withSuccessHandler(function(){
+   setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');closeModal('detailModal');
+   showToast('Comunicado atualizado sem reenviar notificações.');refreshBootstrap('comunicados');
+  }).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);})
+  .editAnnouncement({id:id,title:title,message:message});
+ });
+}
+
 function confirmarLeituraComunicadoUI_(id){
  var run=google.script.run.withSuccessHandler(function(){
   var ann=(APP_DATA.announcements||[]).find(function(item){return item.isComunicado&&String(item.id)===String(id);});
