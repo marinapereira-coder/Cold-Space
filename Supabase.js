@@ -493,7 +493,7 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
   var now = new Date();
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
 
-  var tasks = demandas.map(function (d) {
+  var tasks = demandas.filter(function(d){return String(d.tipo||d.type||'').toLowerCase()!=='comunicado';}).map(function (d) {
     var id = String(d.id);
     var targetIds = getTargetStoreIds_(d, visibleLojaIds);
     var latest = latestResponsesByStore_(id, respostas);
@@ -569,7 +569,7 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
 
 function buildManagementItems_(demandas, respostas, lojas, role) {
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
-  return demandas.map(function (d) {
+  return demandas.filter(function(d){return String(d.tipo||d.type||'').toLowerCase()!=='comunicado';}).map(function (d) {
     var id = String(d.id);
     var targetIds = getTargetStoreIds_(d, visibleLojaIds);
     var latest = latestResponsesByStore_(id, respostas);
@@ -624,6 +624,7 @@ function buildCampaigns_(demandas, tasks) {
   return demandas
     .filter(function (d) {
       var tipo = String(d.tipo || d.type || '').toLowerCase();
+      if(tipo==='comunicado')return false;
       var titulo = String(d.titulo || d.title || '').toLowerCase();
       return tipo.indexOf('campanha') >= 0 || titulo.indexOf('campanha') >= 0 || Boolean(d.insumos_campanha || d.insumosCampanha);
     })
