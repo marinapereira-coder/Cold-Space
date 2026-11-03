@@ -33,11 +33,11 @@ const routeEnd=client.indexOf('function markNotificationRead(id){',routeStart);
 assert.ok(routeStart>=0&&routeEnd>routeStart);
 const responses=[{responseId:'r123',demandaId:'d123',demandaTitle:'teste 3',
  storeLabel:'TESTE · LOJA TESTE - HOMOLOGAÇÃO',storeName:'LOJA TESTE - HOMOLOGAÇÃO'}];
-let opened=[],pages=[],toasts=[],read=[],loads=0;
+let opened=[],pages=[],toasts=[],readIds=[],loads=0;
 const ui=vm.createContext({
  APP_DATA:{notifications:[newAnswer],campaigns:[{id:'d123',title:'teste 3'}],managementItems:[]},
  RESPONSES_DATA:null,CURRENT_ROLE:'admin',
- markNotificationRead:id=>read.push(id),closeNotificationPanel:()=>{},
+ markNotificationRead:id=>readIds.push(id),closeNotificationPanel:()=>{},
  showPage:page=>pages.push(page),
  loadResponses:callback=>{loads++;ui.RESPONSES_DATA={items:responses,stats:{}};callback();},
  openEvaluation:id=>opened.push(id),openDemandDetail:id=>opened.push('demand:'+id),
@@ -49,7 +49,7 @@ vm.runInContext(client.slice(routeStart,routeEnd),ui);
 ui.openNotificationDemand('n1');
 assert.deepEqual(opened,['r123'],'Clique no sino abre a resposta, não a solicitação');
 assert.ok(pages.includes('respostas'));
-assert.deepEqual(read,['n1'],'Aviso é marcado como lido');
+assert.deepEqual(readIds,['n1'],'Aviso é marcado como lido');
 opened=[];ui.APP_DATA.notifications=[{id:'n2',title:'Nova resposta recebida',
  message:'teste 3 · TESTE · LOJA TESTE - HOMOLOGAÇÃO',read:false}];
 ui.openNotificationDemand('n2');
