@@ -266,7 +266,7 @@ function getRealBootstrap_(email,authOverride) {
 
   var tasks = buildTasks_(published, respostas, lojas, role, user);
   var campaigns = buildCampaigns_(published, tasks);
-  var announcements = role==='loja' ? buildStoreCorrectionNotices_(published,respostas,lojas).concat(buildAnnouncements_(published)) : buildAnnouncements_(published);
+  var announcements = role==='loja' ? attachStoreComunicadosLeiturasV2_(buildStoreCorrectionNotices_(published,respostas,lojas).concat(buildAnnouncements_(published)),String(user.loja_id||user.lojaId||'')) : buildAnnouncements_(published);
   // Defence in depth: filter the final payload as well as source rows.
   // This prevents cross-department records leaking through any future mapper.
   var managementItems = buildManagementItems_(demandas, respostas, lojas, role);
@@ -662,6 +662,7 @@ function buildAnnouncements_(demandas) {
       }
       return {
         id: String(d.id),
+        isComunicado:true,
         title: d.titulo || d.title || 'Comunicado',
         excerpt: d.descricao || d.description || '',
         kind: kind,
@@ -1078,12 +1079,13 @@ function notifyDemandPublished_(auth, demand) {
   });
   var emails=Object.keys(recipients);
   if(!emails.length)return {sent:0,reason:'no_active_recipients'};
-  var now=new Date().toISOString(),message='Nova '+(demand.type==='campanha'?'campanha':'demanda')+' publicada: '+demand.title;
+  var isComunicado=String(demand.type||'').toLowerCase()==='comunicado';
+  var now=new Date().toISOString(),message=(isComunicado?'Novo comunicado publicado: ':'Nova '+(demand.type==='campanha'?'campanha':'demanda')+' publicada: ')+demand.title;
   // Abrir a demanda pelo ID, sem depender de correspondência do título.
   var demandId=String(demand.id||'');
   if(/^[a-z0-9-]{1,80}$/i.test(demandId))message+=' [[bacio-demand:'+demandId+']]';
   var payload=emails.map(function(email){return {
-    usuario_email:email,titulo:'Nova solicitação publicada',mensagem:message,
+    usuario_email:email,titulo:isComunicado?'Novo comunicado publicado':'Nova solicitação publicada',mensagem:message,
     lida:false,created_at:now
   };});
   // A single batch creates one notification per eligible user.
