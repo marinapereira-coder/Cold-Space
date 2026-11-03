@@ -1412,11 +1412,20 @@ function validateCustomModelAnswers_(answers,detail){
       // Planilha sem linhas fixas: somente a linha inicial, definida pelo modelo,
       // pode ser preenchida. A loja nunca pode criar novas linhas no payload.
       var prefix='gridcell_'+String(field.id)+'_',present={};
+      // Entregas anteriores à BR-051 podem ter várias linhas; permitir somente
+      // corrigir linhas já existentes, nunca adicionar novas.
+      var previous=(detail.myResponse&&detail.myResponse.answers)||{},maxAllowedRow=0;
+      Object.keys(previous).forEach(function(key){
+        if(key.indexOf(prefix)!==0)return;
+        var parts=key.slice(prefix.length).split('_'),ri=Number(parts[0]);
+        if(parts.length===2&&/^\\d+$/.test(parts[0])&&ri>=0&&ri<50)
+          maxAllowedRow=Math.max(maxAllowedRow,ri);
+      });
       keys.forEach(function(key){
         if(key.indexOf(prefix)!==0)return;
         var parts=key.slice(prefix.length).split('_'),ri=Number(parts[0]),ci=Number(parts[1]);
         if(parts.length!==2||!/^\d+$/.test(parts[0])||!/^\d+$/.test(parts[1])||
-           !Number.isInteger(ri)||!Number.isInteger(ci)||ri!==0||
+           !Number.isInteger(ri)||!Number.isInteger(ci)||ri<0||ri>maxAllowedRow||
            ci<0||ci>=field.columns.length||key!==prefix+ri+'_'+ci)return;
         allowed[key]=String(field.columns[ci].type||'text');
         if(String(answers[key]||'').trim())present[ri]=true;
