@@ -70,7 +70,7 @@ assert.equal(signalCalls,1);
 assert.equal(fullCalls,1,'Nova notificação atualiza demandas sem F5');
 assert.ok(renders.includes('demandas')&&renders.includes('sino')&&renders.includes('home'));
 assert.equal(ui.APP_DATA.managementItems[0].id,'d123');
-assert.ok(toasts.some(s=>s.includes('Nova demanda recebida')));
+assert.ok(toasts.some(s=>s.includes('Nova solicitação recebida')));
 assert.ok(!client.slice(uStart,uEnd).includes('startApp(data)'), 'Sincronização não deve fechar formulários');
 ui.document.hidden=true;
 ui.pollStoreLiveUpdates_();
