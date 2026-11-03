@@ -3135,4 +3135,16 @@ body.dark-mode .bacio-option-add{background:#3b312b;color:#f9e8dc;border-color:#
 .bacio-comunicado-read-table{max-height:280px;overflow:auto;border-radius:10px;border:1px solid var(--line)}
 .bacio-comunicado-read-table th,.bacio-comunicado-read-table td{font-size:12px;padding:9px 12px}
 
+
+/* BR-055 — Ferramentas exclusivas da gestão para seleção múltipla. */
+.conecta-bulk-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 14px;margin:12px 0;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.conecta-bulk-check{display:inline-flex;align-items:center;gap:7px;font-size:11px;cursor:pointer;white-space:nowrap;color:var(--brown);margin-bottom:7px}
+.conecta-bulk-check input{accent-color:var(--brown);width:15px;height:15px;cursor:pointer}
+.conecta-bulk-toolbar .conecta-bulk-check{margin:0}
+.conecta-bulk-toolbar .btn{margin-left:auto}
+.conecta-bulk-toolbar .btn:disabled{opacity:.4;cursor:not-allowed}
+.conecta-notice-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.conecta-notice-actions .btn{white-space:nowrap}
+@media(max-width:750px){.conecta-bulk-toolbar .btn{margin-left:0;width:100%}}
+
 </style>
