@@ -1148,7 +1148,8 @@ function submitStoreDemandResponse(
     ),
 
     lojaId,
-    String(input.demandaId)
+    String(input.demandaId),
+    inserted&&inserted[0]&&inserted[0].id?String(inserted[0].id):''
   );
 
   return {
@@ -5057,7 +5058,8 @@ function notifyManagementV2_(
   title,
   message,
   storeId,
-  demandId
+  demandId,
+  responseId
 ) {
 
   var usersTable =
@@ -5147,6 +5149,13 @@ function notifyManagementV2_(
 
   if (!users.length) {
     return 0;
+  }
+
+  if(String(title)==='Nova resposta recebida'&&
+     /^[a-z0-9-]{1,80}$/i.test(String(responseId||''))&&
+     /^[a-z0-9-]{1,80}$/i.test(String(demandId||''))){
+    // O aviso aponta à ENTREGA exata, e não só à solicitação original.
+    message=String(message||'')+' [[bacio-demand:'+demandId+']] [[bacio-response:'+responseId+']]';
   }
 
   var now =
