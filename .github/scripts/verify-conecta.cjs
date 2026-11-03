@@ -935,3 +935,6 @@ require('./verify-live-store.cjs');
 
 // BR-047: opções com +, múltipla escolha e diferença entre rascunho/publicação.
 require('./verify-multi-options.cjs');
+
+// BR-048: avisos abrem respostas e publicação exige prazo e encerramento.
+require('./verify-response-notices-deadlines.cjs');
