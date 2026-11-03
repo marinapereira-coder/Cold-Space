@@ -680,6 +680,9 @@ function manualGridTableHtml_(field,answers,readonly,extraRows){
   }).join('')+'</tbody></table></div>';
 }
 function addManualGridResponseRow_(change){
+ // Estrutura protegida: lojas não podem adicionar nem remover linhas.
+ showToast('A estrutura da planilha é definida pela gestão.');
+ return;
  var d=window.BACIO_CURRENT_DETAIL,field=d&&d.modelFields&&d.modelFields[0];
  var host=document.getElementById('manualStoreGridTable');
  if(!field||!host||field.type!=='grid'||(field.rows||[]).length)return;
@@ -1600,11 +1603,8 @@ function renderStoreResponseSection(d,answerHtml){
     return (current?'<div class="response-status-note ajuste_necessario"><strong>Aguardando correção</strong><p>'+
       safe(current.feedback||'Revise a planilha e envie uma nova resposta.')+'</p></div>':'')+
       '<div id="storeResponseForm" class="bacio-manual-store-grid"><h4>'+safe(d.modelFields[0].label)+'</h4>'+
-      '<div class="helper">Preencha a planilha e use + Adicionar linha para incluir quantos itens precisar.</div>'+
+      '<div class="helper">Preencha somente os campos solicitados. A estrutura da planilha é definida pela gestão e não pode ser alterada pela loja.</div>'+
       '<div id="manualStoreGridTable">'+manualGridTableHtml_(d.modelFields[0],previousAnswers,false)+'</div>'+
-      (!(d.modelFields[0].rows||[]).length?
-       '<div class="bacio-grid-toolbar"><button class="btn soft" type="button" onclick="addManualGridResponseRow_(1)">+ Adicionar linha</button>'+
-       '<button class="btn soft" type="button" onclick="addManualGridResponseRow_(-1)">Remover última linha</button></div>':'')+
       '<label class="label" style="margin-top:14px">Observações gerais</label>'+
       '<textarea id="storeResponseObs" class="textarea">'+safe(current&&current.observacao||'')+'</textarea>'+
       '<button class="btn primary" style="margin-top:12px" onclick="submitStoreResponse(\''+
