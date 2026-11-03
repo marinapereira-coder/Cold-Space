@@ -1539,11 +1539,15 @@ function buildResponsesWorkspaceV2_(
 
   // Manter resposta fictícia avaliável, mas fora dos indicadores reais.
   var operationalItems=items.filter(function(item){return !isConectaTestStoreId_(item.storeId);});
+  var ratedItems=operationalItems.filter(function(item){return item.evaluation&&Number(item.evaluation.stars)>=1&&Number(item.evaluation.stars)<=5;});
+  var slaItems=operationalItems.filter(function(item){return item.evaluation&&(item.evaluation.slaMet===true||item.evaluation.slaMet===false);});
   return {
     items:
       items,
 
     stats: {
+      averageStars:ratedItems.length?Math.round(10*ratedItems.reduce(function(sum,item){return sum+Number(item.evaluation.stars);},0)/ratedItems.length)/10:null,
+      slaRate:slaItems.length?Math.round(100*slaItems.filter(function(item){return item.evaluation.slaMet===true;}).length/slaItems.length):null,
       total:
         operationalItems.length,
 
