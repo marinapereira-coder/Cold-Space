@@ -1529,7 +1529,7 @@ function renderComunicadoDetail_(d){
   '</section>';
  document.getElementById('detailBody').innerHTML=html;
  var foot='<button class="btn" data-close="detailModal">Fechar</button>';
- if(role==='admin')foot+='<div class="actions"><button class="btn danger" onclick="deleteDemandItem(\''+safeJs(id)+'\')">Excluir</button>'+
+ if(role==='admin')foot+='<div class="actions"><button class="btn danger" onclick="deleteDemandItem(\''+safeJs(id)+'\',\''+safeJs(d.title||'Comunicado')+'\',\'comunicado\')">Excluir</button>'+
   '<button class="btn primary" onclick="editarComunicadoUI_(\''+safeJs(id)+'\')">Editar</button></div>';
  document.getElementById('detailFoot').innerHTML=foot;
  if(role==='admin')consultarLeiturasComunicadoUI_(id);
