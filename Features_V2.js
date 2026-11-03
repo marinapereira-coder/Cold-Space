@@ -502,7 +502,7 @@ function buildStoreBootstrapV2_(ctx) {
     announcements:
       announcements,
 
-    notifications: notifications.map(mapBacioNotification_)
+    notifications: mapConectaNotificationsByType_(notifications,demandas)
   };
 }
 
