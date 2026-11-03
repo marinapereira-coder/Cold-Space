@@ -1015,3 +1015,34 @@ assert.ok(!noticeUi.includes("submitStoreResponse(")&&!noticeUi.includes("render
   !noticeUi.includes('responseTimingInfo_'),
   'Comunicados não podem abrir formulário ou SLA');
 console.log('OK — KPIs oficiais e comunicados separados com confirmação explícita de leitura.');
+
+
+/* BR-054 — não abrir comunicado como solicitação nem renomear notificações de demandas. */
+{
+  const first=backend.indexOf('function mapBacioNotification_(');
+  const last=backend.indexOf('function getResponseCorrectionFeedback_(',first);
+  assert.ok(first>=0&&last>first,'Mapper das notificações deve existir');
+  const context=vm.createContext({});
+  vm.runInContext(backend.slice(first,last),context);
+  const comunicado='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  const demanda='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+  const notices=[
+    {id:'1',titulo:'Nova solicitação publicada',mensagem:'Novo conteúdo [[bacio-demand:'+comunicado+']]'},
+    {id:'2',titulo:'Nova comunicação',mensagem:'Aviso [[bacio-demand:'+comunicado+']]'},
+    {id:'3',titulo:'Nova solicitação publicada',mensagem:'Nova demanda [[bacio-demand:'+demanda+']]'}
+  ];
+  const mapped=context.mapConectaNotificationsByType_(notices,[
+    {id:comunicado,tipo:'comunicado'},{id:demanda,tipo:'demanda'}
+  ]);
+  assert.equal(mapped[0].title,'Novo comunicado publicado');
+  assert.equal(mapped[1].title,'Novo comunicado publicado');
+  assert.equal(mapped[2].title,'Nova solicitação publicada');
+  assert.ok(scripts.includes("showPage('comunicados');") &&
+    scripts.includes('function renderComunicadoDetail_(d)') &&
+    scripts.includes("String(d.type||'').toLowerCase()==='comunicado'"),
+    'Sino e detalhe devem navegar diretamente ao comunicado, sem modelo de resposta');
+  assert.ok(scripts.includes('Selecionar lojas específicas, inclusive Loja Teste') &&
+    scripts.includes("ids.indexOf('TESTE_CONECTA')>=0&&ids.length!==1"),
+    'Destinatário de homologação deve ser selecionado sem depender da campanha');
+  console.log('OK — notificações antigas, abertura correta e destinatários de comunicado.');
+}
