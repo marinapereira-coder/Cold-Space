@@ -2181,6 +2181,10 @@ function processAutomaticNotifications() {
         return;
 
       }
+      // Publicação de comunicados já é notificada no momento de salvar.
+      // Não duplicar avisos nem executar cobranças de resposta/SLA.
+      if(String(d.tipo||'').toLowerCase()==='comunicado')return;
+
 
 
       var targetIds =
