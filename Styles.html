@@ -3099,4 +3099,20 @@ body.dark-mode .bacio-manual-grid thead th,body.dark-mode .bacio-manual-grid tbo
 body.dark-mode .bacio-report-answer{background:#352b25}
 @media(max-width:780px){.bacio-builder-options{grid-template-columns:1fr}.bacio-grid-builder-row,.bacio-report-section{grid-template-columns:1fr 1fr}.bacio-grid-builder-item{grid-template-columns:32px 1fr auto}}
 
+
+/* Construtor de alternativas explícitas para seleção simples/múltipla. */
+.question[data-type="multi_select"] .question-options{display:block}
+.bacio-options-list{display:grid;gap:8px;margin-top:11px}
+.bacio-option-line{display:grid;grid-template-columns:minmax(0,1fr) 38px 38px;align-items:center;gap:8px}
+.bacio-option-line .field{min-width:0}
+.bacio-option-add{height:38px;border:1px solid #996545;border-radius:9px;background:#f5ece3;color:#6c442d;font-size:20px;font-weight:700;cursor:pointer}
+.bacio-option-add:hover{background:#eaddd0}
+.bacio-option-remove{height:38px}
+.question-options>strong{font-size:12px;color:var(--brown)}
+.bacio-multiselect{display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+.bacio-multiselect legend{font-size:11px;padding:0 5px;color:#81624c}
+.bacio-multiselect label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px}
+.bacio-multiselect input{width:16px;height:16px;accent-color:#714831}
+body.dark-mode .bacio-option-add{background:#3b312b;color:#f9e8dc;border-color:#986d55}
+@media(max-width:600px){.bacio-option-line{grid-template-columns:minmax(0,1fr) 36px 36px}}
 </style>

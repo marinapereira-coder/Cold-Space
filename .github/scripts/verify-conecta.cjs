@@ -932,3 +932,6 @@ require('./verify-dynamic-grid.cjs');
 
 // BR-046: avisos e demandas na loja sem F5, por sinal autenticado.
 require('./verify-live-store.cjs');
+
+// BR-047: opções com +, múltipla escolha e diferença entre rascunho/publicação.
+require('./verify-multi-options.cjs');
