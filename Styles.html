@@ -2366,11 +2366,15 @@ body{background:var(--cream)}
 .app-shell .nav-btn{min-height:42px;font-size:12.5px;font-weight:600;border-radius:11px;margin:3px 0;transition:background-color .17s ease,color .17s ease}
 .app-shell .nav-btn:hover{background:#ede1d4}
 .app-shell .nav-btn.active{background:#6e452e;color:#fff;box-shadow:0 4px 12px rgba(88,50,27,.14)}
-.app-shell .nav-dot{
-  display:block;flex:0 0 19px;width:19px;height:19px;border-radius:0;
-  background:transparent url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236C4229%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%224%22%2F%3E%3Cpath%20d%3D%22M8%209h8M8%2013h5%22%2F%3E%3C%2Fsvg%3E") center/19px no-repeat;opacity:.85;
+/* Ícones vetoriais próprios de cada menu: acompanham a cor do texto nos
+   estados normal, ativo, claro e escuro, sem dependência de fontes externas. */
+.app-shell .nav-btn .nav-icon{
+  display:block;flex:0 0 19px;width:19px;height:19px;
+  fill:none;stroke:currentColor;stroke-width:1.75;
+  stroke-linecap:round;stroke-linejoin:round;
+  opacity:.88;pointer-events:none;
 }
-.app-shell .nav-btn.active .nav-dot{filter:brightness(0) invert(1);opacity:1}
+.app-shell .nav-btn.active .nav-icon{opacity:1}
 .app-shell .user-card{
   background:#eee4db;border:1px solid #e6d8cb;border-radius:14px;
   padding:13px 15px;
@@ -2486,8 +2490,7 @@ body.dark-mode .app-shell .menu-label{color:#cdb5a1}
 body.dark-mode .app-shell .nav-btn{color:#e2d1c2}
 body.dark-mode .app-shell .nav-btn:hover{background:#302822}
 body.dark-mode .app-shell .nav-btn.active{background:#e8d7c6;color:#2c211a}
-body.dark-mode .app-shell .nav-btn .nav-dot{filter:brightness(0) invert(1)}
-body.dark-mode .app-shell .nav-btn.active .nav-dot{filter:none}
+/* Ícones SVG usam currentColor e acompanham o contraste no modo escuro. */
 body.dark-mode .app-shell .user-card{background:#302720;border-color:#524236}
 body.dark-mode .app-shell .topbar{background:#2e211b;border-color:#514034}
 body.dark-mode .app-shell .topbar-title,body.dark-mode .app-shell .topbar #topName{color:#f5eadf}

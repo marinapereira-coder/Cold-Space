@@ -938,3 +938,48 @@ require('./verify-multi-options.cjs');
 
 // BR-048: avisos abrem respostas e publicação exige prazo e encerramento.
 require('./verify-response-notices-deadlines.cjs');
+
+// BR-049: ícones específicos, com o mesmo traço, sem alterações nos caminhos ou perfis.
+{
+ const iconHtml=fs.readFileSync(path.join(__dirname,'../../Index.html'),'utf8');
+ const iconCss=fs.readFileSync(path.join(__dirname,'../../Styles.html'),'utf8');
+ const expectedPages=[
+  'home','agenda','cronograma','calendario','avaliacoes',
+  'campanhas','comunicados','central','chat','respostas','relatorios',
+  'lojas','acessos'
+ ];
+ const expectedNames=['Minha Área','Agenda','Cronograma de demandas','Calendário','Avaliações',
+  'Central de Solicitações','Comunicados','Central de Operações','Chat',
+  'Respostas das Lojas','Relatórios','Lojas & Estrutura','Usuários & Acessos'];
+ const found=[];
+ for(const match of iconHtml.matchAll(/<button\b([^>]*\bdata-page="([^"]+)"[^>]*)>([\s\S]*?)<\/button>/g)){
+   if(!/\bnav-btn\b/.test(match[1]))continue;
+   const [_,attr,page,content]=match;
+   assert.ok(expectedPages.includes(page),'Navegação não reconhecida: '+page);
+   assert.ok(/\bclass="nav-icon"\b/.test(content)||content.includes('class="nav-icon"'),
+     'Falta ícone semântico em '+page);
+   const symbols=content.match(/<svg\b[^>]*class="nav-icon"[^>]*>([\s\S]*?)<\/svg>/g)||[];
+   assert.equal(symbols.length,1,'Cada item deve ter um único ícone SVG: '+page);
+   assert.ok(symbols[0].includes('aria-hidden="true"')&&
+     symbols[0].includes('focusable="false"')&&
+     symbols[0].includes('viewBox="0 0 24 24"'),
+     'Ícones devem ser decorativos e ter dimensões uniformes: '+page);
+   assert.ok(!content.includes('class="nav-dot"'),'Ícone antigo repetido ainda presente: '+page);
+   found.push({page,svg:symbols[0],text:content.replace(/<[^>]+>/g,'').trim()});
+ }
+ assert.deepEqual(found.map(x=>x.page),expectedPages,
+   'Manter ordem, ações e 13 itens de navegação em todos os perfis');
+ assert.deepEqual(found.map(x=>x.text.replace(/\s+/g,' ')),expectedNames,
+   'Nenhum rótulo da navegação pode mudar');
+ assert.equal(new Set(found.map(x=>x.svg.replace(/<svg\b[^>]*>/,''))).size,expectedPages.length,
+   'Os ícones precisam ter desenhos distintos por função');
+ assert.ok(iconCss.includes('.app-shell .nav-btn .nav-icon{')&&
+   iconCss.includes('stroke:currentColor')&&
+   iconCss.includes('stroke-width:1.75')&&
+   iconCss.includes('.app-shell .nav-btn.active .nav-icon{opacity:1}'),
+   'Tamanho, traço e cor devem acompanhar estados ativos e tema');
+ assert.ok(!iconCss.includes('body.dark-mode .app-shell .nav-btn .nav-icon{filter:'),
+   'Os ícones SVG não podem depender de filtros que invertam cores no modo escuro');
+ assert.ok(rules.includes('BR-049'),'Banco de regras registra a alteração visual autorizada');
+ console.log('OK — 13 ícones semânticos, rótulos intactos e cores responsivas preservadas.');
+}
