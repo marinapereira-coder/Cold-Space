@@ -1041,7 +1041,7 @@ console.log('OK — KPIs oficiais e comunicados separados com confirmação expl
     scripts.includes('function renderComunicadoDetail_(d)') &&
     scripts.includes("String(d.type||'').toLowerCase()==='comunicado'"),
     'Sino e detalhe devem navegar diretamente ao comunicado, sem modelo de resposta');
-  assert.ok(scripts.includes('Selecionar lojas específicas, inclusive Loja Teste') &&
+  assert.ok(scripts.includes('Somente Loja Teste — Homologação') &&
     scripts.includes("ids.indexOf('TESTE_CONECTA')>=0&&ids.length!==1"),
     'Destinatário de homologação deve ser selecionado sem depender da campanha');
   console.log('OK — notificações antigas, abertura correta e destinatários de comunicado.');
