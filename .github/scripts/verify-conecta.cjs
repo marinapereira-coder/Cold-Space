@@ -134,7 +134,7 @@ assert.equal(checkOrder(['modern','legacy']),269);
 const sqlSource=read('Supabase.js');
 const styleSource=read('Styles.html');
 new vm.Script(sqlSource,{filename:'Supabase.js'});
-assert.ok(scripts.includes('function deleteDemandItem(id,title)'), 'Excluir solicitação exige confirmação por nome');
+assert.ok(scripts.includes('function deleteDemandItem(id,title,kind)'), 'Excluir solicitação/comunicado exige confirmação por nome e categoria');
 assert.ok(scripts.includes('CURRENT_ROLE===\'admin\'&&!CAMPAIGN_PREVIEW_DEPARTMENT'), 'Ação da lista deve ser só admin');
 const softDeleteSource=sqlSource.slice(sqlSource.indexOf('function deleteDemand(demandaId)'),
   sqlSource.indexOf('function scopedCampaignImportMeta_',sqlSource.indexOf('function deleteDemand(demandaId)')));
@@ -1050,3 +1050,25 @@ console.log('OK — KPIs oficiais e comunicados separados com confirmação expl
     'Destinatário de homologação deve ser selecionado sem depender da campanha');
   console.log('OK — notificações antigas, abertura correta e destinatários de comunicado.');
 }
+
+
+/* BR-055: exclusão lógica múltipla, separação por perfil e categoria. */
+assert.ok(rules.includes('BR-055')&&index.includes('id="campaignBulkActions"')&&index.includes('id="noticeBulkActions"'),
+  'Exclusão múltipla só nas áreas autorizadas e protegida no Banco de Regras');
+assert.ok(scripts.includes('function conectaBulkAdmin_(kind)')&&
+  scripts.includes("CURRENT_ROLE==='admin'")&&
+  scripts.includes("!CAMPAIGN_PREVIEW_DEPARTMENT")&&
+  scripts.includes('function conectaBulkSelectVisible_(')&&
+  scripts.includes('function conectaBulkArchive_('),
+  'Ações de seleção devem existir somente para admin e respeitar os filtros');
+assert.ok(scripts.includes('function editarComunicadoDaLista_(')&&
+  scripts.includes("deleteDemandItem(")&&
+  scripts.includes("archiveConectaItemsBulk({kind:kind,ids:ids})"),
+  'Comunicados possuem editar, excluir e exclusão múltipla');
+assert.ok(backend.includes('function archiveConectaItemsBulk(input)')&&
+  backend.includes("requireAdmin_();")&&
+  backend.includes("kind==='comunicado'")&&
+  backend.includes("ativa:false")&&
+  backend.includes("ids.length>100"),
+  'Exclusão múltipla valida admin, categoria e limite e preserva histórico');
+console.log('OK — BR-055, exclusão lógica em lote só ADM e categorias isoladas.');
