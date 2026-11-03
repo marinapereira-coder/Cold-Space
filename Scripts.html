@@ -1701,7 +1701,38 @@ function deleteDemandItem(id,title){
  }).withFailureHandler(serverError).deleteDemand(id);
 }
 
-function openNoticeModal(){if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem publicar comunicados.');return;}openGeneric('Comunicação','Novo comunicado','<div><label class="label">Título</label><input id="gNoticeTitle" class="field"></div><div style="margin-top:12px"><label class="label">Mensagem</label><textarea id="gNoticeText" class="textarea"></textarea></div><div style="margin-top:12px"><label class="label">Lojas</label><select id="gNoticeAudience" class="select"><option value="all">Todas as lojas do escopo</option><option value="selected">Usar lojas selecionadas na tela de campanhas</option></select></div>',function(){var title=document.getElementById('gNoticeTitle').value.trim();if(!title){showToast('Informe um título.');return;}var ids=document.getElementById('gNoticeAudience').value==='selected'?getSelectedStoreIds():[];setBusy('genericSaveBtn',true,'Publicando...');google.script.run.withSuccessHandler(function(){setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');showToast('Comunicado publicado.');refreshBootstrap('comunicados');}).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);}).saveAnnouncement({title:title,message:document.getElementById('gNoticeText').value.trim(),lojaIds:ids});});}
+function openNoticeModal(){
+ if(CURRENT_ROLE!=='admin'){showToast('Somente administradores podem publicar comunicados.');return;}
+ var stores=(APP_DATA.stores||[]).slice().sort(function(a,b){return String(a.nome||'').localeCompare(String(b.nome||''));});
+ var options=stores.map(function(store){
+  return '<label class="store-option"><input type="checkbox" class="notice-target-store" value="'+safe(store.id)+'"> <span>'+
+   safe((store.codigo?store.codigo+' · ':'')+store.nome)+(String(store.id)==='TESTE_CONECTA'?' (Homologação)':'')+'</span></label>';
+ }).join('');
+ var body='<div><label class="label">Título</label><input id="gNoticeTitle" class="field"></div>'+
+  '<div style="margin-top:12px"><label class="label">Mensagem</label><textarea id="gNoticeText" class="textarea" rows="8"></textarea></div>'+
+  '<div style="margin-top:12px"><label class="label">Destinatários</label>'+
+  '<select id="gNoticeAudience" class="select" onchange="document.getElementById(\'gNoticeStorePicker\').style.display=this.value===\'selected\'?\'block\':\'none\'">'+
+  '<option value="all">Todas as lojas reais do escopo (sem homologação)</option>'+
+  '<option value="selected">Selecionar lojas específicas, inclusive Loja Teste</option></select></div>'+
+  '<div id="gNoticeStorePicker" style="display:none;margin-top:10px;max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:8px">'+options+'</div>'+
+  '<p class="helper" style="margin-top:8px">A Loja Teste não recebe comunicados gerais. Para homologar, selecione exclusivamente TESTE - LOJA TESTE.</p>';
+ openGeneric('Comunicação','Novo comunicado',body,function(){
+  var title=document.getElementById('gNoticeTitle').value.trim();
+  var message=document.getElementById('gNoticeText').value.trim();
+  if(!title||!message){showToast('Preencha o título e a mensagem.');return;}
+  var specific=document.getElementById('gNoticeAudience').value==='selected';
+  var ids=specific?Array.prototype.map.call(document.querySelectorAll('#gNoticeStorePicker .notice-target-store:checked'),function(el){return String(el.value);}):[];
+  if(specific&&!ids.length){showToast('Selecione ao menos uma loja destinatária.');return;}
+  if(ids.indexOf('TESTE_CONECTA')>=0&&ids.length!==1){showToast('A Loja Teste deve ser selecionada sozinha.');return;}
+  setBusy('genericSaveBtn',true,'Publicando...');
+  google.script.run.withSuccessHandler(function(result){
+   setBusy('genericSaveBtn',false,'Salvar');closeModal('genericModal');
+   showToast(result&&result.notificationError?'Comunicado publicado, mas o envio da notificação falhou. Confira os destinatários.':'Comunicado publicado para os destinatários selecionados.');
+   refreshBootstrap('comunicados');
+  }).withFailureHandler(function(e){setBusy('genericSaveBtn',false,'Salvar');serverError(e);})
+  .saveAnnouncement({title:title,message:message,lojaIds:ids});
+ });
+}
 
 function loadResponses(onReady){
  if(CURRENT_ROLE==='loja')return;
