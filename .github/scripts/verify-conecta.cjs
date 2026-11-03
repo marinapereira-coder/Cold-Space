@@ -983,3 +983,35 @@ require('./verify-response-notices-deadlines.cjs');
  assert.ok(rules.includes('BR-049'),'Banco de regras registra a alteração visual autorizada');
  console.log('OK — 13 ícones semânticos, rótulos intactos e cores responsivas preservadas.');
 }
+
+
+/* BR-052 e BR-053 — regressão de indicadores e comunicados. */
+assert.ok(rules.includes('BR-052')&&rules.includes('BR-053'),
+  'Indicadores e confirmação de leitura devem continuar no banco de regras');
+assert.ok(scripts.includes("Média de avaliação")&&scripts.includes("SLA no prazo")&&
+  styles.includes("#responseKpis{grid-template-columns:repeat(6"),
+  'Os seis indicadores devem caber em uma linha em desktop');
+assert.ok(modern.includes('averageStars:ratedItems.length?')&&modern.includes('slaRate:slaItems.length?')&&
+  modern.includes('isConectaTestStoreId_(item.storeId)'),
+  'KPIs usam avaliações oficiais e excluem homologação');
+assert.ok(backend.includes("titulo:isComunicado?'Novo comunicado publicado'")&&
+  backend.includes("isComunicado:true"),
+  'Comunicados devem usar avisos específicos, não solicitações');
+assert.ok(scripts.includes("function renderComunicadoDetail_(d)")&&
+  scripts.includes('confirmarLeituraComunicadoUI_')&&
+  scripts.includes('consultarLeiturasComunicadoUI_'),
+  'Detalhes do comunicado exigem confirmação explícita e acompanhamento');
+assert.ok(modern.includes('function confirmStoreAnnouncementRead(')&&
+  modern.includes('function getAnnouncementReadOverview(')&&
+  modern.includes("roleOf_(user)!=='loja'")&&
+  modern.includes('demandaVisivelNoEscopo_(demand,[lojaId])'),
+  'Leitura deve ser confirmada somente por loja destinatária autenticada');
+assert.ok(scripts.includes("ids.indexOf('TESTE_CONECTA')>=0&&ids.length!==1")&&
+  backend.includes('if(requestedStoreIds.some(isConectaTestStoreId_)'),
+  'Comunicados para homologação não podem misturar lojas reais');
+const noticeUi=scripts.slice(scripts.indexOf('function renderComunicadoDetail_('),
+  scripts.indexOf('function renderAdminStoreSimulator(',scripts.indexOf('function renderComunicadoDetail_(')));
+assert.ok(!noticeUi.includes("submitStoreResponse(")&&!noticeUi.includes("renderStoreResponseSection(")&&
+  !noticeUi.includes('responseTimingInfo_'),
+  'Comunicados não podem abrir formulário ou SLA');
+console.log('OK — KPIs oficiais e comunicados separados com confirmação explícita de leitura.');
