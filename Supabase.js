@@ -1418,7 +1418,7 @@ function validateCustomModelAnswers_(answers,detail){
       Object.keys(previous).forEach(function(key){
         if(key.indexOf(prefix)!==0)return;
         var parts=key.slice(prefix.length).split('_'),ri=Number(parts[0]);
-        if(parts.length===2&&/^\\d+$/.test(parts[0])&&ri>=0&&ri<50)
+        if(parts.length===2&&/^\d+$/.test(parts[0])&&ri>=0&&ri<50)
           maxAllowedRow=Math.max(maxAllowedRow,ri);
       });
       keys.forEach(function(key){
