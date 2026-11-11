@@ -19,3 +19,6 @@ jobs:
           node-version: '22'
       - name: Regressões, isolamento de homologação e segurança
         run: node .github/scripts/verify-conecta.cjs
+
+      - name: Validar convites e autorizacao de usuarios
+        run: node .github/scripts/verify-access-invitations.cjs
