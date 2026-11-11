@@ -3976,6 +3976,107 @@ function getStoreAccessWorkspace() {
 }
 
 
+
+// Envio de convite sem modificar permissões, credenciais ou o cadastro.
+// Somente um administrador autenticado pode enviar ou reenviar.
+function bacioInvitationEscape_(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+
+function bacioInvitationPortalUrl_(passwordLogin) {
+  var props = PropertiesService.getScriptProperties();
+  var defaultUrl = String(props.getProperty('BACIO_CONECTA_URL') || '').trim();
+  var officeUrl = String(props.getProperty('BACIO_CONECTA_URL_ESCRITORIO') || defaultUrl).trim();
+  var passwordUrl = String(props.getProperty('BACIO_CONECTA_URL_LOJA') || '').trim();
+
+  // A mesma URL do projeto suporta a tela de login com senha via ?view=loja.
+  // Uma implantação específica pode ser configurada com BACIO_CONECTA_URL_LOJA.
+  if (!passwordUrl && defaultUrl) {
+    var cleanUrl = defaultUrl.replace(/([?&])view=loja(?=&|$)/i, '$1').replace(/[?&]$/, '');
+    passwordUrl = cleanUrl + (cleanUrl.indexOf('?') >= 0 ? '&' : '?') + 'view=loja';
+  }
+  var url = passwordLogin ? passwordUrl : officeUrl;
+  if (!/^https:\/\/script\.google\.com\/(?:a\/[^/]+\/)?macros\/s\/[^/?#\s]+\/exec(?:[?#][^\s]*)?$/i.test(url)) {
+    throw new Error(passwordLogin
+      ? 'Configure BACIO_CONECTA_URL_LOJA ou BACIO_CONECTA_URL com o endereço publicado do portal para enviar convites.'
+      : 'Configure BACIO_CONECTA_URL_ESCRITORIO ou BACIO_CONECTA_URL com o endereço corporativo publicado para enviar convites.');
+  }
+  if (!passwordLogin && /(?:[?&])view=loja(?:&|$)/i.test(url)) {
+    throw new Error('O convite corporativo precisa da URL de Escritório, sem view=loja.');
+  }
+  return url;
+}
+
+function sendConectaAccessInvitation(input) {
+  requireAdmin_();
+  input = input || {};
+  var userId = String(input.userId || '').trim();
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(userId)) {
+    throw new Error('Selecione um usuário cadastrado para enviar o convite.');
+  }
+
+  var users = supabaseRequest_(
+    '/rest/v1/' + table_('TABLE_USUARIOS', 'bacio_usuarios') +
+    '?select=id,nome,email,role,ativo,auth_provider,auth_user_id,force_password_change&id=eq.' +
+    encodeURIComponent(userId) + '&limit=1',
+    'get'
+  ) || [];
+  if (!users.length) throw new Error('O usuário não foi encontrado no cadastro.');
+  var user = users[0];
+  if (user.ativo === false) throw new Error('Ative este usuário antes de enviar um convite.');
+  var email = String(user.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('O usuário não possui um e-mail válido para convite.');
+  }
+
+  var role = roleOf_(user);
+  var provider = String(user.auth_provider || '').trim().toLowerCase();
+  var googleLogin = provider === 'google' ||
+    ((role === 'admin' || isDepartmentUser_(user)) && !user.auth_user_id);
+  if (googleLogin) {
+    validateAllowedDomain_(email);
+  } else if (!user.auth_user_id) {
+    throw new Error('Este cadastro ainda não possui login com senha vinculado. Conclua a criação do acesso antes de convidar.');
+  }
+
+  var portalUrl = bacioInvitationPortalUrl_(!googleLogin);
+  var name = String(user.nome || email.split('@')[0] || 'colaborador(a)').trim();
+  var profileLabels = {
+    admin:'Administrativo', loja:'Loja', consultor:'Consultor', regional:'Regional',
+    marketing:'Marketing', rh:'RH', qualidade:'Qualidade',
+    treinamento:'Treinamento', comercial:'Comercial', growth:'Growth', ti:'TI'
+  };
+  var profile = profileLabels[role] || 'Colaborador(a)';
+  var instruction = googleLogin
+    ? 'Acesse com sua conta Google corporativa. Não é necessário cadastrar outra senha.'
+    : 'Acesse com este e-mail e a senha temporária fornecida pelo administrador por um canal seguro. No primeiro acesso, você deverá trocar a senha.';
+  var subject = 'Convite de acesso | Bacio Conecta';
+  var plain = 'Olá, ' + name + '!\n\n' +
+    'Seu acesso ao Bacio Conecta foi cadastrado.\n' +
+    'Perfil: ' + profile + '\nLogin: ' + email + '\n\n' +
+    'Acesse o portal: ' + portalUrl + '\n\n' + instruction + '\n\n' +
+    'Se você não reconhece este convite, entre em contato com a equipe responsável.\n\n' +
+    'Equipe Bacio Conecta';
+  var html = '<!DOCTYPE html><html lang="pt-BR"><body style="margin:0;padding:24px;background:#f7f3ee;font-family:Arial,sans-serif;color:#4c3529">' +
+    '<div style="max-width:560px;margin:auto;padding:30px;background:#fff;border:1px solid #ebddd2;border-radius:16px">' +
+    '<div style="font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#a17b61">Acesso ao portal</div>' +
+    '<h1 style="margin:10px 0 18px;font-size:28px;color:#5a3827">Bacio Conecta</h1>' +
+    '<p>Olá, <strong>' + bacioInvitationEscape_(name) + '</strong>!</p>' +
+    '<p>Seu acesso ao Bacio Conecta foi cadastrado. Use os dados abaixo para entrar:</p>' +
+    '<p><strong>Perfil:</strong> ' + bacioInvitationEscape_(profile) + '<br><strong>Login:</strong> ' + bacioInvitationEscape_(email) + '</p>' +
+    '<p style="margin:26px 0"><a href="' + bacioInvitationEscape_(portalUrl) + '" style="background:#69432f;color:white;text-decoration:none;padding:13px 22px;border-radius:9px;font-weight:bold">Acessar Bacio Conecta</a></p>' +
+    '<p style="font-size:13px;line-height:1.6">' + bacioInvitationEscape_(instruction) + '</p>' +
+    '<p style="font-size:12px;color:#745b4c">Se o botão não abrir, copie este endereço:<br><a href="' + bacioInvitationEscape_(portalUrl) + '">' + bacioInvitationEscape_(portalUrl) + '</a></p>' +
+    '<p style="border-top:1px solid #eadfd6;margin-top:25px;padding-top:18px;font-size:12px;color:#745b4c">Se você não reconhece este convite, fale com a equipe responsável.<br>Equipe Bacio Conecta</p></div></body></html>';
+
+  // Nenhuma senha, token ou chave secreta é incluída no e-mail.
+  MailApp.sendEmail({to:email,subject:subject,body:plain,htmlBody:html,name:'Bacio Conecta'});
+  return {ok:true,email:email,sentAt:new Date().toISOString()};
+}
+
+
 function createStoreAccess(
   input
 ) {
