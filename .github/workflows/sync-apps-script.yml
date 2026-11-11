@@ -24,6 +24,9 @@ jobs:
       - name: Validar Banco de Regras (antes do deploy)
         run: node .github/scripts/verify-conecta.cjs
 
+      - name: Validar convites e autorizacao de usuarios
+        run: node .github/scripts/verify-access-invitations.cjs
+
       - name: Install clasp
         run: npm install --global @google/clasp
 
