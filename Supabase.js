@@ -887,6 +887,7 @@ function saveDemand(input,authOverride) {
   if (['lojas','regional','consultor_lojas','consultor','departamento'].indexOf(routingMode) < 0)
     throw new Error('Tipo de destinatário não reconhecido.');
   if (routingMode === 'consultor' || routingMode === 'departamento') {
+    if(tipo==='comunicado')throw new Error('Comunicados devem continuar no mural informativo, não no fluxo de demandas internas.');
     if (!String(routing.valor || '').trim())
       throw new Error('Selecione um consultor ou departamento para esta atribuição.');
     if (requestedStoreIds.length)
