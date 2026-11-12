@@ -1527,6 +1527,54 @@ function renderDemandDetail(d){
   var foot='<button class="btn" data-close="detailModal">Fechar</button><div class="actions">';if(CURRENT_ROLE==='admin'){foot+='<button class="btn danger" onclick="deleteDemandItem(\''+safeJs(d.id)+'\')">Excluir</button><button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">Editar</button>';}if(CURRENT_ROLE!=='admin'&&CURRENT_ROLE!=='loja'&&d.publishStatus==='draft'&&decisionStatus!=='reprovada'){foot+='<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">'+(decisionStatus==='ajustes'?'Corrigir e reenviar':'Editar solicitação')+'</button>';} foot+='</div>';document.getElementById('detailFoot').innerHTML=foot;
 }
 
+/* BR-061 — Resposta interna separada de respostas das lojas. */
+function renderInternalDemandDetail_(d){
+ var route=(d.cronograma||{}).direcionamento||{},target=String(d.internalTarget||route.valor||''),
+     mode=d.internalMode==='consultor'?'Consultor':'Departamento',history=d.internalHistory||[],
+     published=d.publishStatus==='active';
+ var head='<section class="detail-box"><span class="eyebrow">Demanda interna · '+safe(mode)+'</span>'+
+  '<p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p>'+
+  '<div class="timeline"><div><span>Destinatário</span><strong>'+safe(target)+'</strong></div>'+
+  '<div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm)||'—')+'</strong></div>'+
+  '<div><span>Prazo de resposta</span><strong>'+safe(formatDateTime(d.deadline)||'—')+'</strong></div>'+
+  '<div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm)||'—')+'</strong></div></div>'+
+  '<p class="helper">Atribuição interna; nenhuma loja é destinatária. '+(published?'Publicada':'Rascunho sem envio')+'.</p></section>';
+ var answer=d.canReply?'<section class="detail-box"><h4>Responder demanda interna</h4>'+
+  '<p class="helper">A resposta ficará no histórico desta demanda e a administração será avisada. Solicitar encaminhamento não publica nada para lojas.</p>'+
+  '<label class="label" for="internalReplyStatus">Ação</label><select id="internalReplyStatus" class="select">'+
+  '<option value="respondido">Responder</option><option value="encaminhamento_solicitado">Solicitar encaminhamento à administração</option></select>'+
+  '<label class="label" for="internalReplyMessage" style="margin-top:12px">Resposta ou justificativa</label>'+
+  '<textarea id="internalReplyMessage" class="textarea" rows="5" maxlength="4000" placeholder="Descreva a resposta ou o motivo do encaminhamento"></textarea>'+
+  '<button id="internalReplyBtn" class="btn primary" type="button" onclick="submitInternalDemandUI_(\''+safeJs(d.id)+'\')">Registrar resposta</button>'+
+  '</section>':'';
+ var hist='<section class="detail-box"><h4>Histórico de respostas internas</h4>'+
+  (history.length?history.map(function(x){return '<div class="answer-line"><div><strong>'+
+    safe(x.status==='respondido'?'Resposta registrada':'Encaminhamento solicitado')+'</strong>'+
+    '<div class="muted">'+safe(x.email||'')+' · '+safe(formatDateTime(x.createdAt)||'')+'</div></div>'+
+    '<p style="white-space:pre-wrap">'+safe(x.message||'')+'</p></div>';}).join(''):
+    '<p class="muted">Nenhuma resposta interna registrada.</p>')+'</section>';
+ document.getElementById('detailBody').innerHTML='<div class="detail-grid">'+head+answer+hist+'</div>';
+ var foot='<button class="btn" data-close="detailModal">Fechar</button>';
+ if(CURRENT_ROLE==='admin')foot+='<div class="actions">'+
+  '<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">Editar</button></div>';
+ document.getElementById('detailFoot').innerHTML=foot;
+}
+function submitInternalDemandUI_(demandId){
+ var message=document.getElementById('internalReplyMessage'),status=document.getElementById('internalReplyStatus'),
+     btn=document.getElementById('internalReplyBtn');
+ if(!message||!status||!btn||message.value.trim().length<3){
+  showToast('Descreva a resposta com pelo menos 3 caracteres.');return;
+ }
+ var payload={demandId:demandId,message:message.value.trim(),status:status.value};
+ btn.disabled=true;btn.textContent='Registrando...';
+ var run=google.script.run.withSuccessHandler(function(result){
+  showToast(result&&result.notificationError?'Resposta salva, mas não foi possível enviar o aviso.':'Resposta interna registrada.');
+  refreshBootstrap('campanhas');closeModal('detailModal');
+ }).withFailureHandler(function(error){btn.disabled=false;btn.textContent='Registrar resposta';serverError(error);});
+ if(AUTH_MODE==='store')run.submitPasswordInternalDemandReply(STORE_ACCESS_TOKEN,payload);
+ else run.submitInternalDemandReply(payload);
+}
+
 /* BR-053: comunicado informativo, sem formulário de resposta ou SLA. */
 function renderComunicadoDetail_(d){
  var role=CURRENT_ROLE,isStore=role==='loja',id=String(d.id||'');
