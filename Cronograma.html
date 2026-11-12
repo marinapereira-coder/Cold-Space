@@ -93,10 +93,10 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
    if(cfg.mine){
     var user=((window.APP_DATA||{}).user||{}),email=String(user.email||'').trim().toLowerCase(),
       route=((x.cronograma||{}).direcionamento||{}),
-      dept=String(user.departamento||user.role||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
+      userDept=String(user.departamento||user.role||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
       target=String(route.valor||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
       assigned=x.internal===true&&
-        (route.modo==='consultor'&&target===email||route.modo==='departamento'&&target===dept);
+        (route.modo==='consultor'&&target===email||route.modo==='departamento'&&target===userDept);
     if(!email&&(user.role||'')!=='admin')return false;
     if(!assigned&&(!email||owner.trim().toLowerCase()!==email))return false;
    }
