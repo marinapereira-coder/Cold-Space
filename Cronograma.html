@@ -4,40 +4,49 @@
 .bc-sched-card{background:var(--paper,#fffdfa);border:1px solid var(--line,#e9ddd1);border-radius:15px;padding:18px}
 .bc-sched-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .bc-sched h2{font:400 25px Georgia,serif;margin:0}.bc-sched h3{font:400 21px Georgia,serif;margin:0}
-.bc-sched-note{color:#927c6c;font-size:11px;line-height:1.5;margin:5px 0}
+.bc-sched-note{color:#927c6c;font-size:13px;line-height:1.5;margin:5px 0}
 .bc-sched-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.bc-sched input,.bc-sched select{border:1px solid #e5d8cc;border-radius:9px;background:#fff;padding:10px;color:#53392a;max-width:100%;font-size:12px}
+.bc-sched input,.bc-sched select{border:1px solid #e5d8cc;border-radius:9px;background:#fff;padding:10px;color:#53392a;max-width:100%;font-size:14px}
 .bc-sched input[type=search]{min-width:230px}
 .bc-sched-overview{display:grid;grid-template-columns:1fr 1.5fr auto;gap:20px;align-items:center}
-.bc-sched-progress{display:grid;grid-template-columns:90px 1fr 44px;gap:10px;align-items:center;font-size:12px;margin:9px 0}
+.bc-sched-progress{display:grid;grid-template-columns:90px 1fr 44px;gap:10px;align-items:center;font-size:14px;margin:9px 0}
 .bc-sched-track{height:10px;border-radius:12px;background:#eee7e1;overflow:hidden}
 .bc-sched-fill{display:block;height:100%;border-radius:12px;background:#be9b7c}.bc-sched-fill.done{background:#69432f}
-.bc-sched-pill{display:inline-block;border-radius:8px;padding:9px 12px;background:#e7f3e9;color:#37713f;font-weight:700;font-size:12px}
+.bc-sched-pill{display:inline-block;border-radius:8px;padding:9px 12px;background:#e7f3e9;color:#37713f;font-weight:700;font-size:14px}
 .bc-sched-pill.warn{background:#ffeedc;color:#975c1b}
 .bc-sched-days{display:flex;gap:8px;overflow:auto;padding:10px 0;scrollbar-width:thin}
 .bc-sched-day{border:1px solid #e7dcd2;background:#fff;border-radius:11px;min-width:122px;padding:12px;cursor:pointer;text-align:left;color:#674633}
-.bc-sched-day strong,.bc-sched-day small{display:block}.bc-sched-day small{font-size:11px;color:#9a8070;margin:8px 0}
+.bc-sched-day strong,.bc-sched-day small{display:block}.bc-sched-day small{font-size:13px;color:#9a8070;margin:8px 0}
 .bc-sched-day.selected,.bc-sched-day:hover{border-color:#ae7956;background:#fff8f1}
 .bc-sched-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
-.bc-sched-tab,.bc-sched-action{border:1px solid #e7d9cc;background:#fff;color:#654532;border-radius:9px;padding:9px 11px;font-size:12px;cursor:pointer}
+.bc-sched-tab,.bc-sched-action{border:1px solid #e7d9cc;background:#fff;color:#654532;border-radius:9px;padding:9px 11px;font-size:14px;cursor:pointer}
 .bc-sched-tab.active{background:#65412b;color:#fff;border-color:#65412b}
 .bc-sched-filters{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0}
-.bc-sched-check{font-size:12px;display:flex;align-items:center;gap:5px}
+.bc-sched-check{font-size:14px;display:flex;align-items:center;gap:5px}
 .bc-sched-check input{accent-color:#65412b}
 .bc-sched-scroll{overflow:auto;border:1px solid #e9dfd6;border-radius:10px}
-.bc-sched-table{width:100%;min-width:850px;border-collapse:collapse;font-size:12px}
-.bc-sched-table th{text-align:left;background:#faf7f2;padding:12px;color:#715b48;font-size:11px}
+.bc-sched-table{width:100%;min-width:850px;border-collapse:collapse;font-size:14px}
+.bc-sched-table th{text-align:left;background:#faf7f2;padding:12px;color:#715b48;font-size:13px}
 .bc-sched-table td{padding:12px;border-top:1px solid #ece4dc;vertical-align:middle}
-.bc-sched-table td small{display:block;color:#928071;margin-top:5px;font-size:10px}
+.bc-sched-table td small{display:block;color:#928071;margin-top:5px;font-size:13px}
 .bc-sched-badge{border-radius:7px;background:#f3e9df;color:#926442;padding:7px;white-space:nowrap}
 .bc-sched-badge.late{background:#fce8e8;color:#aa2929}
 .bc-sched-badge.completed{background:#e9f5e9;color:#25743b}
 .bc-sched-badge.pending_approval{background:#fff3d7;color:#916019}
 .bc-sched-count{display:flex;align-items:center;gap:8px}
 .bc-sched-count .bc-sched-track{width:65px;height:7px}
-.bc-sched-preview{background:#faf1e8;border-radius:9px;padding:13px;margin-top:12px;font-size:12px}
+.bc-sched-preview{background:#faf1e8;border-radius:9px;padding:13px;margin-top:12px;font-size:14px}
 @media(max-width:950px){.bc-sched-overview{grid-template-columns:1fr}.bc-sched-controls{width:100%}}
 @media(max-width:600px){.bc-sched-card{padding:12px}.bc-sched input[type=search]{min-width:100px;flex:1}}
+
+body.dark-mode .bc-sched-note,body.dark-mode .bc-sched-day small,body.dark-mode .bc-sched-table td small{color:#dec9b7}
+body.dark-mode .bc-sched input,body.dark-mode .bc-sched select,body.dark-mode .bc-sched-day,body.dark-mode .bc-sched-tab,body.dark-mode .bc-sched-action{background:#302720;color:#f5eadf;border-color:#705849}
+body.dark-mode .bc-sched-day.selected,body.dark-mode .bc-sched-day:hover,body.dark-mode .bc-sched-preview{background:#433327;color:#fff1e5}
+body.dark-mode .bc-sched-tab.active{background:#ead9c8;color:#2b201a}
+body.dark-mode .bc-sched-table th{background:#362d27;color:#e2cebd}
+body.dark-mode .bc-sched-table td,body.dark-mode .bc-sched-scroll{border-color:#59473c}
+body.dark-mode .bc-sched-track{background:#514034}
+body.dark-mode .bc-sched-fill.done{background:#d3a17b}
 </style>
 <script>
 /* Somente dados já filtrados por permissão no bootstrap do Conecta. */

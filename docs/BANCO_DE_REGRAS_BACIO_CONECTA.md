@@ -153,6 +153,8 @@ Versão inicial: 31/10/2026 · Repositório: `marinapereira-coder/Cold-Space`
 
 - **BR-057 — Manter conectado opcional (11/11/2026):** login por senha oferece opção desmarcada por padrão para manter a sessão neste dispositivo por até 30 dias. Persistir somente refresh token e prazo absoluto no navegador, nunca senha; access token permanece na sessão da aba. Renovar pelo endpoint autenticado existente, sem ampliar validade do servidor, alterar perfis ou escopos. Salvar tokens rotacionados sem prolongar o prazo absoluto. Sessão inválida/expirada, troca de perfil, retorno ao corporativo e botão Sair removem a persistência. Sair encerra o acesso neste navegador, sem prometer revogação global. Falha de armazenamento mantém login temporário. Login corporativo preservado. Não habilitar automaticamente para sessões existentes.
 
+- **BR-058 — Legibilidade dos temas (12/11/2026):** aumentar textos auxiliares de 7–12px para 12–14px sem ampliar títulos existentes. Calendário e cronograma devem combinar fundo e texto no tema escuro, com eventos de demanda, treinamento, promoção e outros legíveis. Preservar dados, prazos, envio, escopos e preferência de tema; modo escuro padrão permanece como proposta até validação. Em celular, permitir rolagem horizontal do calendário em vez de reduzir letras a 7px.
+
 ## 8. Evolução controlada deste banco
 Toda regra nova aprovada entra aqui com data, alcance e teste correspondente. Se existir conflito com regra anterior, obter autorização para a substituição e registrar a alteração. **Nenhuma regra anterior é descartada apenas porque uma solicitação nova não a menciona.**
 
