@@ -40,7 +40,7 @@ const input=(mode,status,ids)=>({
  title:'Entrega de exemplo',type:'demanda',publishStatus:status,
  responseRequired:false,lojaIds:ids||[],modelFields:[],modelSource:'manual',
  startAt:'2026-11-12T12:00:00Z',deadline:'2026-11-13T12:00:00Z',endAt:'2026-11-14T12:00:00Z',
- cronograma:{direcionamento:{modo,value:'',valor:mode==='departamento'?'TI':'Consultor de teste'}}
+ cronograma:{direcionamento:{modo:mode,valor:mode==='departamento'?'TI':'Consultor de teste'}}
 });
 assert.throws(()=>ctx.saveDemand(input('departamento','active',[])),/Publicação interna ainda não homologada/);
 assert.throws(()=>ctx.saveDemand(input('consultor','active',[])),/Publicação interna ainda não homologada/);
