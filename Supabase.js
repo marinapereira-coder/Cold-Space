@@ -852,6 +852,20 @@ function saveDemand(input,authOverride) {
   if (['campanha', 'demanda', 'comunicado'].indexOf(tipo) < 0) tipo = 'demanda';
   if (['draft', 'active', 'closed'].indexOf(publishStatus) < 0) publishStatus = 'draft';
 
+  // O destinatário interno não é uma loja. Impedir broadcast acidental via API.
+  var routing = normalizeJsonObject_(normalizeJsonObject_(input.cronograma).direcionamento);
+  var routingMode = String(routing.modo || 'lojas').trim().toLowerCase();
+  if (['lojas','regional','consultor_lojas','consultor','departamento'].indexOf(routingMode) < 0)
+    throw new Error('Tipo de destinatário não reconhecido.');
+  if (routingMode === 'consultor' || routingMode === 'departamento') {
+    if (!String(routing.valor || '').trim())
+      throw new Error('Selecione um consultor ou departamento para esta atribuição.');
+    if (requestedStoreIds.length)
+      throw new Error('Atribuições internas não podem carregar lojas como destinatárias.');
+    if (publishStatus === 'active')
+      throw new Error('Publicação interna ainda não homologada. Salve como rascunho; nenhuma loja será notificada.');
+  }
+
   var modelFields = Array.isArray(input.modelFields) ? input.modelFields : [];
   modelFields = modelFields.map(function (f, index) {
     return {
