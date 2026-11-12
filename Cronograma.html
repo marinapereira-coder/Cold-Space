@@ -72,6 +72,11 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
  function label(s){return ({draft:'Rascunho',pending_approval:'Aguardando aprovação',needs_revision:'Ajustes solicitados',rejected:'Reprovada',closed:'Encerrada',completed:'Concluída',late:'Em atraso',due_today:'Vence hoje',upcoming:'A vencer',active:'Em andamento',scheduled:'Agendada'})[s]||'Em andamento';}
  function dept(x){return typeof requestDepartment==='function'?requestDepartment(x):'Operações';}
  function audience(x){var m=((x.cronograma||{}).direcionamento||{}).modo||'lojas';return m==='consultor'?'consultor':m==='departamento'?'departamento':'lojas';}
+ function audienceLabel(x){
+  var route=((x.cronograma||{}).direcionamento||{}),mode=String(route.modo||'lojas'),target=String(route.valor||'').trim();
+  var labels={lojas:'Lojas',regional:'Lojas da regional',consultor_lojas:'Lojas do consultor',consultor:'Consultor',departamento:'Departamento'};
+  return (labels[mode]||'Lojas')+(target?' · '+target:'');
+ }
  function deadlineText(x){var raw=(x.timeline||{}).deadline||x.deadline;if(!raw)return 'Sem prazo';var d=new Date(raw);if(isNaN(d.getTime()))return 'Sem prazo';return /^\d{4}-\d\d-\d\d$/.test(String(raw))?String(raw).split('-').reverse().join('/'):d.toLocaleString('pt-BR',{timeZone:TZ,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
  function track(n,cl){return '<div class="bc-sched-track"><span class="bc-sched-fill '+(cl||'')+'" style="width:'+Math.max(0,Math.min(100,n))+'%"></span></div>';}
  function select(vals,value,placeholder){return '<option value="">'+e(placeholder)+'</option>'+vals.map(function(v){return '<option '+(v===value?'selected':'')+' value="'+e(v)+'">'+e(v)+'</option>';}).join('');}
@@ -121,10 +126,10 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
    '<select id="bcSchedAudience" aria-label="Filtrar perfil destinatário">'+select(['lojas','consultor','departamento'],cfg.audience,'Todos os destinatários')+'</select>'+
    '<label class="bc-sched-check"><input id="bcSchedMine" type="checkbox" '+(cfg.mine?'checked':'')+'> Minhas demandas</label></div>'+
    '<p class="bc-sched-note">'+visible.length+' demanda(s) encontrada(s) neste período. Progresso considera apenas respostas válidas.</p>'+
-   '<div class="bc-sched-scroll"><table class="bc-sched-table"><thead><tr><th>ID</th><th>Etapa</th><th>Área / responsável</th><th>Prazo</th><th>Lojas</th><th>Status</th><th></th></tr></thead><tbody>'+
+   '<div class="bc-sched-scroll"><table class="bc-sched-table"><thead><tr><th>ID</th><th>Etapa</th><th>Área / responsável / destino</th><th>Prazo</th><th>Lojas</th><th>Status</th><th></th></tr></thead><tbody>'+
    (visible.length?visible.sort(function(a,b){return (due(a)||'9999').localeCompare(due(b)||'9999');}).map(function(x){
     var s=state(x),n=count(x),v=done(x),p=n?Math.round(v*100/n):0,k=due(x);
-    return '<tr><td>'+e(String(x.id||'').slice(0,8))+'</td><td><strong>'+e(x.title||'Demanda')+'</strong><small>'+e(String(x.description||'').slice(0,115))+'</small></td><td>'+e(dept(x))+'<small>'+e(x.owner||'Não informado')+'</small></td><td>'+e(deadlineText(x))+'</td><td><div class="bc-sched-count">'+track(p,'done')+'<b>'+(n?v+'/'+n:'—')+'</b></div></td><td><span class="bc-sched-badge '+e(s)+'">'+e(label(s))+'</span></td><td><button class="bc-sched-action" data-sc-open="'+e(x.id)+'">Abrir</button></td></tr>';
+    return '<tr><td>'+e(String(x.id||'').slice(0,8))+'</td><td><strong>'+e(x.title||'Demanda')+'</strong><small>'+e(String(x.description||'').slice(0,115))+'</small></td><td>'+e(dept(x))+'<small>'+e(x.owner||'Não informado')+'</small><small>Destino: '+e(audienceLabel(x))+'</small></td><td>'+e(deadlineText(x))+'</td><td><div class="bc-sched-count">'+track(p,'done')+'<b>'+(n?v+'/'+n:'—')+'</b></div></td><td><span class="bc-sched-badge '+e(s)+'">'+e(label(s))+'</span></td><td><button class="bc-sched-action" data-sc-open="'+e(x.id)+'">Abrir</button></td></tr>';
    }).join(''):'<tr><td colspan="7" style="text-align:center;padding:28px">Nenhuma demanda para estes filtros.</td></tr>')+
    '</tbody></table></div><div id="bcSchedPreview" aria-live="polite"></div></div>';
   if(!root.dataset.bound){
