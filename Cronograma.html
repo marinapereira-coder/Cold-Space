@@ -72,6 +72,11 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
  function label(s){return ({draft:'Rascunho',pending_approval:'Aguardando aprovação',needs_revision:'Ajustes solicitados',rejected:'Reprovada',closed:'Encerrada',completed:'Concluída',late:'Em atraso',due_today:'Vence hoje',upcoming:'A vencer',active:'Em andamento',scheduled:'Agendada'})[s]||'Em andamento';}
  function dept(x){return typeof requestDepartment==='function'?requestDepartment(x):'Operações';}
  function audience(x){var m=((x.cronograma||{}).direcionamento||{}).modo||'lojas';return m==='consultor'?'consultor':m==='departamento'?'departamento':'lojas';}
+ function audienceLabel(x){
+  var route=((x.cronograma||{}).direcionamento||{}),mode=String(route.modo||'lojas'),target=String(route.valor||'').trim();
+  var labels={lojas:'Lojas',regional:'Lojas da regional',consultor_lojas:'Lojas do consultor',consultor:'Consultor',departamento:'Departamento'};
+  return (labels[mode]||'Lojas')+(target?' · '+target:'');
+ }
  function deadlineText(x){var raw=(x.timeline||{}).deadline||x.deadline;if(!raw)return 'Sem prazo';var d=new Date(raw);if(isNaN(d.getTime()))return 'Sem prazo';return /^\d{4}-\d\d-\d\d$/.test(String(raw))?String(raw).split('-').reverse().join('/'):d.toLocaleString('pt-BR',{timeZone:TZ,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
  function track(n,cl){return '<div class="bc-sched-track"><span class="bc-sched-fill '+(cl||'')+'" style="width:'+Math.max(0,Math.min(100,n))+'%"></span></div>';}
  function select(vals,value,placeholder){return '<option value="">'+e(placeholder)+'</option>'+vals.map(function(v){return '<option '+(v===value?'selected':'')+' value="'+e(v)+'">'+e(v)+'</option>';}).join('');}
@@ -85,19 +90,30 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
    if(cfg.day&&d!==cfg.day)return false;
    if(cfg.area&&dept(x)!==cfg.area)return false;
    if(cfg.owner&&owner!==cfg.owner)return false;
-   if(cfg.mine){var email=String(((window.APP_DATA||{}).user||{}).email||'').trim().toLowerCase();if(!email||owner.trim().toLowerCase()!==email)return false;}
+   if(cfg.mine){
+    var user=((window.APP_DATA||{}).user||{}),email=String(user.email||'').trim().toLowerCase(),
+      route=((x.cronograma||{}).direcionamento||{}),
+      userDept=String(user.departamento||user.role||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
+      target=String(route.valor||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''),
+      assigned=x.internal===true&&
+        (route.modo==='consultor'&&target===email||route.modo==='departamento'&&target===userDept);
+    if(!email&&(user.role||'')!=='admin')return false;
+    if(!assigned&&(!email||owner.trim().toLowerCase()!==email))return false;
+   }
    if(cfg.store&&(x.targetStoreIds||[]).indexOf(cfg.store)<0)return false;
    if(cfg.audience&&audience(x)!==cfg.audience)return false;
    if(cfg.consultor){var ids=x.targetStoreIds||[];if(!stores().some(function(z){return ids.indexOf(String(z.id))>=0&&z.consultor===cfg.consultor;}))return false;}
    if(cfg.status==='all')return true;
-   if(cfg.status==='pending')return count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s);
+   if(cfg.status==='pending')return (x.internal===true&&s==='active'&&!x.internalResponseStatus)||
+    (count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s));
    return s===cfg.status;
   });
   var eligible=monthItems.filter(function(x){return !['draft','closed','pending_approval','rejected','needs_revision'].includes(state(x));});
   var total=0,completed=0,expected=0;eligible.forEach(function(x){var n=count(x)||1;total+=n;completed+=Math.min(n,count(x)?done(x):(complete(x)?1:0));if(due(x)&&due(x)<=today)expected+=n;});
   var exp=total?Math.round(100*expected/total):0,real=total?Math.round(100*completed/total):0;
   var vals={all:monthItems.length,late:0,due_today:0,upcoming:0,completed:0,pending:0,pending_approval:0};
-  monthItems.forEach(function(x){var s=state(x);if(vals[s]!==undefined)vals[s]++;if(count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s))vals.pending++;});
+  monthItems.forEach(function(x){var s=state(x);if(vals[s]!==undefined)vals[s]++;if((x.internal===true&&s==='active'&&!x.internalResponseStatus)||
+    (count(x)>done(x)&&!['closed','draft','completed','pending_approval','needs_revision','rejected'].includes(s)))vals.pending++;});
   var area=Array.from(new Set(monthItems.map(dept))).sort(),owners=Array.from(new Set(monthItems.map(function(x){return x.owner||'';}).filter(Boolean))).sort();
   var consultors=Array.from(new Set(stores().map(function(x){return x.consultor||'';}).filter(Boolean))).sort();
   var from=cfg.month===today.slice(0,7)?today:cfg.month+'-01';var d0=new Date(from+'T12:00:00');
@@ -107,7 +123,7 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
    hits.forEach(function(x){var n=count(x)||1;all+=n;ok+=Math.min(n,count(x)?done(x):(complete(x)?1:0));});
    days.push('<button type="button" class="bc-sched-day '+(cfg.day===k?'selected':'')+'" data-sc-day="'+k+'"><strong>'+(k===today?'HOJE':'D+'+i)+' · '+dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+'</strong><small>'+hits.length+' demanda(s) · '+ok+'/'+all+' entregas</small>'+track(all?Math.round(ok*100/all):0)+'</button>');
   }
-  var tabs=[['all','Todas'],['late','Em atraso'],['pending','Aguardando lojas'],['due_today','Vence hoje'],['upcoming','A vencer'],['completed','Concluídas'],['pending_approval','Aprovações']];
+  var tabs=[['all','Todas'],['late','Em atraso'],['pending','Aguardando respostas'],['due_today','Vence hoje'],['upcoming','A vencer'],['completed','Concluídas'],['pending_approval','Aprovações']];
   root.className='bc-sched';
   root.innerHTML='<div class="bc-sched-card bc-sched-head"><div><h2>Cronograma de demandas</h2><p class="bc-sched-note">Acompanhamento das demandas e respostas por loja, área e consultor.</p></div><div class="bc-sched-controls"><input id="bcSchedMonth" aria-label="Mês" type="month" value="'+e(cfg.month)+'"><input id="bcSchedSearch" type="search" placeholder="Buscar demanda ou responsável" value="'+e(cfg.q)+'"></div></div>'+
    '<div class="bc-sched-card bc-sched-overview"><div><h3>Andamento do ciclo</h3><p class="bc-sched-note">'+e(new Date(cfg.month+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))+'<br>Comparativo realizado x esperado até hoje.</p></div><div>'+
@@ -121,10 +137,10 @@ body.dark-mode .bc-sched-fill.done{background:#d3a17b}
    '<select id="bcSchedAudience" aria-label="Filtrar perfil destinatário">'+select(['lojas','consultor','departamento'],cfg.audience,'Todos os destinatários')+'</select>'+
    '<label class="bc-sched-check"><input id="bcSchedMine" type="checkbox" '+(cfg.mine?'checked':'')+'> Minhas demandas</label></div>'+
    '<p class="bc-sched-note">'+visible.length+' demanda(s) encontrada(s) neste período. Progresso considera apenas respostas válidas.</p>'+
-   '<div class="bc-sched-scroll"><table class="bc-sched-table"><thead><tr><th>ID</th><th>Etapa</th><th>Área / responsável</th><th>Prazo</th><th>Lojas</th><th>Status</th><th></th></tr></thead><tbody>'+
+   '<div class="bc-sched-scroll"><table class="bc-sched-table"><thead><tr><th>ID</th><th>Etapa</th><th>Área / responsável / destino</th><th>Prazo</th><th>Lojas / Entrega interna</th><th>Status</th><th></th></tr></thead><tbody>'+
    (visible.length?visible.sort(function(a,b){return (due(a)||'9999').localeCompare(due(b)||'9999');}).map(function(x){
     var s=state(x),n=count(x),v=done(x),p=n?Math.round(v*100/n):0,k=due(x);
-    return '<tr><td>'+e(String(x.id||'').slice(0,8))+'</td><td><strong>'+e(x.title||'Demanda')+'</strong><small>'+e(String(x.description||'').slice(0,115))+'</small></td><td>'+e(dept(x))+'<small>'+e(x.owner||'Não informado')+'</small></td><td>'+e(deadlineText(x))+'</td><td><div class="bc-sched-count">'+track(p,'done')+'<b>'+(n?v+'/'+n:'—')+'</b></div></td><td><span class="bc-sched-badge '+e(s)+'">'+e(label(s))+'</span></td><td><button class="bc-sched-action" data-sc-open="'+e(x.id)+'">Abrir</button></td></tr>';
+    return '<tr><td>'+e(String(x.id||'').slice(0,8))+'</td><td><strong>'+e(x.title||'Demanda')+'</strong><small>'+e(String(x.description||'').slice(0,115))+'</small></td><td>'+e(dept(x))+'<small>'+e(x.owner||'Não informado')+'</small><small>Destino: '+e(audienceLabel(x))+'</small></td><td>'+e(deadlineText(x))+'</td><td><div class="bc-sched-count">'+track(p,'done')+'<b>'+(n?v+'/'+n:(x.internal?'Interna':'—'))+'</b></div></td><td><span class="bc-sched-badge '+e(s)+'">'+e(label(s))+'</span></td><td><button class="bc-sched-action" data-sc-open="'+e(x.id)+'">Abrir</button></td></tr>';
    }).join(''):'<tr><td colspan="7" style="text-align:center;padding:28px">Nenhuma demanda para estes filtros.</td></tr>')+
    '</tbody></table></div><div id="bcSchedPreview" aria-live="polite"></div></div>';
   if(!root.dataset.bound){

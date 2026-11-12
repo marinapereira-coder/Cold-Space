@@ -350,6 +350,9 @@ function renderCampaignManagement(){
  if(['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0){
    var dept=String((APP_DATA.user||{}).departamento||CURRENT_ROLE).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
    items=items.filter(function(item){
+     var route=(item.cronograma||{}).direcionamento||{};
+     var target=String(route.valor||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+     if(item.internal&&item.publishStatus==='active'&&route.modo==='departamento'&&target===dept)return true;
      return String(requestDepartment(item)).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')===dept;
    });
  }
@@ -1345,13 +1348,16 @@ function handleFormSpreadsheet(e){var file=e.target.files&&e.target.files[0];if(
 function renderImportedFields(meta){var host=document.getElementById('formImportPreview');host.innerHTML='<div class="helper"><strong>'+IMPORTED_FIELDS.length+'</strong> campos encontrados em '+safe(meta.fileName||'arquivo')+'. Revise abaixo.</div>'+IMPORTED_FIELDS.map(function(f,i){return '<div class="question" data-type="'+safe(f.type)+'"><input class="field imp-label" data-i="'+i+'" value="'+safe(f.label)+'"><select class="select imp-type" data-i="'+i+'">'+questionTypeOptions(f.type)+'</select><label class="check"><input class="imp-required" data-i="'+i+'" type="checkbox">Obrigatória</label><span></span></div>';}).join('');host.querySelectorAll('.imp-label').forEach(function(el){el.oninput=function(){IMPORTED_FIELDS[+el.dataset.i].label=el.value;};});host.querySelectorAll('.imp-type').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].type=el.value;};});host.querySelectorAll('.imp-required').forEach(function(el){el.onchange=function(){IMPORTED_FIELDS[+el.dataset.i].required=el.checked;};});}
 function updateDemandSaveAction_(){
  var status=document.getElementById('fStatus').value;
- var consultor=document.getElementById('fAudienceGroup').value==='consultor';
- var publish=CURRENT_ROLE==='admin'&&!consultor&&status==='active';
- document.getElementById('saveCampaignBtn').textContent=publish?'Publicar e notificar lojas':'Salvar como rascunho';
+ var routeMode=document.getElementById('fAudienceGroup').value;
+ var isInternal=routeMode==='consultor'||routeMode==='departamento';
+ var publish=CURRENT_ROLE==='admin'&&status==='active';
+ document.getElementById('saveCampaignBtn').textContent=publish?
+  (isInternal?'Publicar e notificar destinatário':'Publicar e notificar lojas'):'Salvar como rascunho';
  var help=document.getElementById('fPublicationHint');
  if(help)help.textContent=publish?
-  'A solicitação ficará visível para as lojas selecionadas e gerará notificações no Conecta.':
-  'O rascunho não aparece para a loja e não gera notificações. Selecione Publicar para as lojas quando desejar enviar.';
+  (isInternal?'A atribuição será disponibilizada somente ao destinatário ativo selecionado; nenhuma loja receberá esta demanda.':
+    'A solicitação ficará visível para as lojas selecionadas e gerará notificações no Conecta.'):
+  'O rascunho não aparece para o destinatário e não gera notificações. A publicação exige prazo, encerramento e destinatário autorizado.';
 }
 function demandScheduleFromForm_(status,nowIso){
  var startInput=document.getElementById('fStart').value||toLocalInput(nowIso||new Date().toISOString());
@@ -1407,16 +1413,18 @@ function saveCampaign(){
   }
   var routeMode=document.getElementById('fAudienceGroup').value;
   var targetEl=document.getElementById('fRoutingTarget'),routeTarget=targetEl?targetEl.value:'';
-  if(routeMode!=='lojas'&&!routeTarget){showToast('Selecione a regional ou o consultor.');return;}
-  var selectedIds=routeMode==='lojas'?(document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[]):(APP_DATA.stores||[]).filter(function(store){return String(store[routeMode==='regional'?'regional':'consultor']||'').trim()===routeTarget;}).map(function(store){return String(store.id);});
+  var isInternalRoute=routeMode==='consultor'||routeMode==='departamento';
+  if(routeMode!=='lojas'&&!routeTarget){showToast('Selecione o destinatário.');return;}
+  // Atribuição interna não corresponde a uma lista de lojas; não inferir destinatários.
+  var selectedIds=isInternalRoute?[]:routeMode==='lojas'?(document.getElementById('fAudience').value==='selected'?getSelectedStoreIds():[]):(APP_DATA.stores||[]).filter(function(store){return String(store[routeMode==='regional'?'regional':'consultor']||'').trim()===routeTarget;}).map(function(store){return String(store.id);});
   if(routeMode==='lojas'&&document.getElementById('fAudience').value==='selected'&&!selectedIds.length){showToast('Selecione pelo menos uma loja.');return;}
-  if(routeMode!=='lojas'&&!selectedIds.length){showToast('Nenhuma loja associada a este destinatário.');return;}
-  var wantedStatus=(CURRENT_ROLE!=='admin'||routeMode==='consultor')?'draft':document.getElementById('fStatus').value;
+  if(!isInternalRoute&&routeMode!=='lojas'&&!selectedIds.length){showToast('Nenhuma loja associada a este destinatário.');return;}
+  var wantedStatus=CURRENT_ROLE!=='admin'?'draft':document.getElementById('fStatus').value;
   var schedule;
   try{schedule=demandScheduleFromForm_(wantedStatus);}catch(error){showToast(error.message);return;}
   var payload={id:CAMPAIGN_EDIT_ID,departamento:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,title:title,description:document.getElementById('fDescription').value.trim(),type:document.getElementById('fType').value,startAt:schedule.startAt,deadline:schedule.deadline,endAt:schedule.endAt,publishStatus:wantedStatus,responseRequired:document.getElementById('fRequired').value==='yes',lojaIds:selectedIds,modelSource:MODEL_TAB==='import'?'spreadsheet':MODEL_FORMAT==='grid'?'grid':MODEL_FORMAT==='report'?'report':'manual',modelFields:fields,importMeta:MODEL_TAB==='import'?(CAMPAIGN_STORE_TEMPLATE||{fileName:(document.getElementById('formSpreadsheet').files[0]||{}).name||'',columnCount:fields.length}):null,cronograma:{departamentoSolicitante:document.getElementById('fDepartment').value,tipoSolicitacao:document.getElementById('fRequestCategory').value,direcionamento:{modo:routeMode,valor:routeTarget},lembretes:[document.getElementById('r24').checked?{tipo:'24h_antes',ativo:true}:null,document.getElementById('r2').checked?{tipo:'2h_antes',ativo:true}:null,document.getElementById('rDue').checked?{tipo:'vencimento',ativo:true}:null].filter(Boolean)}};
-  var publish=payload.publishStatus==='active';
-  setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(response){setBusy('saveCampaignBtn',false,publish?'Publicar e notificar lojas':'Salvar como rascunho');closeModal('campaignModal');showToast(response&&response.notificationError?'Solicitação publicada, mas houve erro nas notificações. Confira os registros.':publish?'Demanda publicada e disponível para as lojas selecionadas.':'Rascunho salvo. A loja ainda não recebeu a demanda.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);})[(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?'savePasswordDepartmentDemand':'saveDemand'](...((AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?[STORE_ACCESS_TOKEN,payload]:[payload]));
+  var publish=payload.publishStatus==='active',internal=isInternalRoute;
+  setBusy('saveCampaignBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(response){setBusy('saveCampaignBtn',false,publish?(internal?'Publicar e notificar destinatário':'Publicar e notificar lojas'):'Salvar como rascunho');closeModal('campaignModal');showToast(response&&response.notificationError?'Solicitação publicada, mas houve erro nas notificações. Confira os registros.':publish?(internal?'Demanda interna publicada para o destinatário autorizado.':'Demanda publicada e disponível para as lojas selecionadas.'):'Rascunho salvo, sem notificações.');refreshBootstrap('campanhas');}).withFailureHandler(function(err){setBusy('saveCampaignBtn',false,'Salvar');serverError(err);})[(AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?'savePasswordDepartmentDemand':'saveDemand'](...((AUTH_MODE==='store'&&CURRENT_ROLE!=='loja')?[STORE_ACCESS_TOKEN,payload]:[payload]));
 }
 function normalizePickerQuery_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 function renderStorePicker(selected){
@@ -1453,13 +1461,22 @@ function renderStorePicker(selected){
 }
 function renderAudienceRouting(){
  var mode=document.getElementById('fAudienceGroup').value,host=document.getElementById('fRoutingOptions'),hint=document.getElementById('fRoutingHint');
- var key=mode==='regional'?'regional':'consultor';
- var values={};
- (APP_DATA.stores||[]).forEach(function(store){var value=String(store[key]||'').trim();if(value)values[value]=true;});
+ var internal=mode==='consultor'||mode==='departamento';
+ var recipients=APP_DATA.routingRecipients||{consultores:[],departamentos:[]},options=[];
+ if(mode==='departamento')options=recipients.departamentos||[];
+ else if(mode==='consultor')options=recipients.consultores||[];
+ else if(mode!=='lojas'){
+  var key=mode==='regional'?'regional':'consultor',values={};
+  (APP_DATA.stores||[]).forEach(function(store){var value=String(store[key]||'').trim();if(value)values[value]=true;});
+  options=Object.keys(values).sort().map(function(v){return {value:v,label:v};});
+ }
  var old=document.getElementById('fRoutingTarget'),previous=old?old.value:'';
- host.innerHTML=mode==='lojas'?'':'<label class="label">'+(mode==='regional'?'Regional':'Consultor')+'</label><select id="fRoutingTarget" class="select"><option value="">Selecione...</option>'+Object.keys(values).sort().map(function(v){return '<option value="'+safe(v)+'">'+safe(v)+'</option>';}).join('')+'</select>';
+ var label=mode==='departamento'?'Departamento':mode==='regional'?'Regional':'Consultor';
+ host.innerHTML=mode==='lojas'?'':'<label class="label">'+label+'</label><select id="fRoutingTarget" class="select"><option value="">Selecione...</option>'+
+  options.map(function(o){return '<option value="'+safe(o.value)+'">'+safe(o.label)+'</option>';}).join('')+'</select>';
  if(previous&&document.getElementById('fRoutingTarget'))document.getElementById('fRoutingTarget').value=previous;
- hint.textContent=mode==='consultor'?'A solicitação ficará como rascunho até existir o fluxo de aceite ou encaminhamento pelo consultor. Não será publicada diretamente às lojas.':
+ hint.textContent=internal?(options.length?'Somente logins ativos. O prazo é definido nesta solicitação, sem duração fixa por perfil.':
+  'Ainda não existem usuários ativos deste perfil. Cadastre o destinatário em Usuários & Acessos antes de publicar.'):
  mode==='consultor_lojas'?'O envio será direcionado às lojas associadas ao consultor selecionado.':
  mode==='regional'?'O envio será direcionado às lojas associadas à regional selecionada.':'Use a seleção atual de lojas participantes.';
  document.getElementById('fAudience').parentNode.style.display=mode==='lojas'?'':'none';
@@ -1482,6 +1499,7 @@ function renderDemandDetail(d){
   document.getElementById('detailTitle').textContent=d.title||'Detalhes';var t=d.timeline||{},pct=Number(d.progress||0);
   window.BACIO_CURRENT_DETAIL=d;
   if(String(d.type||'').toLowerCase()==='comunicado'){renderComunicadoDetail_(d);return;}
+  if(d.internal===true){renderInternalDemandDetail_(d);return;}
   var storeSections=(d.importMeta&&d.importMeta.storeSections)||null;
   var isImportedSheet=!!(d.importMeta&&Array.isArray(d.importMeta.sheetLayouts)&&d.importMeta.sheetLayouts.length);
   var isInlineStore=!!(CURRENT_ROLE==='loja'&&d.importMeta&&Array.isArray(d.importMeta.storeSections)&&
@@ -1510,6 +1528,54 @@ function renderDemandDetail(d){
     document.getElementById('detailBody').innerHTML+='<div class="detail-box"><h4>Histórico de aprovação</h4>'+workflow.historicoAprovacao.map(function(h){return '<div class="muted">'+safe(h.acao||'')+' · '+safe(h.por||'')+' · '+safe(formatDateTime(h.em)||'')+(h.justificativa?' — '+safe(h.justificativa):'')+'</div>';}).join('')+'</div>';
   }
   var foot='<button class="btn" data-close="detailModal">Fechar</button><div class="actions">';if(CURRENT_ROLE==='admin'){foot+='<button class="btn danger" onclick="deleteDemandItem(\''+safeJs(d.id)+'\')">Excluir</button><button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">Editar</button>';}if(CURRENT_ROLE!=='admin'&&CURRENT_ROLE!=='loja'&&d.publishStatus==='draft'&&decisionStatus!=='reprovada'){foot+='<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">'+(decisionStatus==='ajustes'?'Corrigir e reenviar':'Editar solicitação')+'</button>';} foot+='</div>';document.getElementById('detailFoot').innerHTML=foot;
+}
+
+/* BR-061 — Resposta interna separada de respostas das lojas. */
+function renderInternalDemandDetail_(d){
+ var route=(d.cronograma||{}).direcionamento||{},target=String(d.internalTarget||route.valor||''),
+     mode=d.internalMode==='consultor'?'Consultor':'Departamento',history=d.internalHistory||[],
+     published=d.publishStatus==='active';
+ var head='<section class="detail-box"><span class="eyebrow">Demanda interna · '+safe(mode)+'</span>'+
+  '<p class="subtitle" style="margin-top:10px">'+safe(d.description||'Sem descrição.')+'</p>'+
+  '<div class="timeline"><div><span>Destinatário</span><strong>'+safe(target)+'</strong></div>'+
+  '<div><span>Início</span><strong>'+safe(formatDateTime(d.inicioEm)||'—')+'</strong></div>'+
+  '<div><span>Prazo de resposta</span><strong>'+safe(formatDateTime(d.deadline)||'—')+'</strong></div>'+
+  '<div><span>Encerramento</span><strong>'+safe(formatDateTime(d.encerramentoEm)||'—')+'</strong></div></div>'+
+  '<p class="helper">Atribuição interna; nenhuma loja é destinatária. '+(published?'Publicada':'Rascunho sem envio')+'.</p></section>';
+ var answer=d.canReply?'<section class="detail-box"><h4>Responder demanda interna</h4>'+
+  '<p class="helper">A resposta ficará no histórico desta demanda e a administração será avisada. Solicitar encaminhamento não publica nada para lojas.</p>'+
+  '<label class="label" for="internalReplyStatus">Ação</label><select id="internalReplyStatus" class="select">'+
+  '<option value="respondido">Responder</option><option value="encaminhamento_solicitado">Solicitar encaminhamento à administração</option></select>'+
+  '<label class="label" for="internalReplyMessage" style="margin-top:12px">Resposta ou justificativa</label>'+
+  '<textarea id="internalReplyMessage" class="textarea" rows="5" maxlength="4000" placeholder="Descreva a resposta ou o motivo do encaminhamento"></textarea>'+
+  '<button id="internalReplyBtn" class="btn primary" type="button" onclick="submitInternalDemandUI_(\''+safeJs(d.id)+'\')">Registrar resposta</button>'+
+  '</section>':'';
+ var hist='<section class="detail-box"><h4>Histórico de respostas internas</h4>'+
+  (history.length?history.map(function(x){return '<div class="answer-line"><div><strong>'+
+    safe(x.status==='respondido'?'Resposta registrada':'Encaminhamento solicitado')+'</strong>'+
+    '<div class="muted">'+safe(x.email||'')+' · '+safe(formatDateTime(x.createdAt)||'')+'</div></div>'+
+    '<p style="white-space:pre-wrap">'+safe(x.message||'')+'</p></div>';}).join(''):
+    '<p class="muted">Nenhuma resposta interna registrada.</p>')+'</section>';
+ document.getElementById('detailBody').innerHTML='<div class="detail-grid">'+head+answer+hist+'</div>';
+ var foot='<button class="btn" data-close="detailModal">Fechar</button>';
+ if(CURRENT_ROLE==='admin')foot+='<div class="actions">'+
+  '<button class="btn primary" onclick="closeModal(\'detailModal\');openCampaignModal(\''+safeJs(d.type)+'\',\''+safeJs(d.id)+'\')">Editar</button></div>';
+ document.getElementById('detailFoot').innerHTML=foot;
+}
+function submitInternalDemandUI_(demandId){
+ var message=document.getElementById('internalReplyMessage'),status=document.getElementById('internalReplyStatus'),
+     btn=document.getElementById('internalReplyBtn');
+ if(!message||!status||!btn||message.value.trim().length<3){
+  showToast('Descreva a resposta com pelo menos 3 caracteres.');return;
+ }
+ var payload={demandId:demandId,message:message.value.trim(),status:status.value};
+ btn.disabled=true;btn.textContent='Registrando...';
+ var run=google.script.run.withSuccessHandler(function(result){
+  showToast(result&&result.notificationError?'Resposta salva, mas não foi possível enviar o aviso.':'Resposta interna registrada.');
+  refreshBootstrap('campanhas');closeModal('detailModal');
+ }).withFailureHandler(function(error){btn.disabled=false;btn.textContent='Registrar resposta';serverError(error);});
+ if(AUTH_MODE==='store')run.submitPasswordInternalDemandReply(STORE_ACCESS_TOKEN,payload);
+ else run.submitInternalDemandReply(payload);
 }
 
 /* BR-053: comunicado informativo, sem formulário de resposta ou SLA. */

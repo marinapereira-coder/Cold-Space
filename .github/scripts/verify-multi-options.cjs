@@ -71,7 +71,7 @@ assert.ok(hint.textContent.includes('não aparece'));
 status.value='active';pub.updateDemandSaveAction_();
 assert.equal(button.textContent,'Publicar e notificar lojas');
 routing.value='consultor';pub.updateDemandSaveAction_();
-assert.equal(button.textContent,'Salvar como rascunho','Consultor não deve publicar diretamente');
+assert.equal(button.textContent,'Publicar e notificar destinatário','BR-061 permite publicação interna apenas para destinatário validado no servidor');
 assert.ok(index.includes('id="fPublicationHint"')&&styles.includes('.bacio-option-add'));
 assert.ok(read('docs/BANCO_DE_REGRAS_BACIO_CONECTA.md').includes('BR-047'));
 assert.ok(script.includes('collectMultipleAnswers_(document.getElementById(')&&
