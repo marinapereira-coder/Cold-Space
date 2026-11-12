@@ -14,6 +14,22 @@ assert.ok(scripts.includes("var selectedIds=isInternalRoute?[]:routeMode==='loja
 assert.ok(scripts.includes("var wantedStatus=(CURRENT_ROLE!=='admin'||isInternalRoute)?'draft'"));
 assert.ok(schedule.includes("function audienceLabel(x)")&&schedule.includes("Destino: '+e(audienceLabel(x))"));
 assert.ok(rules.includes('BR-060'));
+assert.ok(backend.includes("if (role === 'admin' && isDirectInternalDemand_(d)) return true;"));
+const scopeStart=backend.indexOf('function isDirectInternalDemand_(demanda) {');
+const scopeEnd=backend.indexOf('function latestResponsesByStore_(',scopeStart);
+assert.ok(scopeStart>=0&&scopeEnd>scopeStart);
+const scope=vm.createContext({
+ normalizeJsonObject_:v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{},
+ normalizeArray_:v=>Array.isArray(v)?v.map(String):[],
+ isConectaTestStoreId_:v=>String(v)==='TESTE_CONECTA'
+});
+vm.runInContext(backend.slice(scopeStart,scopeEnd),scope);
+const direct={cronograma:{direcionamento:{modo:'departamento',valor:'TI'}},loja_ids:[]};
+const legacy={cronograma:{direcionamento:{modo:'lojas'}},loja_ids:[]};
+assert.equal(scope.demandaVisivelNoEscopo_(direct,['loja1']),false,'Atribuição interna não é visível como loja');
+assert.equal(scope.getTargetStoreIds_(direct,['loja1']).length,0,'Não transformar destinatário interno em todas as lojas');
+assert.equal(scope.demandaVisivelNoEscopo_(legacy,['loja1']),true,'Envio geral antigo para lojas permanece');
+assert.equal(scope.getTargetStoreIds_(legacy,['loja1'])[0],'loja1','Lojas legadas seguem sendo destinatárias');
 const start=backend.indexOf('function saveDemand(input,authOverride) {');
 const end=backend.indexOf('\nfunction notifyDemandPendingApproval_(',start);
 assert.ok(start>=0&&end>start,'saveDemand localizada e isolada no backend');
