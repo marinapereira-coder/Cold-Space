@@ -1079,3 +1079,6 @@ require('./verify-schedule-faq.cjs');
 
 // BR-060: direcionamentos internos nunca reutilizam o fluxo de lojas.
 require('./verify-routing-drafts.cjs');
+
+// BR-061: autorizacao, entregas e historico de destinatarios internos.
+require('./verify-internal-demands.cjs');
