@@ -1,0 +1,25 @@
+name: Validate Bacio Conecta PR
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Bacio Conecta rules and regressions
+        run: node .github/scripts/verify-conecta.cjs
+      - name: Validate user invitations
+        run: node .github/scripts/verify-access-invitations.cjs
