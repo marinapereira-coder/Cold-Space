@@ -105,7 +105,9 @@ function notifyInternalDemand_(auth,d,kind) {
   if(kind==='reply'){
     var users=safeSupabaseSelect_('/rest/v1/'+table_('TABLE_USUARIOS','bacio_usuarios')+'?select=email,role,ativo&ativo=eq.true&limit=5000',[]);
     recipients=users.filter(function(u){return roleOf_(u)==='admin'&&u.ativo!==false;}).map(function(u){return String(u.email).trim().toLowerCase();});
-    if(d.created_by)recipients.push(String(d.created_by).trim().toLowerCase());
+    var creator=String(d.created_by||'').trim().toLowerCase();
+    if(creator && users.some(function(u){return u.ativo!==false&&String(u.email||'').trim().toLowerCase()===creator;}))
+      recipients.push(creator);
   }
   recipients=Array.from(new Set(recipients)).filter(function(email){return email&&email!==String(auth.email||'').toLowerCase();});
   if(!recipients.length)return {sent:0,reason:'no_other_recipient'};
