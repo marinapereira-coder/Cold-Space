@@ -1,0 +1,38 @@
+<style>
+.conecta-faq{margin:0 0 22px;padding:18px;background:var(--paper);color:var(--brown);border:1px solid var(--line);border-radius:14px}
+.conecta-faq>summary{cursor:pointer;font-weight:700;font-size:16px}
+.conecta-faq p,.conecta-faq label{font-size:14px;line-height:1.6}
+.conecta-faq-search{display:block;margin:16px 0 8px}
+.conecta-faq-item{border-top:1px solid var(--line);padding:13px 0}
+.conecta-faq-item summary{cursor:pointer;font-size:14px;font-weight:600;line-height:1.5}
+.conecta-faq-item p{margin:9px 0 0;color:var(--brown2)}
+.conecta-faq-empty{color:var(--brown2)}
+body.dark-mode .conecta-faq{background:#29231f;color:#f5eadf}
+body.dark-mode .conecta-faq-item p,body.dark-mode .conecta-faq-empty{color:#dec9b7}
+</style>
+<script>
+/* Orientações de uso do portal; nenhuma resposta automática ou leitura de conversas. */
+(function(){
+ var entries=[
+  ['Solicitações','Onde encontro o que preciso responder?','Na Minha Área, confira as prioridades. Na Central de Solicitações, use Para responder e os filtros de departamento, tipo e status para localizar a solicitação. Abra os detalhes para conferir o prazo e os campos.'],
+  ['Prazos','Como confiro o prazo de uma solicitação?','Abra os detalhes e confira Início, Prazo e Encerramento. O prazo é definido na criação de cada demanda. O calendário também mostra os vencimentos. Se precisar de orientação sobre um prazo, fale com o responsável pelo chat.'],
+  ['Preenchimento','Não consigo enviar uma resposta. O que conferir?','Confira os campos obrigatórios destacados e a mensagem exibida pelo portal. Em uma planilha, preencha apenas as células liberadas para sua loja. Se o erro continuar, informe ao responsável o título da solicitação e a mensagem do erro.'],
+  ['Correções','Recebi Ajuste necessário ou Reprovada. Como corrigir?','Abra o aviso e leia o feedback da avaliação. Use Revisar resposta, corrija os campos autorizados e envie novamente. A nova entrega passa por outra avaliação; o histórico anterior é preservado.'],
+  ['Comunicados','Qual a diferença entre comunicado e solicitação?','O mural de Comunicados reúne informações para leitura. Quando disponível, clique em Confirmar leitura. Uma solicitação pede preenchimento ou entrega e tem seu próprio acompanhamento. Conversas acontecem no Chat.'],
+  ['Notificações','Marcar o sininho como lido confirma um comunicado?','Não. A confirmação do comunicado é feita no próprio comunicado pelo botão Confirmar leitura. Marcar uma notificação como lida apenas organiza os avisos do sininho.'],
+  ['Acesso','Como uso Manter conectado?','No login por senha, marque Manter conectado neste dispositivo por até 30 dias, usando um dispositivo de confiança. A validade da sessão também depende do serviço de autenticação. Para encerrar o acesso neste navegador, clique em Sair.'],
+  ['Chat','Não encontrei a orientação. Como falar com o escritório?','Use o Chat para selecionar o contato do ADM responsável pelo assunto. Informe a loja, o título da solicitação quando houver e descreva sua dúvida. O FAQ não envia mensagens e não substitui o atendimento.']
+ ];
+ function text(v){return String(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+ function normalize(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+ function mount(){
+  var page=document.getElementById('page-chat');if(!page||document.getElementById('conectaFaq'))return;
+  var box=document.createElement('details');box.id='conectaFaq';box.className='conecta-faq';
+  box.innerHTML='<summary>Precisa de ajuda? Consulte as dúvidas frequentes</summary><p>Orientações de uso do Conecta. Você pode continuar para o chat a qualquer momento.</p><label class="conecta-faq-search" for="conectaFaqSearch">Buscar orientação</label><input id="conectaFaqSearch" type="search" class="field" placeholder="Ex.: prazo, correção, leitura"><p id="conectaFaqCount" class="helper" role="status"></p><div id="conectaFaqResults"></div>';
+  var head=page.querySelector('.page-head');head.insertAdjacentElement('afterend',box);
+  function render(){var q=normalize(box.querySelector('input').value),found=entries.filter(function(x){return normalize(x.join(' ')).indexOf(q)>=0;});box.querySelector('#conectaFaqCount').textContent=found.length+' orientação(ões) encontrada(s)';box.querySelector('#conectaFaqResults').innerHTML=found.length?found.map(function(x){return '<details class="conecta-faq-item"><summary>'+text(x[0])+' · '+text(x[1])+'</summary><p>'+text(x[2])+'</p></details>';}).join(''):'<p class="conecta-faq-empty">Nenhuma orientação encontrada. Continue pelo chat para falar com o responsável.</p>';}
+  box.querySelector('input').addEventListener('input',render);render();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
+})();
+</script>

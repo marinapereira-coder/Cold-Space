@@ -1074,3 +1074,5 @@ assert.ok(backend.includes('function archiveConectaItemsBulk(input)')&&
 console.log('OK — BR-055, exclusão lógica em lote só ADM e categorias isoladas.');
 
 require('./verify-remember-session.cjs');
+
+require('./verify-schedule-faq.cjs');

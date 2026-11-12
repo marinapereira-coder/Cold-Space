@@ -155,6 +155,8 @@ Versão inicial: 31/10/2026 · Repositório: `marinapereira-coder/Cold-Space`
 
 - **BR-058 — Legibilidade dos temas (12/11/2026):** aumentar textos auxiliares de 7–12px para 12–14px sem ampliar títulos existentes. Calendário e cronograma devem combinar fundo e texto no tema escuro, com eventos de demanda, treinamento, promoção e outros legíveis. Preservar dados, prazos, envio, escopos e preferência de tema; modo escuro padrão permanece como proposta até validação. Em celular, permitir rolagem horizontal do calendário em vez de reduzir letras a 7px.
 
+- **BR-059 — Cronograma e FAQ (12/11/2026):** cronograma mostra data e hora do prazo em São Paulo, classifica atraso também dentro do mesmo dia e oferece filtros combináveis por loja, departamento, consultor, responsável e modo destinatário já salvo, usando somente os dados autorizados do bootstrap. Minhas demandas exige e-mail exato e não aceita e-mail vazio. FAQ inicial no Chat contém apenas orientações de uso do portal com busca local, sem leitura de conversas, criação de chamados ou envio de mensagens. Preservar duas abas do chat, mural separado e confirmação explícita de leitura. O prazo de cada demanda continua definido pelo autor; não criar duração fixa por perfil. A publicação e resposta direta a consultor/departamento permanecem pendentes de fluxo próprio e não podem ser simuladas com envio às lojas.
+
 ## 8. Evolução controlada deste banco
 Toda regra nova aprovada entra aqui com data, alcance e teste correspondente. Se existir conflito com regra anterior, obter autorização para a substituição e registrar a alteração. **Nenhuma regra anterior é descartada apenas porque uma solicitação nova não a menciona.**
 
