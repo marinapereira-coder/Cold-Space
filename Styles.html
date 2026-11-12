@@ -3170,4 +3170,13 @@ body.dark-mode .calendar-event span,body.dark-mode .calendar-day span{color:#dec
 body.dark-mode .calendar-cell.today{box-shadow:inset 0 0 0 2px #d3a17b}
 @media(max-width:650px){.month-calendar{grid-template-columns:repeat(7,minmax(100px,1fr))}.month-event{font-size:12px}}
 
+
+/* Contatos usam superfície explícita, sem o cinza nativo de botões. */
+.chat-thread{background:transparent}
+body.dark-mode .chat-thread{background:#29231f;border-color:#514034}
+body.dark-mode .chat-thread:hover,body.dark-mode .chat-thread.active{background:#433327;border-color:#9d7659}
+body.dark-mode .chat-thread .chat-contact-text,body.dark-mode .chat-thread .chat-contact-text strong{color:#f5eadf}
+body.dark-mode .chat-thread span:not(.chat-contact-initials),body.dark-mode .chat-thread small{color:#dec9b7}
+body.dark-mode .chat-thread .chat-contact-initials{background:#ead9c8;color:#39281f}
+body.dark-mode .bubble small{opacity:1}
 </style>
