@@ -1357,7 +1357,7 @@ function updateDemandSaveAction_(){
  if(help)help.textContent=publish?
   (isInternal?'A atribuição será disponibilizada somente ao destinatário ativo selecionado; nenhuma loja receberá esta demanda.':
     'A solicitação ficará visível para as lojas selecionadas e gerará notificações no Conecta.'):
-  'O rascunho não gera notificações nem fica disponível para resposta. A publicação exige prazo, encerramento e destinatário autorizado.';
+  'O rascunho não aparece para o destinatário e não gera notificações. A publicação exige prazo, encerramento e destinatário autorizado.';
 }
 function demandScheduleFromForm_(status,nowIso){
  var startInput=document.getElementById('fStart').value||toLocalInput(nowIso||new Date().toISOString());
