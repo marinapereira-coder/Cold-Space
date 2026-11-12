@@ -230,6 +230,8 @@ function getRealBootstrap_(email,authOverride) {
     []
   ).filter(function (d) {
     if (isDepartmentUser_(user)) return mayReadDepartmentDemand_(user,d);
+    // O administrador pode ver o rascunho interno, sem atribuí-lo a lojas.
+    if (role === 'admin' && isDirectInternalDemand_(d)) return true;
     if (!demandaVisivelNoEscopo_(d, visibleLojaIds)) return false;
     if (role !== 'admin' && String(d.status || 'active').toLowerCase() === 'draft') return false;
     return true;
@@ -444,7 +446,13 @@ function timelineInfo_(demanda, answered, totalStores, now) {
   };
 }
 
+function isDirectInternalDemand_(demanda) {
+  var direction=normalizeJsonObject_(normalizeJsonObject_(demanda.cronograma).direcionamento);
+  return direction.modo==='consultor'||direction.modo==='departamento';
+}
+
 function demandaVisivelNoEscopo_(demanda, visibleLojaIds) {
+  if (isDirectInternalDemand_(demanda)) return false;
   var targetIds = normalizeArray_(
     demanda.loja_ids || demanda.lojas_ids || demanda.target_loja_ids || demanda.lojas
   );
@@ -456,6 +464,7 @@ function demandaVisivelNoEscopo_(demanda, visibleLojaIds) {
 }
 
 function getTargetStoreIds_(demanda, visibleLojaIds) {
+  if (isDirectInternalDemand_(demanda)) return [];
   var targetIds = normalizeArray_(
     demanda.loja_ids || demanda.lojas_ids || demanda.target_loja_ids || demanda.lojas
   );
@@ -603,7 +612,8 @@ function buildManagementItems_(demandas, respostas, lojas, role) {
       completedCount: completed,
       totalStores: targetIds.length,
       targetStoreIds: targetIds,
-      progressLabel: targetIds.length
+      progressLabel: isDirectInternalDemand_(d) ? 'Atribuição interna em rascunho'
+        : targetIds.length
         ? answered + ' de ' + targetIds.length + ' lojas responderam'
         : 'Sem lojas vinculadas',
       status: status,
