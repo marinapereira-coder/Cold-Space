@@ -594,7 +594,7 @@ function buildManagementItems_(demandas, respostas, lojas, role, internalReplies
     var completed = targetIds.filter(function (lojaId) { return responseCountsAsCompleteV2_(latest[lojaId]); }).length;
     var progress = targetIds.length ? Math.round((answered / targetIds.length) * 100) : 0;
     var savedStatus = String(d.status || 'active').toLowerCase();
-    var internal=isDirectInternalDemand_(d),internalLast=internalReplies[id]||null;
+    var internal=typeof isDirectInternalDemand_==='function'&&isDirectInternalDemand_(d),internalLast=internalReplies[id]||null;
     var timeline = timelineInfo_(d, answered, targetIds.length, new Date());
     var status = savedStatus === 'draft' ? 'draft' : progress >= 100 && targetIds.length ? 'success' : 'active';
     if(internal&&savedStatus==='active'){
