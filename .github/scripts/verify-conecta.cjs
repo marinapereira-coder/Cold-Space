@@ -1076,3 +1076,6 @@ console.log('OK — BR-055, exclusão lógica em lote só ADM e categorias isola
 require('./verify-remember-session.cjs');
 
 require('./verify-schedule-faq.cjs');
+
+// BR-060: direcionamentos internos nunca reutilizam o fluxo de lojas.
+require('./verify-routing-drafts.cjs');
