@@ -76,6 +76,12 @@
           placeholder="Sua senha">
 
 
+        <label class="check" style="margin-top:14px">
+          <input id="storeRememberMe" type="checkbox">
+          Manter conectado neste dispositivo por até 30 dias
+        </label>
+        <p class="helper">Use apenas em um dispositivo de confiança. Para encerrar o acesso neste navegador, clique em Sair.</p>
+
         <button
           id="storeLoginBtn"
           class="btn primary login-submit">
@@ -173,6 +179,8 @@
 
       </div>
 
+
+      <button id="storeSignOutBtn" type="button" class="btn soft" style="display:none" onclick="signOutStore()">Sair</button>
 
       <!-- MEU DIA -->
 

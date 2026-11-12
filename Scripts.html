@@ -160,6 +160,7 @@ function startApp(data){
     APP_DATA=data||{};
     CURRENT_ROLE=String((APP_DATA.user||{}).role||'').toLowerCase();
     AUTH_MODE=APP_DATA.authMode||AUTH_MODE||'corporate';
+    document.getElementById('storeSignOutBtn').style.display=AUTH_MODE==='store'?'inline-flex':'none';
     document.getElementById('loading').style.display='none';
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
@@ -2365,8 +2366,7 @@ function refreshStoreLiveSession_(generation){
   if(generation!==STORE_LIVE_GENERATION)return;
   STORE_ACCESS_TOKEN=String(result.accessToken||STORE_ACCESS_TOKEN);
   STORE_REFRESH_TOKEN=String(result.refreshToken||STORE_REFRESH_TOKEN);
-  sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);
-  sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);
+  persistStoreSession_();
   applyStoreLiveUpdates_(result.bootstrap||{},generation);
  }).withFailureHandler(function(error){
   if(generation!==STORE_LIVE_GENERATION)return;
@@ -2386,15 +2386,46 @@ function refreshBootstrap(page){
 /* ============================================================
    V2: ENTRADA / LOGIN DE LOJA
 ============================================================ */
+// Sessão persistente opcional: nunca armazenar senha; validade absoluta de 30 dias.
+var STORE_REMEMBER_UNTIL=0;
+var STORE_REMEMBER_KEY='bacio_store_remember_v1';
+function readRememberedStoreSession_(){
+ try{
+  var saved=JSON.parse(localStorage.getItem(STORE_REMEMBER_KEY)||'null');
+  if(!saved)return null;
+  if(!saved.refreshToken||!Number.isFinite(saved.expiresAt)||saved.expiresAt<=Date.now()||saved.expiresAt>Date.now()+30*86400000){localStorage.removeItem(STORE_REMEMBER_KEY);return null;}
+  return saved;
+ }catch(e){try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(ignore){}return null;}
+}
+function persistStoreSession_(){
+ sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);
+ sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);
+ try{
+  if(STORE_REMEMBER_UNTIL>Date.now()&&STORE_REFRESH_TOKEN){
+   localStorage.setItem(STORE_REMEMBER_KEY,JSON.stringify({refreshToken:STORE_REFRESH_TOKEN,expiresAt:STORE_REMEMBER_UNTIL}));
+  }else{STORE_REMEMBER_UNTIL=0;localStorage.removeItem(STORE_REMEMBER_KEY);}
+ }catch(e){STORE_REMEMBER_UNTIL=0;showToast('Não foi possível manter conectado neste navegador. A sessão atual continua disponível.');}
+}
+function signOutStore(){
+ clearStoreSession();sessionStorage.removeItem('bacio_force_password_login');
+ document.getElementById('storeLoginPassword').value='';
+ document.getElementById('storeRememberMe').checked=false;
+ AUTH_MODE='store';showStoreLogin();
+}
+
 function handleEntryState(state){
   document.getElementById('loading').style.display='none';
   if(state&&state.authenticated&&state.bootstrap&&!sessionStorage.getItem('bacio_force_password_login')){AUTH_MODE='corporate';startApp(state.bootstrap);return;}
   AUTH_MODE='store';
+  var remembered=readRememberedStoreSession_();
+  STORE_REMEMBER_UNTIL=remembered?remembered.expiresAt:0;
+  document.getElementById('storeRememberMe').checked=!!remembered;
   STORE_ACCESS_TOKEN=sessionStorage.getItem('bacio_store_access')||'';
   STORE_REFRESH_TOKEN=sessionStorage.getItem('bacio_store_refresh')||'';
+  if(!STORE_REFRESH_TOKEN&&remembered)STORE_REFRESH_TOKEN=remembered.refreshToken;
   if(STORE_ACCESS_TOKEN){
     google.script.run.withSuccessHandler(function(data){AUTH_MODE='store';data.authMode='store';if((data.user||{}).forcePasswordChange){showStorePasswordChange();}else{startApp(data);}}).withFailureHandler(function(){tryStoreRefreshOrLogin();}).getStoreBootstrap(STORE_ACCESS_TOKEN);
-  }else showStoreLogin();
+  }else if(STORE_REFRESH_TOKEN)tryStoreRefreshOrLogin();else showStoreLogin();
 }
 function switchProfileLogin(){
  sessionStorage.setItem('bacio_force_password_login','1');
@@ -2408,10 +2439,10 @@ function backToCorporateSession(){
 }
 function showStoreLogin(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='block';document.getElementById('passwordChangeBox').style.display='none';document.getElementById('storeLoginMessage').textContent='';}
 function showStorePasswordChange(){document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';document.getElementById('loginBox').style.display='none';document.getElementById('passwordChangeBox').style.display='block';}
-function doStoreLogin(){var email=document.getElementById('storeLoginEmail').value.trim(),password=document.getElementById('storeLoginPassword').value;setBusy('storeLoginBtn',true,'Entrando...');document.getElementById('storeLoginMessage').textContent='';google.script.run.withSuccessHandler(function(result){setBusy('storeLoginBtn',false,'Entrar');STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||'';sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store';var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(e){setBusy('storeLoginBtn',false,'Entrar');document.getElementById('storeLoginMessage').textContent=e&&e.message?e.message:String(e);}).storeLogin(email,password);}
+function doStoreLogin(){var email=document.getElementById('storeLoginEmail').value.trim(),password=document.getElementById('storeLoginPassword').value;setBusy('storeLoginBtn',true,'Entrando...');document.getElementById('storeLoginMessage').textContent='';google.script.run.withSuccessHandler(function(result){setBusy('storeLoginBtn',false,'Entrar');STORE_REMEMBER_UNTIL=document.getElementById('storeRememberMe').checked?Date.now()+30*86400000:0;document.getElementById('storeLoginPassword').value='';STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||'';persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store';var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(e){setBusy('storeLoginBtn',false,'Entrar');document.getElementById('storeLoginMessage').textContent=e&&e.message?e.message:String(e);}).storeLogin(email,password);}
 function doStorePasswordChange(){var a=document.getElementById('storeNewPassword').value,b=document.getElementById('storeNewPassword2').value;if(a.length<8){showToast('A senha deve ter pelo menos 8 caracteres.');return;}if(a!==b){showToast('As senhas não são iguais.');return;}setBusy('storeChangePasswordBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');showToast('Senha alterada.');google.script.run.withSuccessHandler(function(data){data.authMode='store';startApp(data);}).withFailureHandler(serverError).getStoreBootstrap(STORE_ACCESS_TOKEN);}).withFailureHandler(function(e){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');serverError(e);}).storeChangePassword(STORE_ACCESS_TOKEN,a);}
-function tryStoreRefreshOrLogin(){if(!STORE_REFRESH_TOKEN){clearStoreSession();showStoreLogin();return;}google.script.run.withSuccessHandler(function(result){STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||STORE_REFRESH_TOKEN;sessionStorage.setItem('bacio_store_access',STORE_ACCESS_TOKEN);sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(){clearStoreSession();showStoreLogin();}).storeRefreshSession(STORE_REFRESH_TOKEN);}
-function clearStoreSession(){stopStoreLiveSync_();STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
+function tryStoreRefreshOrLogin(){if(!STORE_REFRESH_TOKEN){clearStoreSession();showStoreLogin();return;}google.script.run.withSuccessHandler(function(result){STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||STORE_REFRESH_TOKEN;persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(){clearStoreSession();showStoreLogin();}).storeRefreshSession(STORE_REFRESH_TOKEN);}
+function clearStoreSession(){stopStoreLiveSync_();STORE_REMEMBER_UNTIL=0;try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(e){}STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
 
 /* ============================================================
    V2: CALENDÁRIO

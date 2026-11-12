@@ -125,9 +125,9 @@ console.log('OK — Planilha fictícia, resposta e revisão isoladas, sem dados 
 
 /** Uma sessão já autenticada da loja deve prevalecer após atualizar a página. */
 const sessionScripts=fs.readFileSync(path.join(__dirname,'../../Scripts.html'),'utf8');
-assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store'"),
+assert.ok(sessionScripts.includes("persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store'"),
  'Login de loja não pode voltar silenciosamente ao perfil corporativo ao atualizar');
-assert.ok(sessionScripts.includes("sessionStorage.setItem('bacio_store_refresh',STORE_REFRESH_TOKEN);sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap"),
+assert.ok(sessionScripts.includes("persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap"),
  'Renovação de sessão também mantém a preferência do login da loja');
 console.log('OK — O perfil de teste permanece escolhido após atualização e renovação da sessão.');
 
