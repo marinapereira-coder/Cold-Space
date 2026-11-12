@@ -350,6 +350,9 @@ function renderCampaignManagement(){
  if(['marketing','rh','qualidade','treinamento','comercial','growth','ti','departamento'].indexOf(CURRENT_ROLE)>=0){
    var dept=String((APP_DATA.user||{}).departamento||CURRENT_ROLE).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
    items=items.filter(function(item){
+     var route=(item.cronograma||{}).direcionamento||{};
+     var target=String(route.valor||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+     if(item.internal&&item.publishStatus==='active'&&route.modo==='departamento'&&target===dept)return true;
      return String(requestDepartment(item)).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')===dept;
    });
  }
