@@ -229,9 +229,8 @@ function getRealBootstrap_(email,authOverride) {
     '/rest/v1/' + demandasTable + '?select=*&ativa=eq.true&order=created_at.desc',
     []
   ).filter(function (d) {
+    if (isDirectInternalDemand_(d)) return mayReadInternalDemand_(d,auth);
     if (isDepartmentUser_(user)) return mayReadDepartmentDemand_(user,d);
-    // O administrador pode ver o rascunho interno, sem atribuí-lo a lojas.
-    if (role === 'admin' && isDirectInternalDemand_(d)) return true;
     if (!demandaVisivelNoEscopo_(d, visibleLojaIds)) return false;
     if (role !== 'admin' && String(d.status || 'active').toLowerCase() === 'draft') return false;
     return true;
@@ -265,13 +264,16 @@ function getRealBootstrap_(email,authOverride) {
   var published = demandas.filter(function (d) {
     return String(d.status || 'active').toLowerCase() !== 'draft';
   });
-
-  var tasks = buildTasks_(published, respostas, lojas, role, user);
-  var campaigns = buildCampaigns_(published, tasks);
+  // Entregas internas não entram no contador de lojas nem nas campanhas.
+  var storePublished=published.filter(function(d){return !isDirectInternalDemand_(d);});
+  var internalReplies=internalReplyMap_(demandas);
+  var tasks = buildTasks_(storePublished, respostas, lojas, role, user).concat(
+    buildInternalDemandTasks_(published,internalReplies,auth));
+  var campaigns = buildCampaigns_(storePublished, tasks);
   var announcements = role==='loja' ? attachStoreComunicadosLeiturasV2_(buildStoreCorrectionNotices_(published,respostas,lojas).concat(buildAnnouncements_(published)),String(user.loja_id||user.lojaId||'')) : buildAnnouncements_(published);
   // Defence in depth: filter the final payload as well as source rows.
   // This prevents cross-department records leaking through any future mapper.
-  var managementItems = buildManagementItems_(demandas, respostas, lojas, role);
+  var managementItems = buildManagementItems_(demandas, respostas, lojas, role, internalReplies);
   if (isDepartmentUser_(user)) {
     var allowedDemandIds = {};
     demandas.forEach(function(d){if(mayReadDepartmentDemand_(user,d))allowedDemandIds[String(d.id)] = true;});
@@ -339,6 +341,7 @@ function getRealBootstrap_(email,authOverride) {
     campaigns: campaigns,
     managementItems: managementItems,
     announcements: announcements,
+    routingRecipients: internalRoutingDirectory_(user),
     notifications: mapConectaNotificationsByType_(notifications,demandas)
   };
 }
@@ -576,7 +579,8 @@ function buildTasks_(demandas, respostas, lojas, role, user) {
   return tasks;
 }
 
-function buildManagementItems_(demandas, respostas, lojas, role) {
+function buildManagementItems_(demandas, respostas, lojas, role, internalReplies) {
+  internalReplies=internalReplies||{};
   var visibleLojaIds = lojas.map(function (l) { return String(l.id); });
   return demandas.filter(function(d){return String(d.tipo||d.type||'').toLowerCase()!=='comunicado';}).map(function (d) {
     var id = String(d.id);
@@ -587,8 +591,16 @@ function buildManagementItems_(demandas, respostas, lojas, role) {
     var completed = targetIds.filter(function (lojaId) { return responseCountsAsCompleteV2_(latest[lojaId]); }).length;
     var progress = targetIds.length ? Math.round((answered / targetIds.length) * 100) : 0;
     var savedStatus = String(d.status || 'active').toLowerCase();
+    var internal=isDirectInternalDemand_(d),internalLast=internalReplies[id]||null;
     var timeline = timelineInfo_(d, answered, targetIds.length, new Date());
     var status = savedStatus === 'draft' ? 'draft' : progress >= 100 && targetIds.length ? 'success' : 'active';
+    if(internal&&savedStatus==='active'){
+      status=internalLast?(internalLast.status==='respondido'?'completed':'needs_revision'):
+        (d.prazo_sla&&new Date(d.prazo_sla).getTime()<Date.now()?'late':'active');
+      timeline.code=status;
+      timeline.label=internalLast?(internalLast.status==='respondido'?'Resposta registrada':'Encaminhamento solicitado'):
+        (status==='late'?'Em atraso':'Aguardando resposta interna');
+    }
     // O progresso de respostas (1/1) não significa avaliação concluída.
     // Somente no perfil da própria loja exibimos o resultado de sua última entrega.
     var reviewStatus=(role==='loja' && savedStatus!=='draft' && timeline.code!=='closed' && targetIds.length===1)
@@ -602,6 +614,8 @@ function buildManagementItems_(demandas, respostas, lojas, role) {
     return {
       id: id,
       isHomologacao: isConectaTestDemand_(d),
+      internal: internal,
+      internalResponseStatus: internalLast?internalLast.status:'',
       title: d.titulo || d.title || 'Demanda',
       description: d.descricao || d.description || '',
       type: String(d.tipo || d.type || 'demanda').toLowerCase(),
@@ -612,7 +626,9 @@ function buildManagementItems_(demandas, respostas, lojas, role) {
       completedCount: completed,
       totalStores: targetIds.length,
       targetStoreIds: targetIds,
-      progressLabel: isDirectInternalDemand_(d) ? 'Atribuição interna em rascunho'
+      progressLabel: internal ? (savedStatus==='draft'?'Atribuição interna em rascunho':
+        internalLast?(internalLast.status==='respondido'?'Resposta interna registrada':'Encaminhamento solicitado'):
+        'Aguardando resposta do destinatário')
         : targetIds.length
         ? answered + ' de ' + targetIds.length + ' lojas responderam'
         : 'Sem lojas vinculadas',
@@ -872,8 +888,10 @@ function saveDemand(input,authOverride) {
       throw new Error('Selecione um consultor ou departamento para esta atribuição.');
     if (requestedStoreIds.length)
       throw new Error('Atribuições internas não podem carregar lojas como destinatárias.');
-    if (publishStatus === 'active')
-      throw new Error('Publicação interna ainda não homologada. Salve como rascunho; nenhuma loja será notificada.');
+    if (publishStatus === 'active') {
+      if(roleOf_(auth.user)!=='admin')throw new Error('A publicação de demandas internas exige aprovação administrativa.');
+      getInternalRouteRecipients_(routing);
+    }
   }
 
   var modelFields = Array.isArray(input.modelFields) ? input.modelFields : [];
@@ -932,6 +950,12 @@ function saveDemand(input,authOverride) {
     if (existingRows.length) {
       existingRow = existingRows[0];
       existingCronograma = normalizeJsonObject_(existingRow.cronograma);
+      var previousDirection=normalizeJsonObject_(existingCronograma.direcionamento);
+      if(String(existingRow.status)==='active' &&
+         (String(previousDirection.modo||'lojas')!==routingMode||
+          (routingMode==='consultor'||routingMode==='departamento')&&
+          internalRoutingKey_(previousDirection.valor)!==internalRoutingKey_(routing.valor)))
+        throw new Error('Não é permitido trocar o destinatário de uma demanda já publicada. Crie outra demanda.');
     }
   }
 
@@ -1041,13 +1065,15 @@ function saveDemand(input,authOverride) {
   if (publishStatus === 'active' && !wasPublished) {
     var publishedId = result && result[0] && result[0].id || input.id;
     try {
-      var notificationResult = notifyDemandPublished_(auth, {
-        id: publishedId,
-        title: titulo,
-        type: tipo,
-        department: String(cronograma.departamentoSolicitante||'Operações'),
-        lojaIds: normalizeArray_(input.lojaIds || [])
-      });
+      var notificationResult = isDirectInternalDemand_({cronograma:cronograma}) ?
+        notifyInternalDemand_(auth,{id:publishedId,titulo:titulo,cronograma:cronograma},'assigned') :
+        notifyDemandPublished_(auth, {
+          id: publishedId,
+          title: titulo,
+          type: tipo,
+          department: String(cronograma.departamentoSolicitante||'Operações'),
+          lojaIds: normalizeArray_(input.lojaIds || [])
+        });
       return {ok:true,row:result&&result[0]?result[0]:null,notifications:notificationResult};
     } catch (notificationError) {
       console.error('Falha ao notificar publicação da demanda: '+String(notificationError));
@@ -1193,6 +1219,11 @@ function setDemandStatus(demandaId, newStatus) {
   var fullRows=supabaseRequest_('/rest/v1/'+demandasTable+'?select=*&id=eq.'+encodeURIComponent(String(demandaId))+'&limit=1','get')||[];
   var full=fullRows[0]||{};
   var schedule=normalizeJsonObject_(full.cronograma);
+  var internal=isDirectInternalDemand_(full);
+  if(status==='active'&&internal){
+    getInternalRouteRecipients_(internalRoute_(full));
+    validateDemandDatesForPublication_(full.inicio_em,full.prazo_sla,full.encerramento_em);
+  }
   if(status==='active' && schedule.aprovacaoStatus==='pendente'){
     var history=Array.isArray(schedule.historicoAprovacao)?schedule.historicoAprovacao:[];
     history.push({acao:'aprovada',por:getCurrentAuthContext_().email,em:new Date().toISOString()});
@@ -1226,10 +1257,14 @@ function setDemandStatus(demandaId, newStatus) {
 
   var notificationInfo=null;
   if(status==='active'&&String(full.status||'')!=='active'){
-    try{notificationInfo=notifyDemandPublished_(getCurrentAuthContext_(),{
-      title:full.titulo||'',type:full.tipo||'demanda',department:schedule.departamentoSolicitante||'Operações',
-      lojaIds:normalizeArray_(full.loja_ids||[])
-    });}catch(e){notificationInfo={error:String(e)};}
+    try{
+      notificationInfo=internal ?
+        notifyInternalDemand_(getCurrentAuthContext_(),full,'assigned') :
+        notifyDemandPublished_(getCurrentAuthContext_(),{
+          id:full.id,title:full.titulo||'',type:full.tipo||'demanda',
+          department:schedule.departamentoSolicitante||'Operações',lojaIds:normalizeArray_(full.loja_ids||[])
+        });
+    }catch(e){notificationInfo={error:String(e)};}
   }
   return { ok: true, row: result && result[0] ? result[0] : null, notifications:notificationInfo };
 }
@@ -1318,6 +1353,8 @@ function getDemandDetail(demandaId,authOverride) {
 
   if (!rows || !rows.length) throw new Error('Campanha/demanda não encontrada.');
   var demanda = rows[0];
+
+  if (isDirectInternalDemand_(demanda)) return getInternalDemandDetail_(demanda,auth);
 
   if (!(isDepartmentUser_(user) ? mayReadDepartmentDemand_(user,demanda) : demandaVisivelNoEscopo_(demanda, visibleLojaIds))) {
     throw new Error('Você não tem acesso a esta campanha/demanda.');
