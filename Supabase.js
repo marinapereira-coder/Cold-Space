@@ -276,7 +276,10 @@ function getRealBootstrap_(email,authOverride) {
   var managementItems = buildManagementItems_(demandas, respostas, lojas, role, internalReplies);
   if (isDepartmentUser_(user)) {
     var allowedDemandIds = {};
-    demandas.forEach(function(d){if(mayReadDepartmentDemand_(user,d))allowedDemandIds[String(d.id)] = true;});
+    demandas.forEach(function(d){
+      if(isDirectInternalDemand_(d) ? mayReadInternalDemand_(d,auth) : mayReadDepartmentDemand_(user,d))
+        allowedDemandIds[String(d.id)] = true;
+    });
     managementItems = managementItems.filter(function(item){return allowedDemandIds[String(item.id)] === true;});
     tasks = tasks.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
     campaigns = campaigns.filter(function(item){return allowedDemandIds[String(item.demandaId || item.demanda_id || item.id)] === true;});
@@ -1244,7 +1247,7 @@ function setDemandStatus(demandaId, newStatus) {
   if (status === 'closed' && !row.encerramento_em) {
     payload.encerramento_em = new Date().toISOString();
   }
-  if (status !== 'closed' && row.encerramento_em) {
+  if (status !== 'closed' && row.encerramento_em && !internal) {
     payload.encerramento_em = null;
   }
 
