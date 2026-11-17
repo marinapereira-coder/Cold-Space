@@ -1082,3 +1082,6 @@ require('./verify-routing-drafts.cjs');
 
 // BR-061: autorizacao, entregas e historico de destinatarios internos.
 require('./verify-internal-demands.cjs');
+
+// BR-062: pastas de departamentos e pesquisa imediata no catálogo preservado.
+require('./verify-central-folders.cjs');
