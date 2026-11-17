@@ -3044,7 +3044,8 @@ function bindCentralLinks_(){
   if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
  });
  if(all)all.addEventListener('click',function(){
-  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=true;
+  var showAll=!CENTRAL_BROWSE_ALL;
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=showAll;
   if(search)search.value='';
   renderCentralLinks_();
   var panel=document.getElementById('centralLinksArea');
