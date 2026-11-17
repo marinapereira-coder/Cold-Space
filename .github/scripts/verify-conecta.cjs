@@ -1088,3 +1088,6 @@ require('./verify-central-folders.cjs');
 
 // BR-063: submenus e Minha Área da loja, sem alterar notas oficiais.
 require('./verify-store-home-nav.cjs');
+
+// BR-064: dois calendários com Growth Prisma somente leitura e estado de acesso.
+require('./verify-promo-calendars.cjs');
