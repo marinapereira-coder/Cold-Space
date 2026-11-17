@@ -1085,3 +1085,6 @@ require('./verify-internal-demands.cjs');
 
 // BR-062: pastas de departamentos e pesquisa imediata no catálogo preservado.
 require('./verify-central-folders.cjs');
+
+// BR-063: submenus e Minha Área da loja, sem alterar notas oficiais.
+require('./verify-store-home-nav.cjs');
