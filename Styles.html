@@ -3453,4 +3453,32 @@ body.dark-mode .app-shell #page-avaliacoes .stars{color:#f4c680}
 }
 @media(prefers-reduced-motion:reduce){.app-shell .conecta-nav-caret{transition:none}}
 
+
+/* BR-063 — estrelas filtram somente histórico oficial, não alteram notas. */
+.app-shell #homePriorities[hidden]{display:none!important}
+.app-shell #page-avaliacoes .evaluation-star-controls{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 17px;
+}
+.app-shell #page-avaliacoes .evaluation-star-filter-label{
+  font-size:13px;color:var(--brown2);font-weight:700;margin-right:4px;
+}
+.app-shell #page-avaliacoes .evaluation-star-filter{
+  min-height:37px;border:1px solid var(--line);border-radius:999px;
+  background:var(--paper);color:#a56e22;padding:7px 11px;
+  font:700 14px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.5px;cursor:pointer;
+}
+.app-shell #page-avaliacoes .evaluation-star-filter.active{
+  background:#4f2b1f;border-color:#4f2b1f;color:#fff3e6;
+}
+.app-shell #page-avaliacoes .evaluation-star-filter:focus-visible{
+  outline:3px solid #c28658;outline-offset:2px;
+}
+body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter{
+  background:#3a2c24;border-color:#735744;color:#f1c680;
+}
+body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter.active{
+  background:#f1dcc9;border-color:#f1dcc9;color:#36231a;
+}
+body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter-label{color:#dec9b7}
+
 </style>
