@@ -98,4 +98,24 @@ assert.ok(nodes.homeStoreRatingContent.innerHTML.includes('Sem notas oficiais'))
 context.CURRENT_ROLE='admin';context.renderStoreHomeActivity_();context.renderStoreHomeRating_();
 assert.equal(nodes.homeStoreActivity.hidden,true);
 assert.equal(nodes.homeStoreRating.hidden,true);
+
+assert.ok(index.includes('id="homePriorities"')&&styles.includes('#homePriorities[hidden]'),
+ 'Prioridades da gestão devem continuar existentes, sem duplicar na loja');
+assert.ok(index.includes('id="evaluationStarControls"'),
+ 'Filtro visual por notas oficiais deve existir');
+for(const grade of ['all','5','4','3','2','1','none']){
+ assert.ok(index.includes('data-eval-grade="'+grade+'"'),'Nota ausente: '+grade);
+}
+const evalStart=scripts.indexOf('function evaluationMatchesStarFilter_(');
+const evalEnd=scripts.indexOf('function renderEvaluations(){',evalStart);
+assert.ok(evalStart>0&&evalEnd>evalStart,'Filtro puro por estrelas não encontrado');
+new vm.Script(scripts.slice(evalStart,evalEnd),{filename:'evaluation-filter.js'}).runInContext(context);
+assert.equal(context.evaluationMatchesStarFilter_({stars:5},'5'),true);
+assert.equal(context.evaluationMatchesStarFilter_({stars:4},'5'),false);
+assert.equal(context.evaluationMatchesStarFilter_({stars:4},'4'),true);
+assert.equal(context.evaluationMatchesStarFilter_({stars:null},'none'),true);
+assert.equal(context.evaluationMatchesStarFilter_({stars:undefined},'none'),true);
+assert.equal(context.evaluationMatchesStarFilter_({stars:0},'none'),true);
+assert.equal(context.evaluationMatchesStarFilter_({stars:3},'all'),true);
+
 console.log('OK — 13 destinos, submenus, pendentes/respondidas, notas oficiais e isolamento da loja.');
