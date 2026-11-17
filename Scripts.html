@@ -30,6 +30,8 @@ var STORE_LIVE_LAST_FULL_REFRESH=0;
 var STORE_LIVE_POLL_MS=25000;
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
+var CALENDAR_VIEW='operacional';
+var PRISMA_PROMO_MONTHS_CACHE={};
 var EVALUATION_DATA=null;
 var EVALUATION_STAR_FILTER='all';
 var REPORTS_DATA=null;
@@ -94,6 +96,28 @@ function bindEvents(){
   document.getElementById('nextMonthBtn').onclick=function(){CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()+1,1);renderMonthCalendar();};
   document.getElementById('todayMonthBtn').onclick=function(){CALENDAR_CURSOR=new Date();renderMonthCalendar();};
   document.getElementById('newCalendarEventBtn').onclick=openCalendarEventModal;
+  document.querySelectorAll('[data-calendar-view]').forEach(function(tab){
+    tab.addEventListener('click',function(){selectConectaCalendarView_(tab.getAttribute('data-calendar-view'));});
+    tab.addEventListener('keydown',function(e){
+      if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+      e.preventDefault();
+      var next=tab.getAttribute('data-calendar-view')==='operacional'?'promocional':'operacional';
+      selectConectaCalendarView_(next);
+      document.getElementById(next==='operacional'?'calendarOperationalTab':'calendarPromotionalTab').focus();
+    });
+  });
+  document.getElementById('promotionalPrevMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()-1,1);
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('promotionalNextMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()+1,1);
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('promotionalTodayMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date();
+    loadPrismaPromoCalendar_();
+  };
 
   ['campaignSearch','campaignTypeFilter','campaignStatusFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderCampaignManagement);});
   ['noticeSearch','noticeTypeFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderNotices);});
@@ -214,7 +238,7 @@ function startApp(data){
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;CALENDAR_VIEW='operacional';PRISMA_PROMO_MONTHS_CACHE={};EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     HOME_STORE_ACTIVITY_FILTER='pending';HOME_STORE_ACTIVITY_SHOWN=8;
     syncNavigationFoldVisibility_();
     renderAllCore();
@@ -277,6 +301,7 @@ function showPage(page){
   if(page==='avaliacoes'&&!EVALUATION_DATA)loadEvaluations();
   if(page==='relatorios'){if(!REPORTS_DATA)loadReports();else renderReports();}
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
+  if(page==='calendario')selectConectaCalendarView_(CALENDAR_VIEW);
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
   if(page==='acessos'&&CURRENT_ROLE==='admin'&&!ACCESS_DATA)loadAccesses();
   if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='cronograma'&&typeof renderConectaCronograma==='function')renderConectaCronograma();if(page==='comunicados')renderNotices();if(page==='central')renderCentralOperations();
@@ -2714,6 +2739,151 @@ function saveCalendarEventFromModal(){
 
 function deleteCalendarItem(id){if(!confirm('Excluir este evento do calendário?'))return;google.script.run.withSuccessHandler(function(){showToast('Evento excluído.');CALENDAR_DATA=null;loadCalendar();}).withFailureHandler(serverError).deleteCalendarEvent(id);}
 function calendarTypeLabel(t){return ({demanda_inicio:'Início de demanda',demanda_prazo:'Entrega de demanda',demanda_encerramento:'Encerramento',promocao:'Promoção',campanha:'Campanha',treinamento:'Treinamento',operacao:'Operação',evento:'Evento',outro:'Outro'})[t]||'Evento';}
+
+/* ============================================================
+   BR-064: Calendários Operacional e Promocional (Prisma Growth)
+   Os dados promocionais são lidos do servidor; sem gravação no Prisma.
+============================================================ */
+function selectConectaCalendarView_(view){
+  CALENDAR_VIEW=view==='promocional'?'promocional':'operacional';
+  var promo=CALENDAR_VIEW==='promocional';
+  document.getElementById('calendarOperationalPanel').hidden=promo;
+  document.getElementById('calendarPromotionalPanel').hidden=!promo;
+  document.querySelectorAll('[data-calendar-view]').forEach(function(btn){
+    var active=btn.getAttribute('data-calendar-view')===CALENDAR_VIEW;
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-selected',active?'true':'false');
+    btn.tabIndex=active?0:-1;
+  });
+  if(promo)loadPrismaPromoCalendar_();
+  else if(CALENDAR_DATA)renderMonthCalendar();
+}
+function conectaPromoMonthRef_(){
+  return CALENDAR_CURSOR.getFullYear()+'-'+String(CALENDAR_CURSOR.getMonth()+1).padStart(2,'0');
+}
+function loadPrismaPromoCalendar_(){
+  if(CALENDAR_VIEW!=='promocional')return;
+  var month=conectaPromoMonthRef_();
+  var stamp=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth(),1);
+  document.getElementById('promotionalMonthTitle').textContent=
+    stamp.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var cached=PRISMA_PROMO_MONTHS_CACHE[month];
+  if(cached&&Date.now()-cached.stamp<900000){renderPrismaPromoMonth_(cached.data);return;}
+  document.getElementById('promotionalCalendarStatus').textContent='Consultando o planejamento promocional do Prisma...';
+  document.getElementById('promotionalCalendarGrid').innerHTML='';
+  document.getElementById('promotionalFixed').hidden=true;
+  var success=function(data){
+    // Navegação rápida entre meses não pode deixar resposta antiga invadir mês atual.
+    if(conectaPromoMonthRef_()!==month)return;
+    PRISMA_PROMO_MONTHS_CACHE[month]={data:data||{},stamp:Date.now()};
+    renderPrismaPromoMonth_(data||{});
+  };
+  var failure=function(){
+    if(conectaPromoMonthRef_()!==month)return;
+    renderPrismaPromoMonth_({status:'source_unavailable',month:month,promotions:[]});
+  };
+  var run=google.script.run.withSuccessHandler(success).withFailureHandler(failure);
+  if(AUTH_MODE==='store')run.getStorePrismaPromotionalCalendar(STORE_ACCESS_TOKEN,month);
+  else run.getPrismaPromotionalCalendar(month);
+}
+function conectaPromoPeriodos_(days,max){
+  var arr=Array.from(new Set((days||[]).map(Number).filter(function(d){
+    return Number.isInteger(d)&&d>0&&d<=max;
+  }))).sort(function(a,b){return a-b;});
+  var ranges=[];
+  arr.forEach(function(day){
+    var previous=ranges[ranges.length-1];
+    if(previous&&previous.end===day-1)previous.end=day;
+    else ranges.push({start:day,end:day});
+  });
+  return ranges;
+}
+function conectaPromoCard_(promotion,period,monthIndex){
+  var label=period.start===period.end?
+    'Somente dia '+String(period.start).padStart(2,'0'):
+    'Do dia '+String(period.start).padStart(2,'0')+' ao dia '+String(period.end).padStart(2,'0');
+  return '<div class="promotional-calendar-start" title="'+safe(promotion.nome||'Promoção')+'">'+
+    '<span class="promotional-calendar-start-label">Início</span>'+
+    '<strong>'+safe(promotion.nome||'Promoção')+'</strong>'+
+    '<span>'+safe(label)+'</span></div>';
+}
+function conectaPromoDetails_(items,label){
+  if(!items.length)return'';
+  return '<details class="promotional-calendar-vigentes"><summary>'+
+   safe(label)+' ('+items.length+') <span aria-hidden="true">⌄</span></summary>'+
+   '<div class="promotional-calendar-vigentes-body">'+items.map(function(p){
+    return '<div class="promotional-calendar-vigente">'+
+      '<strong>'+safe(p.nome||'Promoção')+'</strong>'+
+      ((p.tipo||p.canais)?'<small>'+safe([p.tipo,p.canais].filter(Boolean).join(' · '))+'</small>':'')+
+      '</div>';
+   }).join('')+'</div></details>';
+}
+function renderPrismaPromoMonth_(data){
+  var status=document.getElementById('promotionalCalendarStatus');
+  var grid=document.getElementById('promotionalCalendarGrid');
+  var fixedPanel=document.getElementById('promotionalFixed');
+  if(!status||!grid||!fixedPanel)return;
+  fixedPanel.hidden=true;fixedPanel.innerHTML='';
+  grid.innerHTML='';
+  var current=conectaPromoMonthRef_();
+  if(!data||data.month!==current){
+    status.textContent='Não foi possível confirmar o mês do calendário promocional. Tente abrir novamente.';return;
+  }
+  if(data.status!=='ok'){
+    var reasons={
+      unconfigured:'Integração pendente: configure a fonte Prisma Growth nas propriedades privadas do Apps Script do Conecta.',
+      source_unavailable:'Fonte indisponível: o Conecta ainda não conseguiu acessar a planilha do Prisma. Verifique a permissão da conta de execução.',
+      month_unavailable:'Este mês não está disponível no planejamento promocional do Prisma.'
+    };
+    status.textContent=reasons[data.status]||'Não foi possível carregar as promoções deste mês.';
+    return;
+  }
+  var y=CALENDAR_CURSOR.getFullYear(),m=CALENDAR_CURSOR.getMonth();
+  var total=new Date(y,m+1,0).getDate(),first=(new Date(y,m,1).getDay()+6)%7;
+  var numberOfCells=Math.ceil((first+total)/7)*7,starts={},ongoing={},fixed=[];
+  var promotions=Array.isArray(data.promotions)?data.promotions:[];
+  promotions.forEach(function(p){
+    var ranges=conectaPromoPeriodos_(p.diasAtivos,total);
+    if(!ranges.length)return;
+    if(ranges.length===1&&ranges[0].start===1&&ranges[0].end===total){
+      fixed.push(p);return;
+    }
+    ranges.forEach(function(period){
+      (starts[period.start]||(starts[period.start]=[])).push({p:p,period:period});
+      for(var d=period.start+1;d<=period.end;d++){
+        var active=ongoing[d]||(ongoing[d]=[]);
+        if(!active.some(function(x){return x.nome===p.nome;}))active.push(p);
+      }
+    });
+  });
+  var activeCount=promotions.filter(function(p){return conectaPromoPeriodos_(p.diasAtivos,total).length>0;}).length;
+  status.textContent=activeCount+' '+(activeCount===1?'promoção identificada':'promoções identificadas')+
+    ' no planejamento de '+document.getElementById('promotionalMonthTitle').textContent+'.';
+  if(fixed.length){
+    fixedPanel.hidden=false;
+    fixedPanel.innerHTML=conectaPromoDetails_(fixed,'Promoções fixas do mês');
+  }
+  var weekdays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  var html=weekdays.map(function(day){
+    return '<div class="promotional-calendar-weekday">'+day+'</div>';
+  }).join('');
+  for(var i=0;i<numberOfCells;i++){
+    var date=new Date(y,m,i-first+1),inside=date.getMonth()===m;
+    var day=date.getDate(),tod=new Date();
+    var today=inside&&tod.getFullYear()===y&&tod.getMonth()===m&&tod.getDate()===day;
+    html+='<div class="promotional-calendar-cell'+(!inside?' other':'')+(today?' today':'')+'">'+
+      '<span class="promotional-calendar-day">'+day+'</span>';
+    if(inside){
+      var events=starts[day]||[],currentOn=ongoing[day]||[];
+      html+=events.map(function(x){return conectaPromoCard_(x.p,x.period,m);}).join('');
+      if(currentOn.length)html+=conectaPromoDetails_(currentOn,'Vigentes');
+      else if(!events.length&&fixed.length)html+=conectaPromoDetails_(fixed,'Fixas');
+    }
+    html+='</div>';
+  }
+  grid.innerHTML=html;
+  if(!activeCount)status.textContent='Nenhuma promoção com dias ativos neste mês, conforme a origem consultada.';
+}
 
 /* ============================================================
    V2: AVALIAÇÕES
