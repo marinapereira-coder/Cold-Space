@@ -2990,35 +2990,78 @@ var CENTRAL_DEPARTMENT_LABELS={
 };
 var CENTRAL_DEPARTMENT_ORDER=['operacoes','rh','qualidade','manutencao','treinamento','marketing','delivery','financeiro'];
 var CENTRAL_SELECTED_DEPARTMENT='all';
+var CENTRAL_BROWSE_ALL=false;
 
+/* A busca usa somente o catálogo de links já existente; não consulta dados privados. */
 function centralNormalize_(value){
- return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+ return String(value||'').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function centralMatchesQuery_(item,query){
+ var terms=centralNormalize_(query).split(/\s+/).filter(Boolean);
+ if(!terms.length)return true;
+ var searchable=[item.name,item.group,item.type,item.department,item.source,
+   CENTRAL_DEPARTMENT_LABELS[item.department]||'',item.url].join(' ');
+ var text=centralNormalize_(searchable);
+ return terms.every(function(term){return text.indexOf(term)!==-1;});
 }
 function centralSafeUrl_(url){
- var text=String(url||'').trim();
- return /^https:\/\/[a-z0-9.-]+(?::[0-9]+)?(?:[/?#]|$)/i.test(text)?text:'';
+ var value=String(url||'').trim();
+ return /^https:\/\/[a-z0-9.-]+(?::[0-9]+)?(?:[/?#]|$)/i.test(value)?value:'';
+}
+function toggleCentralFavorites_(open){
+ var panel=document.getElementById('centralFavoritesPanel');
+ var button=document.getElementById('centralFavoritesToggle');
+ if(!panel||!button)return;
+ panel.hidden=!open;
+ button.setAttribute('aria-expanded',open?'true':'false');
+ button.setAttribute('aria-label',open?'Fechar sites mais usados':'Abrir sites mais usados');
 }
 function bindCentralLinks_(){
  var search=document.getElementById('centralSearch');
+ var form=document.getElementById('centralSearchForm');
+ var clear=document.getElementById('centralSearchClear');
  var grid=document.getElementById('centralDepartmentGrid');
  var all=document.getElementById('centralViewAllBtn');
- if(search)search.addEventListener('input',function(){CENTRAL_SELECTED_DEPARTMENT='all';renderCentralLinks_();});
- if(grid){
-  grid.addEventListener('click',function(event){
-   var card=event.target.closest('[data-central-department]');
-   if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
-  });
-  grid.addEventListener('keydown',function(event){
-   if(event.key!=='Enter'&&event.key!==' ')return;
-   var card=event.target.closest('[data-central-department]');
-   if(card){event.preventDefault();selectCentralDepartment_(card.getAttribute('data-central-department'));}
-  });
- }
- if(all)all.onclick=function(){
-  CENTRAL_SELECTED_DEPARTMENT='all';
-  var input=document.getElementById('centralSearch');if(input)input.value='';
+ var favorites=document.getElementById('centralFavoritesToggle');
+ if(search)search.addEventListener('input',function(){
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
   renderCentralLinks_();
- };
+ });
+ if(form)form.addEventListener('submit',function(event){
+  event.preventDefault();CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
+  renderCentralLinks_();
+  var panel=document.getElementById('centralLinksArea');
+  if(panel&&!panel.hidden)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ });
+ if(clear)clear.addEventListener('click',function(){
+  if(search){search.value='';search.focus();}
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
+  renderCentralLinks_();
+ });
+ if(grid)grid.addEventListener('click',function(event){
+  var card=event.target.closest('[data-central-department]');
+  if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
+ });
+ if(all)all.addEventListener('click',function(){
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=true;
+  if(search)search.value='';
+  renderCentralLinks_();
+  var panel=document.getElementById('centralLinksArea');
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ });
+ if(favorites)favorites.addEventListener('click',function(){
+  var panel=document.getElementById('centralFavoritesPanel');
+  toggleCentralFavorites_(panel&&panel.hidden);
+ });
+ document.addEventListener('click',function(event){
+  var panel=document.getElementById('centralFavoritesPanel');
+  var button=document.getElementById('centralFavoritesToggle');
+  if(panel&&!panel.hidden&&button&&!panel.contains(event.target)&&!button.contains(event.target))toggleCentralFavorites_(false);
+ });
+ document.addEventListener('keydown',function(event){
+  if(event.key==='Escape')toggleCentralFavorites_(false);
+ });
  document.querySelectorAll('[data-central-quick]').forEach(function(button){
   button.onclick=function(){
    var name=button.getAttribute('data-central-quick');
@@ -3031,11 +3074,16 @@ function bindCentralLinks_(){
 }
 function selectCentralDepartment_(dept){
  if(!Object.prototype.hasOwnProperty.call(CENTRAL_DEPARTMENT_LABELS,dept))return;
- CENTRAL_SELECTED_DEPARTMENT=dept;
- var input=document.getElementById('centralSearch');if(input)input.value='';
+ var already=dept===CENTRAL_SELECTED_DEPARTMENT&&!CENTRAL_BROWSE_ALL;
+ CENTRAL_SELECTED_DEPARTMENT=already?'all':dept;
+ CENTRAL_BROWSE_ALL=false;
+ var input=document.getElementById('centralSearch');
+ if(input)input.value='';
  renderCentralLinks_();
- var panel=document.getElementById('centralLinksArea');
- if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ if(CENTRAL_SELECTED_DEPARTMENT!=='all'){
+  var panel=document.getElementById('centralLinksArea');
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ }
 }
 function centralLinkItemHtml_(item){
  var url=centralSafeUrl_(item.url);
@@ -3043,57 +3091,79 @@ function centralLinkItemHtml_(item){
  var domain='';
  try{domain=new URL(url).hostname.replace(/^www\./,'');}catch(e){domain='Link externo';}
  return '<a class="central-link-item" href="'+safe(url)+'" target="_blank" rel="noopener noreferrer" title="Abrir '+safe(item.name)+' em nova guia">'+
-   '<span class="central-link-icon" aria-hidden="true">↗</span>'+
-   '<span class="central-link-body"><strong>'+safe(item.name)+'</strong>'+
-   '<span class="central-link-meta">'+safe(item.type)+' · '+safe(domain)+'</span></span>'+
-   '<span class="central-link-open" aria-hidden="true">Abrir ↗</span></a>';
+  '<span class="central-link-icon" aria-hidden="true">↗</span>'+
+  '<span class="central-link-body"><strong>'+safe(item.name)+'</strong>'+
+  '<span class="central-link-meta">'+safe(item.type)+' · '+safe(domain)+'</span></span>'+
+  '<span class="central-link-open" aria-hidden="true">Abrir ↗</span></a>';
 }
 function renderCentralLinks_(){
  var host=document.getElementById('centralLinksList');
  if(!host)return;
  var input=document.getElementById('centralSearch');
- var query=centralNormalize_(input?input.value:'');
- var dept=CENTRAL_SELECTED_DEPARTMENT;
- var listed=CENTRAL_LINKS_CATALOG.filter(function(item){
-  var search=[item.name,item.group,item.type,item.department,item.source,CENTRAL_DEPARTMENT_LABELS[item.department]].join(' ');
-  return (dept==='all'||item.department===dept)&&(!query||centralNormalize_(search).indexOf(query)>=0);
- });
- var title=document.getElementById('centralLinksTitle');
- var subtitle=document.getElementById('centralLinksSubtitle');
- var allBtn=document.getElementById('centralViewAllBtn');
- if(title)title.textContent=dept==='all'?'Links por departamento':'Links · '+CENTRAL_DEPARTMENT_LABELS[dept];
- if(subtitle)subtitle.textContent=listed.length+' '+(listed.length===1?'atalho encontrado':'atalhos encontrados')+(query?' para “'+(input?input.value:'')+'”':'');
- if(allBtn)allBtn.style.display=dept==='all'?'none':'inline-flex';
+ var query=input?input.value.trim():'';
+ var selected=CENTRAL_SELECTED_DEPARTMENT;
+ var searching=!!centralNormalize_(query);
+ var active=searching||selected!=='all'||CENTRAL_BROWSE_ALL;
+ var results=document.getElementById('centralLinksArea');
+ var main=document.getElementById('centralMainSections');
+ var feedback=document.getElementById('centralSearchFeedback');
+ var clear=document.getElementById('centralSearchClear');
+ var all=document.getElementById('centralViewAllBtn');
+ if(results)results.hidden=!active;
+ if(main)main.classList.toggle('central-is-searching',searching);
+ if(clear)clear.hidden=!searching;
+ if(all)all.textContent=CENTRAL_BROWSE_ALL?'Mostrar somente pastas':'Ver todos os links';
+ if(!active){
+  host.innerHTML='';
+  if(feedback)feedback.textContent='Experimente pesquisar: Base Lojas, CIAO! ou Manutenção.';
+ }else{
+  var listed=CENTRAL_LINKS_CATALOG.filter(function(item){
+   return centralSafeUrl_(item.url)&&
+     (searching?centralMatchesQuery_(item,query):(selected==='all'||item.department===selected));
+  });
+  var title=document.getElementById('centralLinksTitle');
+  var subtitle=document.getElementById('centralLinksSubtitle');
+  if(title)title.textContent=searching?'Resultados da pesquisa':selected!=='all'?'Pasta · '+CENTRAL_DEPARTMENT_LABELS[selected]:'Todos os links';
+  if(subtitle)subtitle.textContent=listed.length+' '+(listed.length===1?'link encontrado':'links encontrados')+
+    (searching?' para "'+query+'"':'');
+  if(feedback)feedback.textContent=searching?listed.length+' '+(listed.length===1?'resultado encontrado':'resultados encontrados')+' para "'+query+'".':
+    selected!=='all'?'Pasta '+CENTRAL_DEPARTMENT_LABELS[selected]+' aberta.':'Exibindo toda a biblioteca.';
+  if(!listed.length){
+   host.innerHTML='<div class="central-links-empty"><strong>Nenhum link encontrado.</strong><span>Experimente outro nome ou escolha uma pasta por departamento.</span></div>';
+  }else{
+   var grouped={};
+   listed.forEach(function(item){
+    if(!grouped[item.department])grouped[item.department]=[];
+    grouped[item.department].push(item);
+   });
+   host.innerHTML=CENTRAL_DEPARTMENT_ORDER.filter(function(key){return grouped[key]&&grouped[key].length;}).map(function(key){
+    var items=grouped[key],byGroup={};
+    items.forEach(function(item){
+     var group=item.group||'Outros';
+     if(!byGroup[group])byGroup[group]=[];
+     byGroup[group].push(item);
+    });
+    var groups=Object.keys(byGroup).map(function(group){
+     return '<div class="central-link-subgroup"><div class="central-link-subhead">'+safe(group)+'</div>'+
+      '<div class="central-link-grid">'+byGroup[group].map(centralLinkItemHtml_).join('')+'</div></div>';
+    }).join('');
+    return '<section class="central-links-department" aria-label="'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'">'+
+     ((searching||selected==='all')?'<div class="central-links-dept-title"><h4>'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'</h4><span>'+items.length+' links</span></div>':'')+
+     groups+'</section>';
+   }).join('');
+  }
+ }
  document.querySelectorAll('[data-central-department]').forEach(function(card){
   var key=card.getAttribute('data-central-department');
-  var count=CENTRAL_LINKS_CATALOG.filter(function(item){return item.department===key;}).length;
+  var count=CENTRAL_LINKS_CATALOG.filter(function(item){return item.department===key&&centralSafeUrl_(item.url);}).length;
   var counter=card.querySelector('.central-department-count');
   if(!counter){counter=document.createElement('span');counter.className='central-department-count';card.appendChild(counter);}
-  counter.textContent=count?count+' '+(count===1?'link disponível':'links disponíveis'):'Aguardando links';
-  card.classList.toggle('selected',dept===key);
-  card.setAttribute('aria-pressed',dept===key?'true':'false');
+  counter.textContent=count+' '+(count===1?'link':'links');
+  var expanded=!searching&&selected===key;
+  card.classList.toggle('selected',expanded);
+  card.setAttribute('aria-expanded',expanded?'true':'false');
+  card.setAttribute('aria-pressed',expanded?'true':'false');
  });
- if(!listed.length){
-  host.innerHTML='<div class="central-links-empty"><strong>Nenhum link encontrado</strong>'+
-   '<span>'+(query?'Tente outra palavra-chave.':'Ainda não há links desta área na página importada.')+'</span></div>';
-  return;
- }
- var grouped={};
- listed.forEach(function(item){
-  if(!grouped[item.department])grouped[item.department]=[];
-  grouped[item.department].push(item);
- });
- host.innerHTML=CENTRAL_DEPARTMENT_ORDER.filter(function(key){return grouped[key]&&grouped[key].length;}).map(function(key){
-  var items=grouped[key], byGroup={};
-  items.forEach(function(item){var group=item.group||'Outros';if(!byGroup[group])byGroup[group]=[];byGroup[group].push(item);});
-  var groups=Object.keys(byGroup).map(function(group){
-   return '<div class="central-link-subgroup"><div class="central-link-subhead">'+safe(group)+'</div>'+
-     '<div class="central-link-grid">'+byGroup[group].map(centralLinkItemHtml_).join('')+'</div></div>';
-  }).join('');
-  return '<section class="central-links-department" aria-label="'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'">'+
-   (dept==='all'?'<div class="central-links-dept-title"><h4>'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'</h4><span>'+items.length+' links</span></div>':'')+
-   groups+'</section>';
- }).join('');
 }
 
 </script>
