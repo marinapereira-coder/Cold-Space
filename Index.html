@@ -512,6 +512,39 @@
             class="summary">
           </div>
 
+          <!-- Visão específica da loja: usa somente dados já autorizados no bootstrap. -->
+          <section id="homeStoreActivity" class="section store-home-activity" hidden>
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Minha loja</span>
+                <h3>Minhas atividades</h3>
+                <p>Consulte solicitações pendentes e respostas enviadas.</p>
+              </div>
+              <button class="link-btn" type="button" data-page="campanhas">Ver solicitações →</button>
+            </div>
+            <div id="homeStoreActivityTabs" class="store-activity-tabs" role="group" aria-label="Filtrar atividades da loja">
+              <button type="button" class="store-activity-tab active" data-store-activity="pending" aria-pressed="true">Pendentes <span id="homeStorePendingCount">0</span></button>
+              <button type="button" class="store-activity-tab" data-store-activity="answered" aria-pressed="false">Respondidas <span id="homeStoreAnsweredCount">0</span></button>
+              <button type="button" class="store-activity-tab" data-store-activity="all" aria-pressed="false">Todas <span id="homeStoreTotalCount">0</span></button>
+            </div>
+            <div id="homeStoreActivityList" class="store-activity-list" aria-live="polite"></div>
+            <button type="button" id="homeStoreActivityMore" class="btn soft store-activity-more" hidden>Mostrar mais</button>
+            <p class="store-activity-note">Resposta enviada não significa avaliação aprovada. Consulte o histórico de avaliações para ver o resultado da gestão.</p>
+          </section>
+
+          <section id="homeStoreRating" class="section store-home-rating" hidden>
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Desempenho</span>
+                <h3>Minhas avaliações</h3>
+                <p>Notas oficiais e feedback das entregas da sua loja.</p>
+              </div>
+              <button type="button" class="link-btn" data-page="avaliacoes">Ver histórico →</button>
+            </div>
+            <div id="homeStoreRatingContent" class="store-home-rating-content" aria-live="polite">Carregando avaliações...</div>
+          </section>
+
+
 
           <section class="section">
 
