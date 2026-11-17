@@ -3481,4 +3481,110 @@ body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter.active{
 }
 body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter-label{color:#dec9b7}
 
+
+/* BR-064 — dois calendários, mantendo CSS dos eventos operacionais. */
+#page-calendario .calendar-view-nav{
+ display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:0 0 15px;
+ margin-bottom:22px;border-bottom:1px solid var(--line);
+}
+#page-calendario .calendar-view-tab{
+ border:1px solid var(--line);border-radius:11px;padding:12px 18px;
+ background:var(--paper);color:var(--brown);
+ font:700 14px/1.35 Arial,Helvetica,sans-serif;cursor:pointer;
+}
+#page-calendario .calendar-view-tab.active{
+ background:#4f2b1f;border-color:#4f2b1f;color:#fff3e6;
+}
+#page-calendario .calendar-view-tab:focus-visible,
+#page-calendario .promotional-calendar-viewport:focus-visible{
+ outline:3px solid #c28658;outline-offset:3px;
+}
+#page-calendario .calendar-view-panel[hidden],
+#page-calendario .promotional-calendar-fixed[hidden]{display:none!important}
+#page-calendario .promotional-calendar-heading .page-title{
+ font:700 23px/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.2px;
+}
+#page-calendario .promotional-calendar-toolbar{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ flex-wrap:wrap;background:var(--cream);border:1px solid var(--line);
+ border-radius:12px 12px 0 0;padding:14px 17px;
+}
+#page-calendario .promotional-calendar-toolbar strong{
+ font-size:17px;text-transform:capitalize;color:var(--brown);
+}
+#page-calendario .promotional-calendar-help,
+#page-calendario .promotional-calendar-status,
+#page-calendario .promotional-calendar-footnote{font-size:13px;line-height:1.55;color:var(--brown2)}
+#page-calendario .promotional-calendar-status{padding:11px 1px}
+#page-calendario .promotional-calendar-footnote{margin-top:16px}
+#page-calendario .promotional-calendar-fixed{
+ padding:11px 15px;border:1px solid var(--line);
+ border-radius:12px;background:var(--paper);margin-bottom:14px;
+}
+#page-calendario .promotional-calendar-viewport{
+ overflow-x:auto;max-width:100%;border:1px solid var(--line);
+ border-radius:0 0 13px 13px;background:var(--paper);
+}
+#page-calendario .promotional-calendar-grid{
+ display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));min-width:826px;
+}
+#page-calendario .promotional-calendar-weekday{
+ padding:12px 7px;text-align:center;background:#4f2b1f;
+ color:#fff3e6;font-size:13px;font-weight:700;
+}
+#page-calendario .promotional-calendar-cell{
+ min-height:120px;padding:9px 7px 14px;
+ border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+ background:var(--paper);color:var(--brown);min-width:0;
+}
+#page-calendario .promotional-calendar-cell:nth-child(7n){border-right:0}
+#page-calendario .promotional-calendar-cell.other{background:var(--cream);color:var(--brown2)}
+#page-calendario .promotional-calendar-cell.today{box-shadow:inset 0 0 0 2px #c28658}
+#page-calendario .promotional-calendar-day{display:block;text-align:right;font-size:13px;font-weight:700;margin-bottom:7px}
+#page-calendario .promotional-calendar-start{
+ display:flex;flex-direction:column;gap:4px;padding:8px 7px;
+ margin:5px 0;border-left:3px solid #5d784c;border-radius:7px;
+ background:#e0ecd9;color:#314b25;overflow-wrap:anywhere;
+}
+#page-calendario .promotional-calendar-start-label{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+#page-calendario .promotional-calendar-start strong{font-size:12px;line-height:1.35}
+#page-calendario .promotional-calendar-start span:last-child{font-size:11px;line-height:1.35}
+#page-calendario .promotional-calendar-vigentes{
+ margin:6px 0;border:1px solid var(--line);border-radius:8px;background:var(--cream);
+}
+#page-calendario .promotional-calendar-vigentes summary{
+ display:flex;align-items:center;justify-content:space-between;gap:4px;cursor:pointer;
+ padding:9px 7px;min-height:34px;
+ font-size:11px;font-weight:700;line-height:1.3;list-style:none;color:var(--brown);
+}
+#page-calendario .promotional-calendar-vigentes summary::-webkit-details-marker{display:none}
+#page-calendario .promotional-calendar-vigentes summary:focus-visible{outline:2px solid #c28658;outline-offset:-2px}
+#page-calendario .promotional-calendar-vigentes[open] summary span{transform:rotate(180deg)}
+#page-calendario .promotional-calendar-vigentes-body{border-top:1px solid var(--line);padding:6px 7px}
+#page-calendario .promotional-calendar-vigente{display:flex;flex-direction:column;gap:4px;padding:7px 0;border-bottom:1px solid var(--line)}
+#page-calendario .promotional-calendar-vigente:last-child{border-bottom:0}
+#page-calendario .promotional-calendar-vigente strong{font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+#page-calendario .promotional-calendar-vigente small{font-size:10px;line-height:1.3;color:var(--brown2)}
+body.dark-mode #page-calendario .calendar-view-tab{background:#302822;color:#f0dfd1;border-color:#5d483b}
+body.dark-mode #page-calendario .calendar-view-tab.active{background:#f0ddc7;color:#32241c;border-color:#f0ddc7}
+body.dark-mode #page-calendario .promotional-calendar-toolbar{background:#302822;border-color:#594536}
+body.dark-mode #page-calendario .promotional-calendar-toolbar strong{color:#fff1e5}
+body.dark-mode #page-calendario .promotional-calendar-help,
+body.dark-mode #page-calendario .promotional-calendar-status,
+body.dark-mode #page-calendario .promotional-calendar-footnote{color:#dec9b7}
+body.dark-mode #page-calendario .promotional-calendar-viewport,
+body.dark-mode #page-calendario .promotional-calendar-fixed{background:#29231f;border-color:#594536}
+body.dark-mode #page-calendario .promotional-calendar-weekday{background:#4f3529;color:#fff1e5}
+body.dark-mode #page-calendario .promotional-calendar-cell{background:#29231f;color:#f5eadf;border-color:#483a31}
+body.dark-mode #page-calendario .promotional-calendar-cell.other{background:#211c19;color:#d0bdae}
+body.dark-mode #page-calendario .promotional-calendar-start{background:#2f4630;color:#e5f4dd;border-color:#a5c58f}
+body.dark-mode #page-calendario .promotional-calendar-vigentes{background:#352b25;border-color:#5f4a3c}
+body.dark-mode #page-calendario .promotional-calendar-vigentes summary{color:#f2e0d0}
+body.dark-mode #page-calendario .promotional-calendar-vigente small{color:#d5c3b6}
+@media(max-width:760px){
+ #page-calendario .calendar-view-nav{gap:7px}
+ #page-calendario .calendar-view-tab{padding:10px 12px;font-size:13px}
+ #page-calendario .promotional-calendar-heading .page-title{font-size:21px}
+}
+
 </style>
