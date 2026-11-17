@@ -31,6 +31,7 @@ var STORE_LIVE_POLL_MS=25000;
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
+var EVALUATION_STAR_FILTER='all';
 var REPORTS_DATA=null;
 var REPORTS_SELECTED='';
 var ACCESS_DATA=null;
@@ -99,6 +100,12 @@ function bindEvents(){
   ['storeSearch','storeRegionalFilter','storeConsultorFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderStores);});
   ['responseSearch','responseStatusFilter','responseDemandFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderResponses);});
   ['evaluationSearch','evaluationStoreFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderEvaluations);});
+  document.getElementById('evaluationStarControls').addEventListener('click',function(event){
+    var button=event.target.closest('[data-eval-grade]');
+    if(!button)return;
+    EVALUATION_STAR_FILTER=button.getAttribute('data-eval-grade');
+    renderEvaluations();
+  });
   ['accessSearch','accessStatusFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderAccesses);});
 
   document.getElementById('newDemandBtn').onclick=function(){openCampaignModal('demanda');};
@@ -207,7 +214,7 @@ function startApp(data){
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     HOME_STORE_ACTIVITY_FILTER='pending';HOME_STORE_ACTIVITY_SHOWN=8;
     syncNavigationFoldVisibility_();
     renderAllCore();
@@ -286,6 +293,8 @@ function renderHome(){
   var campaigns=(APP_DATA.campaigns||[]).slice(0,2);
   document.getElementById('homeCampaigns').innerHTML=campaigns.length?campaigns.map(function(c){var p=Math.max(0,Math.min(100,Number(c.progress||0)));return '<div class="campaign-card" onclick="openDemandDetail(\''+safeJs(c.id)+'\')"><div><span class="eyebrow" style="color:#f3d8b2">'+safe(c.deadlineLabel||'Campanha')+'</span><h4>'+safe(c.title)+'</h4><p>'+safe(c.description)+'</p><div class="progress"><span style="width:'+p+'%"></span></div><div class="progress-label">'+safe(c.progressLabel||p+'% concluído')+'</div></div></div>';}).join(''):'<div class="empty">Nenhuma campanha em andamento.</div>';
   document.getElementById('homeAnnouncements').innerHTML=(APP_DATA.announcements||[]).slice(0,3).map(announcementHtml).join('')||'<div class="empty">Nenhum comunicado recente.</div>';
+  var priorities=document.getElementById('homePriorities');
+  if(priorities)priorities.hidden=CURRENT_ROLE==='loja';
   renderStoreHomeActivity_();
   renderStoreHomeRating_();
 }
@@ -2711,8 +2720,20 @@ function calendarTypeLabel(t){return ({demanda_inicio:'Início de demanda',deman
 ============================================================ */
 function loadEvaluations(){document.getElementById('evaluationHistory').innerHTML='<div class="empty">Carregando avaliações...</div>';var ok=function(data){EVALUATION_DATA=data||{items:[],stores:[],summary:{}};populateEvaluationStoreFilter();renderEvaluations();renderStoreHomeRating_();};var run=google.script.run.withSuccessHandler(ok).withFailureHandler(function(error){renderStoreHomeRatingError_();serverError(error);});if(AUTH_MODE==='store')run.getStoreEvaluationWorkspace(STORE_ACCESS_TOKEN);else run.getEvaluationWorkspace();}
 function populateEvaluationStoreFilter(){var el=document.getElementById('evaluationStoreFilter');if(CURRENT_ROLE==='loja')return;var current=el.value;el.innerHTML='<option value="all">Todas as lojas</option>'+((EVALUATION_DATA||{}).stores||[]).map(function(s){return '<option value="'+safe(s.storeId)+'">'+safe(s.storeLabel)+'</option>';}).join('');if(Array.prototype.some.call(el.options,function(o){return o.value===current;}))el.value=current;}
+function evaluationMatchesStarFilter_(item,filter){
+ if(filter==='all')return true;
+ var grade=item&&item.stars;
+ var valid=grade!==null&&grade!==undefined&&grade!==''&&isFinite(Number(grade))&&Number(grade)>=1&&Number(grade)<=5;
+ if(filter==='none')return !valid;
+ return valid&&Number(grade)===Number(filter);
+}
 function renderEvaluations(){
  if(!EVALUATION_DATA){loadEvaluations();return;}
+ document.querySelectorAll('[data-eval-grade]').forEach(function(btn){
+  var active=btn.getAttribute('data-eval-grade')===EVALUATION_STAR_FILTER;
+  btn.classList.toggle('active',active);
+  btn.setAttribute('aria-pressed',active?'true':'false');
+ });
  var sum=EVALUATION_DATA.summary||{};
  var average=sum.avgStars==null?'—':sum.avgStars;
  document.getElementById('evaluationKpis').innerHTML=
@@ -2739,7 +2760,7 @@ function renderEvaluations(){
  }).join('')||'<div class="empty">Nenhuma avaliação ainda.</div>';
  var items=((EVALUATION_DATA||{}).items||[]).filter(function(i){
   var t=((i.storeLabel||'')+' '+(i.demandTitle||'')).toLowerCase();
-  return (!q||t.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter);
+  return (!q||t.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter)&&evaluationMatchesStarFilter_(i,EVALUATION_STAR_FILTER);
  });
  document.getElementById('evaluationHistory').innerHTML=
   '<div class="row header"><div>Loja / Demanda</div><div>Nota</div><div>SLA</div><div>Resultado</div><div>Data</div></div>'+
