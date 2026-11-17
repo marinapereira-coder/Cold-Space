@@ -3,7 +3,7 @@
  *
  * Fonte de verdade: mesma planilha mensal utilizada pelo Growth do Prisma.
  * IMPORTANTE: o ID da planilha é uma propriedade privada do Apps Script,
- * "CONCECTA_PRISMA_GROWTH_SHEET_ID" (sem ID/credencial no GitHub).
+ * "CONECTA_PRISMA_GROWTH_SHEET_ID" (sem ID/credencial no GitHub).
  *
  * Reproduz a regra de vigência do Growth: linha 6+, colunas C/D/E para
  * tipo/canais/nome, dias a partir de G, cor da célula > 12 unidades mais
@@ -14,7 +14,7 @@
 
 var CONECTA_PROMO_MESES_=['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-var CONECTA_PROMO_PROPERTY_='CONCECTA_PRISMA_GROWTH_SHEET_ID';
+var CONECTA_PROMO_PROPERTY_='CONECTA_PRISMA_GROWTH_SHEET_ID';
 var CONECTA_PROMO_CACHE_SECONDS_=900; // Mesma janela de 15 minutos do Growth.
 
 function conectaPromoMes_(month){
