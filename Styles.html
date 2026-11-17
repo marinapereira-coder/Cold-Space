@@ -3179,4 +3179,108 @@ body.dark-mode .chat-thread .chat-contact-text,body.dark-mode .chat-thread .chat
 body.dark-mode .chat-thread span:not(.chat-contact-initials),body.dark-mode .chat-thread small{color:#dec9b7}
 body.dark-mode .chat-thread .chat-contact-initials{background:#ead9c8;color:#39281f}
 body.dark-mode .bubble small{opacity:1}
+
+/* P0 UX — benchmarking Uni Bacio + Portal de Operações, 17/11/2026.
+   Alterações de APRESENTAÇÃO isoladas no Conecta. Preservar eventos,
+   data-page, perfis, lógica, notificações, planilhas e autenticação.
+   Não alterar tokens globais: --brown é invertido no tema escuro. */
+body:not(.dark-mode) .app-shell .topbar{
+  background:#4f2b1f;
+  border-bottom-color:#4f2b1f;
+}
+body:not(.dark-mode) .app-shell .nav-btn.active{background:#4f2b1f}
+body:not(.dark-mode) .app-shell .brand h1{color:#4f2b1f}
+body:not(.dark-mode) .app-shell .brand small,
+body:not(.dark-mode) .app-shell .menu-label{color:#74503e}
+
+/* Navegação legível sem esconder opções ou comprometer a rolagem. */
+.app-shell .nav-btn{
+  min-height:44px;
+  font-size:14px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.app-shell .nav-btn .nav-icon{flex-shrink:0}
+.app-shell .sidebar .menu-label{line-height:1.45}
+
+/* Hierarquia das informações na Minha Área. Sem novos indicadores. */
+.app-shell #page-home .hero p{font-size:14px;line-height:1.6}
+.app-shell #page-home .section .task > *{min-width:0}
+.app-shell #page-home .section .task h4,
+.app-shell .announcement h4{
+  font-size:15px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.app-shell #page-home .section .task p,
+.app-shell .announcement p{
+  font-size:14px;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+
+/* Cards de ferramentas e departamentos: mais leitura, menos truncamento. */
+.app-shell .central-quick-grid,
+.app-shell .central-department-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.app-shell .central-quick-card,
+.app-shell .central-department-card{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.app-shell .central-quick-card strong{font-size:14px;line-height:1.45}
+.app-shell .central-department-card p{font-size:14px;line-height:1.5}
+.app-shell .central-info-row strong{font-size:14px;line-height:1.45}
+.app-shell .central-info-row span{font-size:13px;line-height:1.45}
+.app-shell .central-links-access-note{font-size:13px;line-height:1.55}
+
+/* Alto contraste para metadados e rótulos no tema escuro. */
+body.dark-mode .app-shell .brand small{color:#dec9b7}
+body.dark-mode .app-shell .eyebrow,
+body.dark-mode .app-shell .central-quick-card span{color:#e6bda3}
+body.dark-mode .app-shell .central-links-access-note{color:#dec9b7}
+
+/* Indicação de foco acessível ao teclado; sem mudar comportamento. */
+.app-shell .nav-btn:focus-visible,
+.app-shell .btn:focus-visible,
+.app-shell .link-btn:focus-visible,
+.app-shell .central-quick-card:focus-visible,
+.app-shell .central-department-card:focus-visible,
+.app-shell .notification-btn:focus-visible,
+.app-shell .theme-toggle:focus-visible,
+.app-shell .field:focus-visible,
+.app-shell .select:focus-visible,
+.app-shell .textarea:focus-visible{
+  outline:3px solid #8a5236;
+  outline-offset:2px;
+}
+body.dark-mode .app-shell .nav-btn:focus-visible,
+body.dark-mode .app-shell .btn:focus-visible,
+body.dark-mode .app-shell .link-btn:focus-visible,
+body.dark-mode .app-shell .central-quick-card:focus-visible,
+body.dark-mode .app-shell .central-department-card:focus-visible,
+body.dark-mode .app-shell .notification-btn:focus-visible,
+body.dark-mode .app-shell .theme-toggle:focus-visible,
+body.dark-mode .app-shell .field:focus-visible,
+body.dark-mode .app-shell .select:focus-visible,
+body.dark-mode .app-shell .textarea:focus-visible{
+  outline-color:#f1ccad;
+}
+
+/* Adaptação de cards em notebook e celular, sem esconder controles. */
+@media (max-width:1000px){
+  .app-shell .central-quick-grid,
+  .app-shell .central-department-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width:520px){
+  .app-shell .central-quick-grid,
+  .app-shell .central-department-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .app-shell #page-home .section .task{gap:10px}
+}
+
 </style>
