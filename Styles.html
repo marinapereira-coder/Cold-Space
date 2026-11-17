@@ -3320,4 +3320,137 @@ body.dark-mode #page-central .central-search:focus{outline-color:#d9b18c}
  #page-central .central-gelato-button:hover{transform:none}
 }
 
+
+/* Uni Bacio-inspired refinement — smaller headings, folder-like side navigation.
+   BR-063: presentation only; no original data-page buttons or server auth altered. */
+.app-shell .content .page-head .page-title,
+.app-shell .content .page-title{
+ font-size:clamp(23px,2vw,27px);
+ line-height:1.24;
+ font-weight:700;
+ letter-spacing:-.25px;
+}
+.app-shell #page-home .hero h2{font-size:clamp(25px,2.2vw,30px);line-height:1.28;font-weight:700}
+.app-shell .content .section-head h3,
+.app-shell #page-home .section .section-head h3,
+#page-central .central-links-head h3{
+ font:700 19px/1.3 Arial,Helvetica,sans-serif;
+ letter-spacing:-.2px;
+ margin:4px 0 0;
+}
+.app-shell .content .section-head p{font-size:14px;line-height:1.5}
+.app-shell #page-central .central-search-home .page-title{font-size:clamp(25px,2.3vw,30px)}
+.app-shell .content .page-head .subtitle{font-size:14px;line-height:1.5}
+
+/* Compact, keyboard-friendly groups preserve all 13 existing nav buttons. */
+.app-shell .conecta-nav-fold{margin:9px 0 2px}
+.app-shell .conecta-nav-fold[hidden],
+.app-shell .conecta-nav-fold-content[hidden],
+.app-shell .menu-label[hidden]{display:none!important}
+.app-shell .conecta-nav-fold-toggle{
+ width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+ border:1px solid transparent;background:transparent;text-align:left;
+ color:#5f3926;font:700 13px/1.35 Arial,Helvetica,sans-serif;
+ border-radius:11px;padding:11px 13px;cursor:pointer;
+}
+.app-shell .conecta-nav-fold-toggle:hover,
+.app-shell .conecta-nav-fold.is-open>.conecta-nav-fold-toggle{background:#e9ddd1}
+.app-shell .conecta-nav-fold-toggle:focus-visible{outline:3px solid #b58059;outline-offset:2px}
+.app-shell .conecta-nav-caret{font-size:19px;font-weight:500;transition:transform .18s ease}
+.app-shell .conecta-nav-fold.is-open .conecta-nav-caret{transform:rotate(180deg)}
+.app-shell .conecta-nav-fold-content{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px 10px;padding-left:12px;border-left:2px solid #d5bba5}
+.app-shell .conecta-nav-fold-content .nav-btn{margin:0;width:100%;min-height:39px;padding:9px 10px;font-size:13px}
+.app-shell .conecta-nav-fold-content .nav-icon{width:17px;height:17px;flex-basis:17px}
+body.dark-mode .app-shell .conecta-nav-fold-toggle{color:#f0dfd1}
+body.dark-mode .app-shell .conecta-nav-fold-toggle:hover,
+body.dark-mode .app-shell .conecta-nav-fold.is-open>.conecta-nav-fold-toggle{background:#352a23}
+body.dark-mode .app-shell .conecta-nav-fold-content{border-color:#665142}
+body.dark-mode .app-shell .conecta-nav-fold-toggle:focus-visible{outline-color:#e9c9ac}
+
+/* My Area: store-specific progress grouped by existing response status. */
+.app-shell #homeStoreActivity[hidden],.app-shell #homeStoreRating[hidden],
+.app-shell #homeStoreActivityMore[hidden]{display:none!important}
+.app-shell .store-activity-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 15px}
+.app-shell .store-activity-tab{
+ display:flex;align-items:center;gap:8px;min-height:40px;
+ padding:9px 14px;border-radius:999px;border:1px solid var(--line);
+ background:var(--paper);color:var(--brown);font:700 13px/1.4 Arial,Helvetica,sans-serif;cursor:pointer;
+}
+.app-shell .store-activity-tab span{font-weight:700;min-width:23px;padding:3px 6px;background:var(--cream2);border-radius:10px;text-align:center}
+.app-shell .store-activity-tab.active{background:#4f2b1f;border-color:#4f2b1f;color:#fff}
+.app-shell .store-activity-tab.active span{background:rgba(255,255,255,.18);color:inherit}
+.app-shell .store-activity-tab:focus-visible{outline:3px solid #b88664;outline-offset:2px}
+.app-shell .store-activity-list{border-top:1px solid var(--line)}
+.app-shell .store-activity-row{
+ display:flex;justify-content:space-between;align-items:center;gap:20px;
+ padding:16px 0;border-bottom:1px solid var(--line);
+}
+.app-shell .store-activity-main{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0;flex:1}
+.app-shell .store-activity-main>strong{font-size:15px;line-height:1.4;color:var(--brown);overflow-wrap:anywhere}
+.app-shell .store-activity-description{font-size:13px;line-height:1.5;color:var(--brown2);overflow-wrap:anywhere}
+.app-shell .store-activity-status{
+ display:inline-block;border-radius:999px;padding:5px 9px;
+ font:700 12px/1.3 Arial,Helvetica,sans-serif;
+ background:#fff3e6;color:#754021;
+}
+.app-shell .store-activity-status.is-answered{background:#e0ecd9;color:#38562b}
+.app-shell .store-activity-aside{display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:142px}
+.app-shell .store-activity-aside>span{color:var(--brown2);font-size:12px}
+.app-shell .store-activity-more{margin:14px 0 0}
+.app-shell .store-activity-note{font-size:12px;line-height:1.5;color:var(--brown2);margin:12px 0 0}
+.app-shell .store-home-rating-content{min-width:0}
+.app-shell .store-rating-summary{
+ display:flex;gap:20px;align-items:center;justify-content:flex-start;flex-wrap:wrap;
+ padding:16px 18px;border:1px solid var(--line);border-radius:13px;background:var(--cream);
+}
+.app-shell .store-rating-summary>div{display:flex;flex-direction:column;gap:7px}
+.app-shell .store-rating-summary>div+div{border-left:1px solid var(--line);padding-left:20px}
+.app-shell .store-rating-summary strong{font-size:22px;line-height:1.2;color:var(--brown)}
+.app-shell .store-rating-summary strong small{font-size:13px;font-weight:400}
+.app-shell .store-rating-summary span{font-size:13px;line-height:1.45;color:var(--brown2)}
+.app-shell .store-rating-stars{font-size:20px;letter-spacing:1px;color:#b77a26}
+.app-shell .store-rating-history{margin-top:14px}
+.app-shell .store-rating-history-row{
+ display:flex;align-items:center;justify-content:space-between;gap:18px;
+ padding:12px 2px;border-bottom:1px solid var(--line);
+}
+.app-shell .store-rating-history-row>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.app-shell .store-rating-history-row strong{font-size:14px;color:var(--brown);line-height:1.4;overflow-wrap:anywhere}
+.app-shell .store-rating-history-row>div span{font-size:12px;color:var(--brown2)}
+.app-shell .store-rating-history-row .stars{font-size:17px;white-space:nowrap;color:#b77a26}
+
+/* Official evaluation cards: keep rating information readable without fake grades. */
+.app-shell #page-avaliacoes .evaluation-store-card h4{font-size:15px;font-weight:700}
+.app-shell #page-avaliacoes .evaluation-score{font:700 25px/1.2 Arial,Helvetica,sans-serif}
+.app-shell #page-avaliacoes .stars{font-size:18px;color:#b77a26;letter-spacing:1.5px}
+.app-shell #page-avaliacoes .evaluation-score span{font-size:13px}
+
+body.dark-mode .app-shell #page-home .section-head p,
+body.dark-mode .app-shell #page-home .task p,
+body.dark-mode .app-shell #page-home .task-meta span,
+body.dark-mode .app-shell #page-home .task-type,
+body.dark-mode .app-shell #page-home .announcement p,
+body.dark-mode .app-shell #page-home .summary-text{color:#d9c7b8}
+body.dark-mode .app-shell .store-activity-tab{background:#352a23;border-color:#65503f;color:#f5eadf}
+body.dark-mode .app-shell .store-activity-tab span{background:#4a372b}
+body.dark-mode .app-shell .store-activity-tab.active{background:#f0dfd0;border-color:#f0dfd0;color:#33231a}
+body.dark-mode .app-shell .store-activity-tab.active span{background:#d5bba5;color:#33231a}
+body.dark-mode .app-shell .store-activity-description,
+body.dark-mode .app-shell .store-activity-aside>span,
+body.dark-mode .app-shell .store-activity-note,
+body.dark-mode .app-shell .store-rating-history-row>div span{color:#dec9b7}
+body.dark-mode .app-shell .store-activity-status.is-pending{background:#493622;color:#ffe0af}
+body.dark-mode .app-shell .store-activity-status.is-answered{background:#2a4331;color:#d4f1dc}
+body.dark-mode .app-shell .store-rating-summary{background:#352b25;border-color:#5d483b}
+body.dark-mode .app-shell .store-rating-stars,
+body.dark-mode .app-shell .store-rating-history-row .stars,
+body.dark-mode .app-shell #page-avaliacoes .stars{color:#f4c680}
+@media(max-width:760px){
+ .app-shell .content .page-title{font-size:23px}
+ .app-shell .content .section-head h3,.app-shell #page-home .section .section-head h3{font-size:18px}
+ .app-shell .store-activity-row{align-items:flex-start;flex-direction:column;gap:11px}
+ .app-shell .store-activity-aside{align-items:flex-start;flex-direction:row;min-width:0;flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.app-shell .conecta-nav-caret{transition:none}}
+
 </style>
