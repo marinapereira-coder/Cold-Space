@@ -35,6 +35,10 @@ for(const item of ['Bacio di Latte','Uni Bacio','Corriere','Portal de Operaçõe
 for(const id of Object.keys(context.CENTRAL_DEPARTMENT_LABELS)){
  assert.ok(index.includes('data-central-department="'+id+'"'),'Pasta não encontrada: '+id);
 }
+assert.ok(index.includes('<strong>Corriere</strong><span>Link oficial a confirmar</span>'),
+ 'Corriere não pode ser associado a endereço privado ou edição fixa sem validação');
+assert.ok(!index.includes('1xiEt-7unlR0Ne322BHZcaUzGzBBMe424'),
+ 'Não incluir documento corporativo privado no código público');
 assert.equal((index.match(/data-central-department="/g)||[]).length,8);
 assert.equal((index.match(/data-central-quick="/g)||[]).length,4,'Quatro atalhos existentes precisam permanecer');
 
