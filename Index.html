@@ -546,7 +546,7 @@
 
 
 
-          <section class="section">
+          <section id="homePriorities" class="section">
 
             <div class="section-head">
 
@@ -1512,6 +1512,17 @@
 
             </div>
 
+
+            <div id="evaluationStarControls" class="evaluation-star-controls" role="group" aria-label="Filtrar histórico por nota">
+              <span class="evaluation-star-filter-label">Filtrar histórico:</span>
+              <button type="button" class="evaluation-star-filter active" data-eval-grade="all" aria-pressed="true">Todas</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="5" aria-pressed="false" aria-label="5 estrelas">★★★★★</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="4" aria-pressed="false" aria-label="4 estrelas">★★★★☆</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="3" aria-pressed="false" aria-label="3 estrelas">★★★☆☆</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="2" aria-pressed="false" aria-label="2 estrelas">★★☆☆☆</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="1" aria-pressed="false" aria-label="1 estrela">★☆☆☆☆</button>
+              <button type="button" class="evaluation-star-filter" data-eval-grade="none" aria-pressed="false">Sem nota</button>
+            </div>
 
             <div
               id="evaluationHistory"
