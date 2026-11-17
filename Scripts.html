@@ -31,6 +31,7 @@ var STORE_LIVE_POLL_MS=25000;
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var EVALUATION_DATA=null;
+var EVALUATION_STAR_FILTER='all';
 var REPORTS_DATA=null;
 var REPORTS_SELECTED='';
 var ACCESS_DATA=null;
@@ -70,6 +71,7 @@ window.addEventListener('load',function(){
 });
 
 function bindEvents(){
+  initNavigationGroups_();
   document.addEventListener('click',function(e){
     var nav=e.target.closest('[data-page]');if(nav){showPage(nav.getAttribute('data-page'));}
     var close=e.target.closest('[data-close]');if(close){closeModal(close.getAttribute('data-close'));}
@@ -98,6 +100,12 @@ function bindEvents(){
   ['storeSearch','storeRegionalFilter','storeConsultorFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderStores);});
   ['responseSearch','responseStatusFilter','responseDemandFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderResponses);});
   ['evaluationSearch','evaluationStoreFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderEvaluations);});
+  document.getElementById('evaluationStarControls').addEventListener('click',function(event){
+    var button=event.target.closest('[data-eval-grade]');
+    if(!button)return;
+    EVALUATION_STAR_FILTER=button.getAttribute('data-eval-grade');
+    renderEvaluations();
+  });
   ['accessSearch','accessStatusFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderAccesses);});
 
   document.getElementById('newDemandBtn').onclick=function(){openCampaignModal('demanda');};
@@ -151,6 +159,21 @@ function bindEvents(){
     if(kind==='pessoa')openChatDirect(id);else openChatThread(id);
   });
   bindCentralLinks_();
+  document.getElementById('homeStoreActivityTabs').addEventListener('click',function(event){
+    var control=event.target.closest('[data-store-activity]');
+    if(!control)return;
+    HOME_STORE_ACTIVITY_FILTER=control.getAttribute('data-store-activity');
+    HOME_STORE_ACTIVITY_SHOWN=8;
+    renderStoreHomeActivity_();
+  });
+  document.getElementById('homeStoreActivityMore').addEventListener('click',function(){
+    HOME_STORE_ACTIVITY_SHOWN+=8;
+    renderStoreHomeActivity_();
+  });
+  document.getElementById('homeStoreActivityList').addEventListener('click',function(event){
+    var button=event.target.closest('[data-store-demand-id]');
+    if(button)openDemandDetail(button.getAttribute('data-store-demand-id'));
+  });
   document.getElementById('sendChatBtn').onclick=sendChatMessage;
   document.getElementById('chatText').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
 }
@@ -191,8 +214,13 @@ function startApp(data){
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    HOME_STORE_ACTIVITY_FILTER='pending';HOME_STORE_ACTIVITY_SHOWN=8;
+    syncNavigationFoldVisibility_();
     renderAllCore();
+    // Dados de avaliações vêm somente do endpoint autenticado e autorizado
+    // já usado pela página "Minhas Avaliações".
+    if(CURRENT_ROLE==='loja')loadEvaluations();
     startStoreLiveSync_();
     if(AUTH_MODE==='corporate')syncVerifiedPortalRole_();
   }catch(error){showError('Erro ao montar a interface: '+error.message);}
@@ -215,6 +243,7 @@ function syncVerifiedPortalRole_(){
     document.getElementById('noticeAdminActions').style.display=admin?'flex':'none';
     document.getElementById('newCalendarEventBtn').style.display=admin?'inline-block':'none';
     document.getElementById('switchProfileLoginBtn').style.display=admin?'inline-flex':'none';
+    syncNavigationFoldVisibility_();
     if(admin&&CURRENT_PAGE==='acessos'&&!ACCESS_DATA)loadAccesses();
   }).withFailureHandler(function(error){
     console.error('Não foi possível verificar o perfil do portal:',error);
@@ -240,6 +269,7 @@ function showPage(page){
   if(contentRoot)contentRoot.classList.toggle('cronograma-expanded',page==='cronograma');
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});target.classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(n){n.classList.toggle('active',n.getAttribute('data-page')===page);});
+  expandNavigationFoldForPage_(page);
   var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',relatorios:'Relatórios',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
   document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
@@ -258,12 +288,148 @@ function renderHome(){
   document.getElementById('homeSummary').innerHTML=[
     [s.pending||0,'ações pendentes'],[s.dueToday||0,'vence hoje'],[s.campaigns||0,'campanhas ativas'],[s.unread||0,'novos alertas']
   ].map(function(x){return '<div class="summary-item"><span class="summary-number">'+x[0]+'</span><span class="summary-text">'+x[1]+'</span></div>';}).join('');
-  var tasks=(APP_DATA.tasks||[]).slice(0,4);
+  var tasks=(APP_DATA.tasks||[]).filter(function(t){return CURRENT_ROLE!=='loja'||t.status!=='success';}).slice(0,4);
   document.getElementById('taskList').innerHTML=tasks.length?tasks.map(function(t){return '<div class="task"><div><span class="task-type">'+safe(typeLabel(t.type))+'</span><h4>'+safe(t.title)+'</h4><p>'+safe(t.description)+'</p></div><div class="task-meta"><strong>'+safe(t.deadlineLabel||'Sem prazo')+'</strong><span>'+safe(t.statusLabel||timelineLabel(t.timelineStatus))+'</span></div><div><button class="btn primary" onclick="openDemandDetail(\''+safeJs(t.id)+'\')">'+safe(t.actionLabel||'Abrir')+'</button></div></div>';}).join(''):'<div class="empty"><strong>Nenhuma pendência</strong>Tudo em dia por aqui.</div>';
   var campaigns=(APP_DATA.campaigns||[]).slice(0,2);
   document.getElementById('homeCampaigns').innerHTML=campaigns.length?campaigns.map(function(c){var p=Math.max(0,Math.min(100,Number(c.progress||0)));return '<div class="campaign-card" onclick="openDemandDetail(\''+safeJs(c.id)+'\')"><div><span class="eyebrow" style="color:#f3d8b2">'+safe(c.deadlineLabel||'Campanha')+'</span><h4>'+safe(c.title)+'</h4><p>'+safe(c.description)+'</p><div class="progress"><span style="width:'+p+'%"></span></div><div class="progress-label">'+safe(c.progressLabel||p+'% concluído')+'</div></div></div>';}).join(''):'<div class="empty">Nenhuma campanha em andamento.</div>';
   document.getElementById('homeAnnouncements').innerHTML=(APP_DATA.announcements||[]).slice(0,3).map(announcementHtml).join('')||'<div class="empty">Nenhum comunicado recente.</div>';
+  var priorities=document.getElementById('homePriorities');
+  if(priorities)priorities.hidden=CURRENT_ROLE==='loja';
+  renderStoreHomeActivity_();
+  renderStoreHomeRating_();
 }
+/* Submenus apenas visuais: mantêm os mesmos botões, data-page e permissões. */
+function initNavigationGroups_(){
+ var sidebar=document.getElementById('sidebar');
+ if(!sidebar||sidebar.querySelector('.conecta-nav-fold'))return;
+ var defs=[
+  {id:'rotina',name:'Minha rotina',pages:['agenda','cronograma','calendario','avaliacoes']},
+  {id:'operacao',name:'Operação',pages:['campanhas','comunicados','central','chat'],label:'Operação'},
+  {id:'gestao',name:'Gestão',pages:['respostas','relatorios','lojas','acessos'],label:'Gestão'}
+ ];
+ defs.forEach(function(def){
+  var controls=def.pages.map(function(p){return sidebar.querySelector('.nav-btn[data-page="'+p+'"]');});
+  if(controls.some(function(el){return !el;}))return;
+  var parent=controls[0].parentNode;
+  if(controls.some(function(el){return el.parentNode!==parent;}))return;
+  if(def.label){
+   Array.prototype.forEach.call(parent.querySelectorAll('.menu-label'),function(el){
+    if(el.textContent.trim()===def.label)el.hidden=true;
+   });
+  }
+  var group=document.createElement('div');
+  group.className='conecta-nav-fold';
+  group.setAttribute('data-nav-fold',def.id);
+  var toggle=document.createElement('button');
+  toggle.type='button';toggle.className='conecta-nav-fold-toggle';
+  toggle.setAttribute('aria-expanded','false');
+  toggle.setAttribute('aria-controls','conectaNavFold_'+def.id);
+  var title=document.createElement('span');title.textContent=def.name;
+  var caret=document.createElement('span');caret.className='conecta-nav-caret';caret.setAttribute('aria-hidden','true');caret.textContent='⌄';
+  toggle.appendChild(title);toggle.appendChild(caret);
+  var content=document.createElement('div');content.id='conectaNavFold_'+def.id;content.className='conecta-nav-fold-content';content.hidden=true;
+  group.appendChild(toggle);group.appendChild(content);
+  parent.insertBefore(group,controls[0]);
+  controls.forEach(function(el){content.appendChild(el);});
+  toggle.addEventListener('click',function(){setNavigationFoldOpen_(group,content.hidden);});
+ });
+}
+function setNavigationFoldOpen_(group,open){
+ if(!group)return;
+ var content=group.querySelector('.conecta-nav-fold-content');
+ var toggle=group.querySelector('.conecta-nav-fold-toggle');
+ if(!content||!toggle)return;
+ content.hidden=!open;
+ toggle.setAttribute('aria-expanded',open?'true':'false');
+ group.classList.toggle('is-open',open);
+}
+function expandNavigationFoldForPage_(page){
+ document.querySelectorAll('.conecta-nav-fold').forEach(function(group){
+  if(group.querySelector('.nav-btn[data-page="'+page+'"]'))setNavigationFoldOpen_(group,true);
+ });
+}
+function syncNavigationFoldVisibility_(){
+ document.querySelectorAll('.conecta-nav-fold').forEach(function(group){
+  var nav=group.querySelectorAll('.nav-btn[data-page]');
+  var visible=Array.prototype.some.call(nav,function(el){return el.style.display!=='none';});
+  group.hidden=!visible;
+ });
+}
+var HOME_STORE_ACTIVITY_FILTER='pending';
+var HOME_STORE_ACTIVITY_SHOWN=8;
+function renderStoreHomeActivity_(){
+ var root=document.getElementById('homeStoreActivity');
+ if(!root)return;
+ var isStore=CURRENT_ROLE==='loja';
+ root.hidden=!isStore;
+ if(!isStore)return;
+ // A seleção já foi filtrada/autorizada pelo bootstrap da própria loja.
+ var all=(APP_DATA.tasks||[]).slice();
+ var pending=all.filter(function(t){return t.status!=='success';});
+ var answered=all.filter(function(t){return t.status==='success';});
+ var counts={pending:pending.length,answered:answered.length,all:all.length};
+ ['pending','answered','all'].forEach(function(key){
+  var label={pending:'homeStorePendingCount',answered:'homeStoreAnsweredCount',all:'homeStoreTotalCount'}[key];
+  document.getElementById(label).textContent=counts[key];
+ });
+ document.querySelectorAll('[data-store-activity]').forEach(function(btn){
+  var active=btn.getAttribute('data-store-activity')===HOME_STORE_ACTIVITY_FILTER;
+  btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');
+ });
+ var current=HOME_STORE_ACTIVITY_FILTER==='answered'?answered:
+   HOME_STORE_ACTIVITY_FILTER==='all'?all:pending;
+ var shown=current.slice(0,HOME_STORE_ACTIVITY_SHOWN);
+ var host=document.getElementById('homeStoreActivityList');
+ host.innerHTML=shown.map(function(t){
+  var isAnswered=t.status==='success';
+  var label=t.statusLabel||(isAnswered?'Respondida':'Pendente');
+  return '<article class="store-activity-row">'+
+   '<div class="store-activity-main"><span class="store-activity-status '+(isAnswered?'is-answered':'is-pending')+'">'+safe(label)+'</span>'+
+   '<strong>'+safe(t.title||'Demanda')+'</strong>'+
+   '<span class="store-activity-description">'+safe(t.description||'')+'</span></div>'+
+   '<div class="store-activity-aside"><span>'+safe(t.deadlineLabel||'Sem prazo definido')+'</span>'+
+   '<button type="button" class="btn soft" data-store-demand-id="'+safe(t.id)+'">Abrir</button></div></article>';
+ }).join('')||'<div class="empty">Nenhuma solicitação nesta categoria.</div>';
+ var more=document.getElementById('homeStoreActivityMore');
+ more.hidden=current.length<=HOME_STORE_ACTIVITY_SHOWN;
+ more.textContent='Mostrar mais ('+(current.length-HOME_STORE_ACTIVITY_SHOWN)+')';
+}
+function renderStoreHomeRating_(){
+ var root=document.getElementById('homeStoreRating');
+ if(!root)return;
+ var isStore=CURRENT_ROLE==='loja';
+ root.hidden=!isStore;
+ if(!isStore)return;
+ var content=document.getElementById('homeStoreRatingContent');
+ if(!EVALUATION_DATA){content.innerHTML='<div class="muted">Carregando notas oficiais da loja...</div>';return;}
+ var sum=EVALUATION_DATA.summary||{};
+ var average=sum.avgStars==null?null:Number(sum.avgStars);
+ var validAvg=average!=null&&isFinite(average)&&average>=1&&average<=5;
+ var evaluations=(EVALUATION_DATA.items||[]).filter(function(item){return item.stars!=null&&
+  isFinite(Number(item.stars))&&Number(item.stars)>=1&&Number(item.stars)<=5;});
+ if(!validAvg){
+  content.innerHTML='<div class="store-rating-summary"><strong>Sem notas oficiais</strong><span>As avaliações aparecerão aqui após a análise das respostas pela gestão.</span></div>';
+  return;
+ }
+ var score=average.toFixed(1).replace('.',',');
+ var recent=evaluations.slice(0,3).map(function(item){
+  var value=Number(item.stars);
+  return '<div class="store-rating-history-row"><div><strong>'+safe(item.demandTitle||'Demanda')+'</strong>'+
+   '<span>'+safe(responseStatusLabel(item.status||'')||'Avaliada')+'</span></div>'+
+   '<span class="stars" role="img" aria-label="'+safe(value+' de 5 estrelas')+'">'+starsText(value)+'</span></div>';
+ }).join('');
+ content.innerHTML='<div class="store-rating-summary">'+
+  '<div><strong>'+safe(score)+' <small>/ 5</small></strong>'+
+  '<div class="stars store-rating-stars" role="img" aria-label="'+safe(score+' de 5 estrelas, média oficial')+'">'+starsText(average)+'</div></div>'+
+  '<div><strong>'+safe(sum.total||0)+'</strong><span>avaliações registradas</span></div></div>'+
+  (recent?'<div class="store-rating-history">'+recent+'</div>':'');
+}
+function renderStoreHomeRatingError_(){
+ if(CURRENT_ROLE!=='loja')return;
+ var content=document.getElementById('homeStoreRatingContent');
+ if(content)content.innerHTML='<div class="muted">Não foi possível carregar as notas agora. Abra Minhas Avaliações para tentar novamente.</div>';
+}
+
 function renderAgenda(){
   var list=(APP_DATA.managementItems||[]).slice();var f=document.getElementById('agendaFilter').value;
   if(f!=='all')list=list.filter(function(i){return String(i.timelineStatus||'active')===f;});
@@ -2552,10 +2718,22 @@ function calendarTypeLabel(t){return ({demanda_inicio:'Início de demanda',deman
 /* ============================================================
    V2: AVALIAÇÕES
 ============================================================ */
-function loadEvaluations(){document.getElementById('evaluationHistory').innerHTML='<div class="empty">Carregando avaliações...</div>';var ok=function(data){EVALUATION_DATA=data||{items:[],stores:[],summary:{}};populateEvaluationStoreFilter();renderEvaluations();};var run=google.script.run.withSuccessHandler(ok).withFailureHandler(serverError);if(AUTH_MODE==='store')run.getStoreEvaluationWorkspace(STORE_ACCESS_TOKEN);else run.getEvaluationWorkspace();}
+function loadEvaluations(){document.getElementById('evaluationHistory').innerHTML='<div class="empty">Carregando avaliações...</div>';var ok=function(data){EVALUATION_DATA=data||{items:[],stores:[],summary:{}};populateEvaluationStoreFilter();renderEvaluations();renderStoreHomeRating_();};var run=google.script.run.withSuccessHandler(ok).withFailureHandler(function(error){renderStoreHomeRatingError_();serverError(error);});if(AUTH_MODE==='store')run.getStoreEvaluationWorkspace(STORE_ACCESS_TOKEN);else run.getEvaluationWorkspace();}
 function populateEvaluationStoreFilter(){var el=document.getElementById('evaluationStoreFilter');if(CURRENT_ROLE==='loja')return;var current=el.value;el.innerHTML='<option value="all">Todas as lojas</option>'+((EVALUATION_DATA||{}).stores||[]).map(function(s){return '<option value="'+safe(s.storeId)+'">'+safe(s.storeLabel)+'</option>';}).join('');if(Array.prototype.some.call(el.options,function(o){return o.value===current;}))el.value=current;}
+function evaluationMatchesStarFilter_(item,filter){
+ if(filter==='all')return true;
+ var grade=item&&item.stars;
+ var valid=grade!==null&&grade!==undefined&&grade!==''&&isFinite(Number(grade))&&Number(grade)>=1&&Number(grade)<=5;
+ if(filter==='none')return !valid;
+ return valid&&Number(grade)===Number(filter);
+}
 function renderEvaluations(){
  if(!EVALUATION_DATA){loadEvaluations();return;}
+ document.querySelectorAll('[data-eval-grade]').forEach(function(btn){
+  var active=btn.getAttribute('data-eval-grade')===EVALUATION_STAR_FILTER;
+  btn.classList.toggle('active',active);
+  btn.setAttribute('aria-pressed',active?'true':'false');
+ });
  var sum=EVALUATION_DATA.summary||{};
  var average=sum.avgStars==null?'—':sum.avgStars;
  document.getElementById('evaluationKpis').innerHTML=
@@ -2582,7 +2760,7 @@ function renderEvaluations(){
  }).join('')||'<div class="empty">Nenhuma avaliação ainda.</div>';
  var items=((EVALUATION_DATA||{}).items||[]).filter(function(i){
   var t=((i.storeLabel||'')+' '+(i.demandTitle||'')).toLowerCase();
-  return (!q||t.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter);
+  return (!q||t.indexOf(q)>=0)&&(storeFilter==='all'||String(i.storeId)===storeFilter)&&evaluationMatchesStarFilter_(i,EVALUATION_STAR_FILTER);
  });
  document.getElementById('evaluationHistory').innerHTML=
   '<div class="row header"><div>Loja / Demanda</div><div>Nota</div><div>SLA</div><div>Resultado</div><div>Data</div></div>'+
@@ -2990,35 +3168,79 @@ var CENTRAL_DEPARTMENT_LABELS={
 };
 var CENTRAL_DEPARTMENT_ORDER=['operacoes','rh','qualidade','manutencao','treinamento','marketing','delivery','financeiro'];
 var CENTRAL_SELECTED_DEPARTMENT='all';
+var CENTRAL_BROWSE_ALL=false;
 
+/* A busca usa somente o catálogo de links já existente; não consulta dados privados. */
 function centralNormalize_(value){
- return String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+ return String(value||'').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function centralMatchesQuery_(item,query){
+ var terms=centralNormalize_(query).split(/\s+/).filter(Boolean);
+ if(!terms.length)return true;
+ var searchable=[item.name,item.group,item.type,item.department,item.source,
+   CENTRAL_DEPARTMENT_LABELS[item.department]||'',item.url].join(' ');
+ var text=centralNormalize_(searchable);
+ return terms.every(function(term){return text.indexOf(term)!==-1;});
 }
 function centralSafeUrl_(url){
- var text=String(url||'').trim();
- return /^https:\/\/[a-z0-9.-]+(?::[0-9]+)?(?:[/?#]|$)/i.test(text)?text:'';
+ var value=String(url||'').trim();
+ return /^https:\/\/[a-z0-9.-]+(?::[0-9]+)?(?:[/?#]|$)/i.test(value)?value:'';
+}
+function toggleCentralFavorites_(open){
+ var panel=document.getElementById('centralFavoritesPanel');
+ var button=document.getElementById('centralFavoritesToggle');
+ if(!panel||!button)return;
+ panel.hidden=!open;
+ button.setAttribute('aria-expanded',open?'true':'false');
+ button.setAttribute('aria-label',open?'Fechar sites mais usados':'Abrir sites mais usados');
 }
 function bindCentralLinks_(){
  var search=document.getElementById('centralSearch');
+ var form=document.getElementById('centralSearchForm');
+ var clear=document.getElementById('centralSearchClear');
  var grid=document.getElementById('centralDepartmentGrid');
  var all=document.getElementById('centralViewAllBtn');
- if(search)search.addEventListener('input',function(){CENTRAL_SELECTED_DEPARTMENT='all';renderCentralLinks_();});
- if(grid){
-  grid.addEventListener('click',function(event){
-   var card=event.target.closest('[data-central-department]');
-   if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
-  });
-  grid.addEventListener('keydown',function(event){
-   if(event.key!=='Enter'&&event.key!==' ')return;
-   var card=event.target.closest('[data-central-department]');
-   if(card){event.preventDefault();selectCentralDepartment_(card.getAttribute('data-central-department'));}
-  });
- }
- if(all)all.onclick=function(){
-  CENTRAL_SELECTED_DEPARTMENT='all';
-  var input=document.getElementById('centralSearch');if(input)input.value='';
+ var favorites=document.getElementById('centralFavoritesToggle');
+ if(search)search.addEventListener('input',function(){
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
   renderCentralLinks_();
- };
+ });
+ if(form)form.addEventListener('submit',function(event){
+  event.preventDefault();CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
+  renderCentralLinks_();
+  var panel=document.getElementById('centralLinksArea');
+  if(panel&&!panel.hidden)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ });
+ if(clear)clear.addEventListener('click',function(){
+  if(search){search.value='';search.focus();}
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=false;
+  renderCentralLinks_();
+ });
+ if(grid)grid.addEventListener('click',function(event){
+  var card=event.target.closest('[data-central-department]');
+  if(card)selectCentralDepartment_(card.getAttribute('data-central-department'));
+ });
+ if(all)all.addEventListener('click',function(){
+  var showAll=!CENTRAL_BROWSE_ALL;
+  CENTRAL_SELECTED_DEPARTMENT='all';CENTRAL_BROWSE_ALL=showAll;
+  if(search)search.value='';
+  renderCentralLinks_();
+  var panel=document.getElementById('centralLinksArea');
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ });
+ if(favorites)favorites.addEventListener('click',function(){
+  var panel=document.getElementById('centralFavoritesPanel');
+  toggleCentralFavorites_(panel&&panel.hidden);
+ });
+ document.addEventListener('click',function(event){
+  var panel=document.getElementById('centralFavoritesPanel');
+  var button=document.getElementById('centralFavoritesToggle');
+  if(panel&&!panel.hidden&&button&&!panel.contains(event.target)&&!button.contains(event.target))toggleCentralFavorites_(false);
+ });
+ document.addEventListener('keydown',function(event){
+  if(event.key==='Escape')toggleCentralFavorites_(false);
+ });
  document.querySelectorAll('[data-central-quick]').forEach(function(button){
   button.onclick=function(){
    var name=button.getAttribute('data-central-quick');
@@ -3031,11 +3253,16 @@ function bindCentralLinks_(){
 }
 function selectCentralDepartment_(dept){
  if(!Object.prototype.hasOwnProperty.call(CENTRAL_DEPARTMENT_LABELS,dept))return;
- CENTRAL_SELECTED_DEPARTMENT=dept;
- var input=document.getElementById('centralSearch');if(input)input.value='';
+ var already=dept===CENTRAL_SELECTED_DEPARTMENT&&!CENTRAL_BROWSE_ALL;
+ CENTRAL_SELECTED_DEPARTMENT=already?'all':dept;
+ CENTRAL_BROWSE_ALL=false;
+ var input=document.getElementById('centralSearch');
+ if(input)input.value='';
  renderCentralLinks_();
- var panel=document.getElementById('centralLinksArea');
- if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ if(CENTRAL_SELECTED_DEPARTMENT!=='all'){
+  var panel=document.getElementById('centralLinksArea');
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+ }
 }
 function centralLinkItemHtml_(item){
  var url=centralSafeUrl_(item.url);
@@ -3043,57 +3270,79 @@ function centralLinkItemHtml_(item){
  var domain='';
  try{domain=new URL(url).hostname.replace(/^www\./,'');}catch(e){domain='Link externo';}
  return '<a class="central-link-item" href="'+safe(url)+'" target="_blank" rel="noopener noreferrer" title="Abrir '+safe(item.name)+' em nova guia">'+
-   '<span class="central-link-icon" aria-hidden="true">↗</span>'+
-   '<span class="central-link-body"><strong>'+safe(item.name)+'</strong>'+
-   '<span class="central-link-meta">'+safe(item.type)+' · '+safe(domain)+'</span></span>'+
-   '<span class="central-link-open" aria-hidden="true">Abrir ↗</span></a>';
+  '<span class="central-link-icon" aria-hidden="true">↗</span>'+
+  '<span class="central-link-body"><strong>'+safe(item.name)+'</strong>'+
+  '<span class="central-link-meta">'+safe(item.type)+' · '+safe(domain)+'</span></span>'+
+  '<span class="central-link-open" aria-hidden="true">Abrir ↗</span></a>';
 }
 function renderCentralLinks_(){
  var host=document.getElementById('centralLinksList');
  if(!host)return;
  var input=document.getElementById('centralSearch');
- var query=centralNormalize_(input?input.value:'');
- var dept=CENTRAL_SELECTED_DEPARTMENT;
- var listed=CENTRAL_LINKS_CATALOG.filter(function(item){
-  var search=[item.name,item.group,item.type,item.department,item.source,CENTRAL_DEPARTMENT_LABELS[item.department]].join(' ');
-  return (dept==='all'||item.department===dept)&&(!query||centralNormalize_(search).indexOf(query)>=0);
- });
- var title=document.getElementById('centralLinksTitle');
- var subtitle=document.getElementById('centralLinksSubtitle');
- var allBtn=document.getElementById('centralViewAllBtn');
- if(title)title.textContent=dept==='all'?'Links por departamento':'Links · '+CENTRAL_DEPARTMENT_LABELS[dept];
- if(subtitle)subtitle.textContent=listed.length+' '+(listed.length===1?'atalho encontrado':'atalhos encontrados')+(query?' para “'+(input?input.value:'')+'”':'');
- if(allBtn)allBtn.style.display=dept==='all'?'none':'inline-flex';
+ var query=input?input.value.trim():'';
+ var selected=CENTRAL_SELECTED_DEPARTMENT;
+ var searching=!!centralNormalize_(query);
+ var active=searching||selected!=='all'||CENTRAL_BROWSE_ALL;
+ var results=document.getElementById('centralLinksArea');
+ var main=document.getElementById('centralMainSections');
+ var feedback=document.getElementById('centralSearchFeedback');
+ var clear=document.getElementById('centralSearchClear');
+ var all=document.getElementById('centralViewAllBtn');
+ if(results)results.hidden=!active;
+ if(main)main.classList.toggle('central-is-searching',searching);
+ if(clear)clear.hidden=!searching;
+ if(all)all.textContent=CENTRAL_BROWSE_ALL?'Mostrar somente pastas':'Ver todos os links';
+ if(!active){
+  host.innerHTML='';
+  if(feedback)feedback.textContent='Experimente pesquisar: Base Lojas, CIAO! ou Manutenção.';
+ }else{
+  var listed=CENTRAL_LINKS_CATALOG.filter(function(item){
+   return centralSafeUrl_(item.url)&&
+     (searching?centralMatchesQuery_(item,query):(selected==='all'||item.department===selected));
+  });
+  var title=document.getElementById('centralLinksTitle');
+  var subtitle=document.getElementById('centralLinksSubtitle');
+  if(title)title.textContent=searching?'Resultados da pesquisa':selected!=='all'?'Pasta · '+CENTRAL_DEPARTMENT_LABELS[selected]:'Todos os links';
+  if(subtitle)subtitle.textContent=listed.length+' '+(listed.length===1?'link encontrado':'links encontrados')+
+    (searching?' para "'+query+'"':'');
+  if(feedback)feedback.textContent=searching?listed.length+' '+(listed.length===1?'resultado encontrado':'resultados encontrados')+' para "'+query+'".':
+    selected!=='all'?'Pasta '+CENTRAL_DEPARTMENT_LABELS[selected]+' aberta.':'Exibindo toda a biblioteca.';
+  if(!listed.length){
+   host.innerHTML='<div class="central-links-empty"><strong>Nenhum link encontrado.</strong><span>Experimente outro nome ou escolha uma pasta por departamento.</span></div>';
+  }else{
+   var grouped={};
+   listed.forEach(function(item){
+    if(!grouped[item.department])grouped[item.department]=[];
+    grouped[item.department].push(item);
+   });
+   host.innerHTML=CENTRAL_DEPARTMENT_ORDER.filter(function(key){return grouped[key]&&grouped[key].length;}).map(function(key){
+    var items=grouped[key],byGroup={};
+    items.forEach(function(item){
+     var group=item.group||'Outros';
+     if(!byGroup[group])byGroup[group]=[];
+     byGroup[group].push(item);
+    });
+    var groups=Object.keys(byGroup).map(function(group){
+     return '<div class="central-link-subgroup"><div class="central-link-subhead">'+safe(group)+'</div>'+
+      '<div class="central-link-grid">'+byGroup[group].map(centralLinkItemHtml_).join('')+'</div></div>';
+    }).join('');
+    return '<section class="central-links-department" aria-label="'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'">'+
+     ((searching||selected==='all')?'<div class="central-links-dept-title"><h4>'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'</h4><span>'+items.length+' links</span></div>':'')+
+     groups+'</section>';
+   }).join('');
+  }
+ }
  document.querySelectorAll('[data-central-department]').forEach(function(card){
   var key=card.getAttribute('data-central-department');
-  var count=CENTRAL_LINKS_CATALOG.filter(function(item){return item.department===key;}).length;
+  var count=CENTRAL_LINKS_CATALOG.filter(function(item){return item.department===key&&centralSafeUrl_(item.url);}).length;
   var counter=card.querySelector('.central-department-count');
   if(!counter){counter=document.createElement('span');counter.className='central-department-count';card.appendChild(counter);}
-  counter.textContent=count?count+' '+(count===1?'link disponível':'links disponíveis'):'Aguardando links';
-  card.classList.toggle('selected',dept===key);
-  card.setAttribute('aria-pressed',dept===key?'true':'false');
+  counter.textContent=count+' '+(count===1?'link':'links');
+  var expanded=!searching&&selected===key;
+  card.classList.toggle('selected',expanded);
+  card.setAttribute('aria-expanded',expanded?'true':'false');
+  card.setAttribute('aria-pressed',expanded?'true':'false');
  });
- if(!listed.length){
-  host.innerHTML='<div class="central-links-empty"><strong>Nenhum link encontrado</strong>'+
-   '<span>'+(query?'Tente outra palavra-chave.':'Ainda não há links desta área na página importada.')+'</span></div>';
-  return;
- }
- var grouped={};
- listed.forEach(function(item){
-  if(!grouped[item.department])grouped[item.department]=[];
-  grouped[item.department].push(item);
- });
- host.innerHTML=CENTRAL_DEPARTMENT_ORDER.filter(function(key){return grouped[key]&&grouped[key].length;}).map(function(key){
-  var items=grouped[key], byGroup={};
-  items.forEach(function(item){var group=item.group||'Outros';if(!byGroup[group])byGroup[group]=[];byGroup[group].push(item);});
-  var groups=Object.keys(byGroup).map(function(group){
-   return '<div class="central-link-subgroup"><div class="central-link-subhead">'+safe(group)+'</div>'+
-     '<div class="central-link-grid">'+byGroup[group].map(centralLinkItemHtml_).join('')+'</div></div>';
-  }).join('');
-  return '<section class="central-links-department" aria-label="'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'">'+
-   (dept==='all'?'<div class="central-links-dept-title"><h4>'+safe(CENTRAL_DEPARTMENT_LABELS[key])+'</h4><span>'+items.length+' links</span></div>':'')+
-   groups+'</section>';
- }).join('');
 }
 
 </script>
