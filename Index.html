@@ -754,6 +754,15 @@
           id="page-calendario"
           class="page">
 
+          <div class="calendar-view-nav" role="tablist" aria-label="Selecionar calendário">
+            <button id="calendarOperationalTab" type="button" class="calendar-view-tab active" role="tab"
+              aria-controls="calendarOperationalPanel" aria-selected="true" tabindex="0"
+              data-calendar-view="operacional">Calendário Operacional</button>
+            <button id="calendarPromotionalTab" type="button" class="calendar-view-tab" role="tab"
+              aria-controls="calendarPromotionalPanel" aria-selected="false" tabindex="-1"
+              data-calendar-view="promocional">Calendário Promocional</button>
+          </div>
+          <div id="calendarOperationalPanel" class="calendar-view-panel" role="tabpanel" aria-labelledby="calendarOperationalTab">
           <div class="page-head">
 
             <div>
@@ -767,8 +776,7 @@
               </h2>
 
               <p class="subtitle">
-                Demandas, campanhas, promoções,
-                treinamentos e outros acontecimentos importantes.
+                Demandas, prazos e eventos operacionais conforme as permissões do seu perfil.
               </p>
 
             </div>
@@ -874,6 +882,32 @@
 
           </div>
 
+          </div>
+          <div id="calendarPromotionalPanel" class="calendar-view-panel" role="tabpanel"
+            aria-labelledby="calendarPromotionalTab" hidden>
+            <div class="page-head promotional-calendar-heading">
+              <div>
+                <span class="eyebrow">Planejamento Growth · Prisma</span>
+                <h2 class="page-title">Calendário Promocional</h2>
+                <p class="subtitle">Promoções do planejamento mensal, organizadas pelas datas de início e vigência.</p>
+              </div>
+              <div class="actions">
+                <button id="promotionalPrevMonth" class="btn soft" type="button" aria-label="Mês anterior">←</button>
+                <button id="promotionalTodayMonth" class="btn soft" type="button">Hoje</button>
+                <button id="promotionalNextMonth" class="btn soft" type="button" aria-label="Próximo mês">→</button>
+              </div>
+            </div>
+            <div class="promotional-calendar-toolbar">
+              <strong id="promotionalMonthTitle"></strong>
+              <span class="promotional-calendar-help">Inícios em destaque · Clique em “Vigentes” para consultar as demais ações do dia</span>
+            </div>
+            <div id="promotionalCalendarStatus" class="promotional-calendar-status" role="status" aria-live="polite"></div>
+            <div id="promotionalFixed" class="promotional-calendar-fixed" hidden></div>
+            <div class="promotional-calendar-viewport" tabindex="0" role="region" aria-label="Calendário promocional com rolagem horizontal">
+              <div id="promotionalCalendarGrid" class="promotional-calendar-grid"></div>
+            </div>
+            <p class="promotional-calendar-footnote">Fonte: calendário Growth do Prisma. Os itens representam o planejamento geral; a aplicação por canal ou loja depende das regras de cada campanha.</p>
+          </div>
         </section>
 
 
