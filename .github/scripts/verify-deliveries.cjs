@@ -159,4 +159,42 @@ assert.equal((els.deliveryCalendarGrid.innerHTML.match(/class="promotional-calen
 ui.renderConectaDeliveryCalendar_({month:'2026-11',stores:[],status:'unconfigured'});
 assert.ok(els.deliveryCalendarStatus.textContent.includes('Integração pendente'));
 assert.equal(els.deliveryCalendarGrid.innerHTML,'','Falha de integração não deve exibir programação antiga');
+
+// BR-066 — Falha no calendário não pode apagar lojas que a sessão já autorizou.
+const searchField={value:''};
+els.deliveryStoreSearch=searchField;
+els.deliveryStoreCount={textContent:''};
+ui.APP_DATA={stores:[
+  {id:'6',codigo:'6',nome:'LJ 0006 - SHOP PATIO PAULISTA'},
+  {id:'17',codigo:'17',nome:'LJ 0017 - MOEMA'},
+  {id:'TESTE_CONECTA',codigo:'9999',nome:'LOJA TESTE'}]};
+ui.DELIVERY_STORE_SCOPE=null;
+ui.DELIVERY_SELECTED_STORE='';
+els.deliveryStoreFilter.value='';
+ui.conectaEntregaPreencherLojas_();
+assert.ok(els.deliveryStoreFilter.innerHTML.includes('SHOP PATIO PAULISTA'),
+  'Carregar lojas autorizadas no bootstrap, sem RPC de entregas');
+assert.ok(els.deliveryStoreFilter.innerHTML.includes('MOEMA'));
+assert.ok(!els.deliveryStoreFilter.innerHTML.includes('LOJA TESTE'));
+assert.ok(els.deliveryStoreCount.textContent.includes('2 lojas'));
+searchField.value='0017';
+ui.conectaEntregaPreencherLojas_();
+assert.ok(els.deliveryStoreFilter.innerHTML.includes('MOEMA'));
+assert.ok(!els.deliveryStoreFilter.innerHTML.includes('SHOP PATIO PAULISTA'),
+  'Busca deve filtrar por código da loja');
+searchField.value='';
+ui.renderConectaDeliveryCalendar_({month:'2026-11',status:'request_failed'});
+assert.ok(els.deliveryCalendarStatus.textContent.includes('Não foi possível consultar o servidor'));
+assert.ok(els.deliveryStoreFilter.innerHTML.includes('SHOP PATIO PAULISTA'),
+  'Erro de comunicação não deve limpar a lista já autorizada');
+ui.renderConectaDeliveryCalendar_({month:'2026-11',stores:[],status:'no_access'});
+assert.ok(!els.deliveryStoreFilter.innerHTML.includes('SHOP PATIO PAULISTA'),
+  'Resposta no_access autenticada deve remover as opções');
+assert.ok(els.deliveryCalendarStatus.textContent.includes('não possui lojas autorizadas'));
+assert.ok(index.includes('id="deliveryStoreSearch"'));
+assert.ok(index.includes('id="deliveryStoreCount"'));
+assert.ok(scripts.includes("DELIVERY_STORE_SCOPE=null;"));
+assert.ok(styles.includes('#page-calendario #deliveryStoreSearch'));
+
 console.log('OK — BR-065: contraste, três calendários, 2 formatos da origem, escopo, cache, erros e renderização.');
+console.log('OK — BR-066: lojas autorizadas no bootstrap, busca por código, falha sem esvaziar e no_access protegido.');

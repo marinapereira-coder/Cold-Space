@@ -3843,4 +3843,21 @@ body.dark-mode .app-shell #noticeBulkActions .conecta-bulk-check {
 }
 
 
+
+/* BR-066 — busca imediata de lojas no calendário de entregas. */
+#page-calendario #deliveryStoreSearch{
+  min-height:42px;width:min(380px,100%);max-width:100%;
+  padding:10px 13px;background:var(--paper);
+  color:var(--brown);border:1px solid var(--line);border-radius:9px;
+  font:400 13px/1.35 Arial,Helvetica,sans-serif;
+}
+#page-calendario #deliveryStoreSearch:focus-visible,
+#page-calendario #deliveryStoreFilter:focus-visible{
+  outline:3px solid #c28658;outline-offset:2px;
+}
+body.dark-mode #page-calendario #deliveryStoreSearch{
+  background:#352a23;color:#fff3e6;border-color:#735744;
+}
+body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
+#page-calendario #deliveryStoreCount{font-weight:600}
 </style>

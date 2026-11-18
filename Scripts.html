@@ -34,6 +34,7 @@ var CALENDAR_VIEW='operacional';
 var PRISMA_PROMO_MONTHS_CACHE={};
 var DELIVERY_CALENDAR_CACHE={};
 var DELIVERY_SELECTED_STORE='';
+var DELIVERY_STORE_SCOPE=null;
 var DELIVERY_REQUEST_SEQ=0;
 var EVALUATION_DATA=null;
 var EVALUATION_STAR_FILTER='all';
@@ -137,7 +138,12 @@ function bindEvents(){
   };
   document.getElementById('deliveryStoreFilter').onchange=function(){
     DELIVERY_SELECTED_STORE=this.value;
+    document.getElementById('deliveryStoreSearch').value='';
+    conectaEntregaPreencherLojas_();
     loadConectaDeliveryCalendar_();
+  };
+  document.getElementById('deliveryStoreSearch').oninput=function(){
+    conectaEntregaPreencherLojas_();
   };
 
   ['campaignSearch','campaignTypeFilter','campaignStatusFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderCampaignManagement);});
@@ -227,7 +233,7 @@ function startApp(data){
   try{
     APP_DATA=data||{};
     if(typeof DELIVERY_REQUEST_SEQ!=='undefined'){
-      DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';
+      DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';DELIVERY_STORE_SCOPE=null;
     }
     CURRENT_ROLE=String((APP_DATA.user||{}).role||'').toLowerCase();
     AUTH_MODE=APP_DATA.authMode||AUTH_MODE||'corporate';
@@ -2723,7 +2729,7 @@ function showStorePasswordChange(){document.getElementById('app').style.display=
 function doStoreLogin(){var email=document.getElementById('storeLoginEmail').value.trim(),password=document.getElementById('storeLoginPassword').value;setBusy('storeLoginBtn',true,'Entrando...');document.getElementById('storeLoginMessage').textContent='';google.script.run.withSuccessHandler(function(result){setBusy('storeLoginBtn',false,'Entrar');STORE_REMEMBER_UNTIL=document.getElementById('storeRememberMe').checked?Date.now()+30*86400000:0;document.getElementById('storeLoginPassword').value='';STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||'';persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store';var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(e){setBusy('storeLoginBtn',false,'Entrar');document.getElementById('storeLoginMessage').textContent=e&&e.message?e.message:String(e);}).storeLogin(email,password);}
 function doStorePasswordChange(){var a=document.getElementById('storeNewPassword').value,b=document.getElementById('storeNewPassword2').value;if(a.length<8){showToast('A senha deve ter pelo menos 8 caracteres.');return;}if(a!==b){showToast('As senhas não são iguais.');return;}setBusy('storeChangePasswordBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');showToast('Senha alterada.');google.script.run.withSuccessHandler(function(data){data.authMode='store';startApp(data);}).withFailureHandler(serverError).getStoreBootstrap(STORE_ACCESS_TOKEN);}).withFailureHandler(function(e){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');serverError(e);}).storeChangePassword(STORE_ACCESS_TOKEN,a);}
 function tryStoreRefreshOrLogin(){if(!STORE_REFRESH_TOKEN){clearStoreSession();showStoreLogin();return;}google.script.run.withSuccessHandler(function(result){STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||STORE_REFRESH_TOKEN;persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(){clearStoreSession();showStoreLogin();}).storeRefreshSession(STORE_REFRESH_TOKEN);}
-function clearStoreSession(){stopStoreLiveSync_();if(typeof DELIVERY_REQUEST_SEQ!=='undefined'){DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';}STORE_REMEMBER_UNTIL=0;try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(e){}STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
+function clearStoreSession(){stopStoreLiveSync_();if(typeof DELIVERY_REQUEST_SEQ!=='undefined'){DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';DELIVERY_STORE_SCOPE=null;}STORE_REMEMBER_UNTIL=0;try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(e){}STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
 
 /* ============================================================
    V2: CALENDÁRIO
@@ -2916,11 +2922,72 @@ function renderPrismaPromoMonth_(data){
    BR-065: ENTREGAS E PEDIDOS — leitura de uma loja autorizada.
    Não grava, não cria eventos e não altera o calendário operacional.
 ============================================================ */
+
+function conectaEntregaCodigoCliente_(raw){
+  var text=String(raw==null?'':raw).trim();
+  var m=/^(?:LJ\s*)?0*(\d{1,4})(?:\s*[-–].*)?$/i.exec(text);
+  return m?('0000'+m[1]).slice(-4):'';
+}
+function conectaEntregaLojasBootstrap_(){
+  // A listagem da sessão já foi emitida pelo backend com o escopo deste perfil.
+  // Essa listagem é apenas a interface; toda consulta de entregas é revalidada no servidor.
+  var stores=(typeof APP_DATA!=='undefined'&&APP_DATA&&Array.isArray(APP_DATA.stores))
+    ? APP_DATA.stores : [];
+  var seen=Object.create(null);
+  return stores.map(function(store){
+    if(!store||String(store.id||'')==='TESTE_CONECTA')return null;
+    var code=conectaEntregaCodigoCliente_(store.codigo)||
+      conectaEntregaCodigoCliente_(store.nome);
+    if(!code||seen[code])return null;
+    seen[code]=true;
+    return {codigo:code,nome:String(store.nome||'Loja '+code)};
+  }).filter(Boolean).sort(function(a,b){return a.codigo.localeCompare(b.codigo);});
+}
+function conectaEntregaPreencherLojas_(serverStores){
+  var select=document.getElementById('deliveryStoreFilter');
+  if(!select)return;
+  if(Array.isArray(serverStores)){
+    // Uma resposta autenticada do servidor sempre prevalece sobre a listagem da sessão.
+    DELIVERY_STORE_SCOPE=serverStores;
+  }else if(!Array.isArray(DELIVERY_STORE_SCOPE)){
+    DELIVERY_STORE_SCOPE=conectaEntregaLojasBootstrap_();
+  }
+  var stores=DELIVERY_STORE_SCOPE||[];
+  var search=document.getElementById('deliveryStoreSearch');
+  var query=String(search&&search.value||'').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').trim();
+  var selected=DELIVERY_SELECTED_STORE||select.value||'';
+  var visible=stores.filter(function(store){
+    var text=(String(store.codigo||'')+' '+String(store.nome||'')).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return !query||text.indexOf(query)>=0||String(store.codigo||'')===selected;
+  });
+  select.innerHTML='<option value="">'+
+    (stores.length?'Selecione uma loja':'Nenhuma loja disponível')+'</option>'+
+    visible.map(function(store){
+      return '<option value="'+safe(store.codigo)+'">'+
+        safe('LJ '+store.codigo+' — '+store.nome)+'</option>';
+    }).join('');
+  if(stores.some(function(store){return String(store.codigo)===selected;})){
+    select.value=selected;
+  }
+  select.disabled=!stores.length;
+  var count=document.getElementById('deliveryStoreCount');
+  if(count){
+    count.textContent=stores.length?
+      visible.length+' de '+stores.length+' lojas disponíveis para este perfil.':
+      'Nenhuma loja disponível para este perfil.';
+  }
+}
+
 function loadConectaDeliveryCalendar_(){
   if(CALENDAR_VIEW!=='entregas')return;
   var month=conectaPromoMonthRef_();
   var selected=DELIVERY_SELECTED_STORE||'';
   var requestId=++DELIVERY_REQUEST_SEQ;
+  // O seletor aparece imediatamente a partir das lojas autorizadas da sessão,
+  // mesmo quando a integração com o Prisma ainda está pendente.
+  conectaEntregaPreencherLojas_();
   var heading=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth(),1);
   document.getElementById('deliveryMonthTitle').textContent=
     heading.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
@@ -2941,7 +3008,7 @@ function loadConectaDeliveryCalendar_(){
   var failure=function(){
     if(requestId!==DELIVERY_REQUEST_SEQ||CALENDAR_VIEW!=='entregas'||
        conectaPromoMonthRef_()!==month||DELIVERY_SELECTED_STORE!==selected)return;
-    renderConectaDeliveryCalendar_({month:month,status:'source_unavailable'});
+    renderConectaDeliveryCalendar_({month:month,status:'request_failed'});
   };
   var run=google.script.run.withSuccessHandler(success).withFailureHandler(failure);
   if(AUTH_MODE==='store')run.getStoreConectaDeliveryCalendar(STORE_ACCESS_TOKEN,month,selected);
@@ -2964,22 +3031,22 @@ function renderConectaDeliveryCalendar_(data){
   if(!data||data.month!==conectaPromoMonthRef_()){
     status.textContent='A consulta não corresponde ao mês selecionado. Tente novamente.';return;
   }
-  var stores=Array.isArray(data.stores)?data.stores:[];
+  var stores=Array.isArray(data.stores)?data.stores:null;
   var current=DELIVERY_SELECTED_STORE||data.codigo||'';
-  selector.innerHTML='<option value="">Selecione uma loja</option>'+stores.map(function(s){
-    return '<option value="'+safe(s.codigo)+'">'+safe('LJ '+s.codigo+' — '+s.nome)+'</option>';
-  }).join('');
-  if(stores.some(function(s){return s.codigo===current;})){
-    selector.value=current;
-    // Uma loja com uma única unidade recebe o código da API autenticada.
-    if(!DELIVERY_SELECTED_STORE)DELIVERY_SELECTED_STORE=current;
+  if(!DELIVERY_SELECTED_STORE&&stores&&stores.some(function(x){return x.codigo===current;})){
+    // Para o perfil loja, a unidade da resposta autenticada é selecionada automaticamente.
+    DELIVERY_SELECTED_STORE=current;
   }
+  // Ausência de dados na resposta de erro NÃO apaga as lojas do bootstrap.
+  // 'no_access', por outro lado, é uma decisão explícita do servidor e zera a lista.
+  conectaEntregaPreencherLojas_(data.status==='no_access'?[]:stores);
   if(data.status!=='ok'){
     var reasons={
       select_store:'Selecione uma loja acima para consultar o mês de recebimento.',
       no_access:'Seu perfil não possui lojas autorizadas para esta consulta.',
       unconfigured:'Integração pendente: a origem e a versão ativa do Prisma ainda precisam ser configuradas no Conecta.',
-      source_unavailable:'Fonte indisponível: não foi possível validar a versão ativa e o acesso de leitura ao espelho do Prisma.'
+      source_unavailable:'Fonte indisponível: não foi possível validar a versão ativa e o acesso de leitura ao espelho do Prisma.',
+      request_failed:'Não foi possível consultar o servidor agora. A lista de lojas da sua sessão continua disponível; os dados de entrega exigem consulta autorizada.'
     };
     status.textContent=reasons[data.status]||'Não foi possível consultar esta programação.';
     return;
