@@ -152,6 +152,23 @@ assert.ok(!JSON.stringify(problem).includes('Erro temporário'),'Detalhe de exce
 context.SpreadsheetApp.openById=originalOpen;
 cache.clear();
 
+// Teste de autorização manual BR-067: admin, leitura de cabeçalho, acesso negado.
+cache.clear();
+actingUser={role:'admin'};
+propertySheet='FAKE_PRIVATE_ID';propertyTab='CALENDÁRIO';
+let audit=context.validarAcessoExpedicaoConecta();
+assert.equal(audit.status,'ok');
+assert.equal(audit.ok,true);
+assert.ok(!JSON.stringify(audit).includes('FAKE_PRIVATE_ID'));
+actingUser={role:'loja'};
+assert.throws(()=>context.validarAcessoExpedicaoConecta(),/administradores autenticados/);
+actingUser={role:'admin'};
+propertySheet='';
+audit=context.validarAcessoExpedicaoConecta();
+assert.equal(audit.status,'unconfigured');
+propertySheet='FAKE_PRIVATE_ID';
+cache.clear();
+
 // Renderização fictícia: meses e dados de loja permanecem separados.
 const ids=['deliveryCalendarStatus','deliveryCalendarGrid','deliveryCalendarList',
  'deliveryStoreFilter','deliveryCalendarSource','deliveryMonthTitle'];
