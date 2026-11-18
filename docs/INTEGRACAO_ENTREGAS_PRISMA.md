@@ -37,6 +37,14 @@ A aplicação mostra **Integração pendente** caso as propriedades não tenham 
 - Somente os tipos **SECO** e **CONGELADO** são exibidos. Registros exatamente iguais são deduplicados como no Prisma.
 - **Não afirmar que o calendário está sincronizado ao vivo**. A disponibilidade real só é comprovada por consulta autenticada ao espelho vigente.
 
+## Teste de autorização pelo editor do Apps Script
+
+1. Entre no **Apps Script do Conecta Bacio** com a conta corporativa autorizada e abra a lista de funções.
+2. Selecione `validarAcessoExpedicaoConecta` e clique em **Executar**. O Google poderá solicitar consentimento para acessar Planilhas. Revise os escopos e autorize apenas se o projeto e a conta estiverem corretos.
+3. Confira o registro da execução: sucesso indica abertura e formato reconhecidos; falhas são identificadas por categoria sem divulgar IDs ou dados.
+4. A execução requer administrador autenticado; não grava, compartilha, transfere ou altera a planilha.
+5. Após o teste, volte ao calendário do Conecta e faça uma nova consulta.
+
 ## Testes antes de publicar
 
 ```bash
