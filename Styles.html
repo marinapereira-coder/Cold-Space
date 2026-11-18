@@ -3482,6 +3482,338 @@ body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter.active{
 body.dark-mode .app-shell #page-avaliacoes .evaluation-star-filter-label{color:#dec9b7}
 
 
+/* BR-064 — dois calendários, mantendo CSS dos eventos operacionais. */
+#page-calendario .calendar-view-nav{
+ display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:0 0 15px;
+ margin-bottom:22px;border-bottom:1px solid var(--line);
+}
+#page-calendario .calendar-view-tab{
+ border:1px solid var(--line);border-radius:11px;padding:12px 18px;
+ background:var(--paper);color:var(--brown);
+ font:700 14px/1.35 Arial,Helvetica,sans-serif;cursor:pointer;
+}
+#page-calendario .calendar-view-tab.active{
+ background:#4f2b1f;border-color:#4f2b1f;color:#fff3e6;
+}
+#page-calendario .calendar-view-tab:focus-visible,
+#page-calendario .promotional-calendar-viewport:focus-visible{
+ outline:3px solid #c28658;outline-offset:3px;
+}
+#page-calendario .calendar-view-panel[hidden],
+#page-calendario .promotional-calendar-fixed[hidden]{display:none!important}
+#page-calendario .promotional-calendar-heading .page-title{
+ font:700 23px/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.2px;
+}
+#page-calendario .promotional-calendar-toolbar{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ flex-wrap:wrap;background:var(--cream);border:1px solid var(--line);
+ border-radius:12px 12px 0 0;padding:14px 17px;
+}
+#page-calendario .promotional-calendar-toolbar strong{
+ font-size:17px;text-transform:capitalize;color:var(--brown);
+}
+#page-calendario .promotional-calendar-help,
+#page-calendario .promotional-calendar-status,
+#page-calendario .promotional-calendar-footnote{font-size:13px;line-height:1.55;color:var(--brown2)}
+#page-calendario .promotional-calendar-status{padding:11px 1px}
+#page-calendario .promotional-calendar-footnote{margin-top:16px}
+#page-calendario .promotional-calendar-fixed{
+ padding:11px 15px;border:1px solid var(--line);
+ border-radius:12px;background:var(--paper);margin-bottom:14px;
+}
+#page-calendario .promotional-calendar-viewport{
+ overflow-x:auto;max-width:100%;border:1px solid var(--line);
+ border-radius:0 0 13px 13px;background:var(--paper);
+}
+#page-calendario .promotional-calendar-grid{
+ display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));min-width:826px;
+}
+#page-calendario .promotional-calendar-weekday{
+ padding:12px 7px;text-align:center;background:#4f2b1f;
+ color:#fff3e6;font-size:13px;font-weight:700;
+}
+#page-calendario .promotional-calendar-cell{
+ min-height:120px;padding:9px 7px 14px;
+ border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+ background:var(--paper);color:var(--brown);min-width:0;
+}
+#page-calendario .promotional-calendar-cell:nth-child(7n){border-right:0}
+#page-calendario .promotional-calendar-cell.other{background:var(--cream);color:var(--brown2)}
+#page-calendario .promotional-calendar-cell.today{box-shadow:inset 0 0 0 2px #c28658}
+#page-calendario .promotional-calendar-day{display:block;text-align:right;font-size:13px;font-weight:700;margin-bottom:7px}
+#page-calendario .promotional-calendar-start{
+ display:flex;flex-direction:column;gap:4px;padding:8px 7px;
+ margin:5px 0;border-left:3px solid #5d784c;border-radius:7px;
+ background:#e0ecd9;color:#314b25;overflow-wrap:anywhere;
+}
+#page-calendario .promotional-calendar-start-label{font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+#page-calendario .promotional-calendar-start strong{font-size:12px;line-height:1.35}
+#page-calendario .promotional-calendar-start span:last-child{font-size:11px;line-height:1.35}
+#page-calendario .promotional-calendar-vigentes{
+ margin:6px 0;border:1px solid var(--line);border-radius:8px;background:var(--cream);
+}
+#page-calendario .promotional-calendar-vigentes summary{
+ display:flex;align-items:center;justify-content:space-between;gap:4px;cursor:pointer;
+ padding:9px 7px;min-height:34px;
+ font-size:11px;font-weight:700;line-height:1.3;list-style:none;color:var(--brown);
+}
+#page-calendario .promotional-calendar-vigentes summary::-webkit-details-marker{display:none}
+#page-calendario .promotional-calendar-vigentes summary:focus-visible{outline:2px solid #c28658;outline-offset:-2px}
+#page-calendario .promotional-calendar-vigentes[open] summary span{transform:rotate(180deg)}
+#page-calendario .promotional-calendar-vigentes-body{border-top:1px solid var(--line);padding:6px 7px}
+#page-calendario .promotional-calendar-vigente{display:flex;flex-direction:column;gap:4px;padding:7px 0;border-bottom:1px solid var(--line)}
+#page-calendario .promotional-calendar-vigente:last-child{border-bottom:0}
+#page-calendario .promotional-calendar-vigente strong{font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+#page-calendario .promotional-calendar-vigente small{font-size:10px;line-height:1.3;color:var(--brown2)}
+body.dark-mode #page-calendario .calendar-view-tab{background:#302822;color:#f0dfd1;border-color:#5d483b}
+body.dark-mode #page-calendario .calendar-view-tab.active{background:#f0ddc7;color:#32241c;border-color:#f0ddc7}
+body.dark-mode #page-calendario .promotional-calendar-toolbar{background:#302822;border-color:#594536}
+body.dark-mode #page-calendario .promotional-calendar-toolbar strong{color:#fff1e5}
+body.dark-mode #page-calendario .promotional-calendar-help,
+body.dark-mode #page-calendario .promotional-calendar-status,
+body.dark-mode #page-calendario .promotional-calendar-footnote{color:#dec9b7}
+body.dark-mode #page-calendario .promotional-calendar-viewport,
+body.dark-mode #page-calendario .promotional-calendar-fixed{background:#29231f;border-color:#594536}
+body.dark-mode #page-calendario .promotional-calendar-weekday{background:#4f3529;color:#fff1e5}
+body.dark-mode #page-calendario .promotional-calendar-cell{background:#29231f;color:#f5eadf;border-color:#483a31}
+body.dark-mode #page-calendario .promotional-calendar-cell.other{background:#211c19;color:#d0bdae}
+body.dark-mode #page-calendario .promotional-calendar-start{background:#2f4630;color:#e5f4dd;border-color:#a5c58f}
+body.dark-mode #page-calendario .promotional-calendar-vigentes{background:#352b25;border-color:#5f4a3c}
+body.dark-mode #page-calendario .promotional-calendar-vigentes summary{color:#f2e0d0}
+body.dark-mode #page-calendario .promotional-calendar-vigente small{color:#d5c3b6}
+@media(max-width:760px){
+ #page-calendario .calendar-view-nav{gap:7px}
+ #page-calendario .calendar-view-tab{padding:10px 12px;font-size:13px}
+ #page-calendario .promotional-calendar-heading .page-title{font-size:21px}
+}
+
+
+/* P0 UX — benchmarking Uni Bacio + Portal de Operações, 17/11/2026.
+   Alterações de APRESENTAÇÃO isoladas no Conecta. Preservar eventos,
+   data-page, perfis, lógica, notificações, planilhas e autenticação.
+   Não alterar tokens globais: --brown é invertido no tema escuro. */
+body:not(.dark-mode) .app-shell .topbar{
+  background:#4f2b1f;
+  border-bottom-color:#4f2b1f;
+}
+body:not(.dark-mode) .app-shell .nav-btn.active{background:#4f2b1f}
+body:not(.dark-mode) .app-shell .brand h1{color:#4f2b1f}
+body:not(.dark-mode) .app-shell .brand small,
+body:not(.dark-mode) .app-shell .menu-label{color:#74503e}
+
+/* Navegação legível sem esconder opções ou comprometer a rolagem. */
+.app-shell .nav-btn{
+  min-height:44px;
+  font-size:14px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.app-shell .nav-btn .nav-icon{flex-shrink:0}
+.app-shell .sidebar .menu-label{line-height:1.45}
+
+/* Hierarquia das informações na Minha Área. Sem novos indicadores. */
+.app-shell #page-home .hero p{font-size:14px;line-height:1.6}
+.app-shell #page-home .section .task > *{min-width:0}
+.app-shell #page-home .section .task h4,
+.app-shell .announcement h4{
+  font-size:15px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.app-shell #page-home .section .task p,
+.app-shell .announcement p{
+  font-size:14px;
+  line-height:1.55;
+  overflow-wrap:anywhere;
+}
+
+/* Cards de ferramentas e departamentos: mais leitura, menos truncamento. */
+.app-shell .central-quick-grid,
+.app-shell .central-department-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.app-shell .central-quick-card,
+.app-shell .central-department-card{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.app-shell .central-quick-card strong{font-size:14px;line-height:1.45}
+.app-shell .central-department-card p{font-size:14px;line-height:1.5}
+.app-shell .central-info-row strong{font-size:14px;line-height:1.45}
+.app-shell .central-info-row span{font-size:13px;line-height:1.45}
+.app-shell .central-links-access-note{font-size:13px;line-height:1.55}
+
+/* Alto contraste para metadados e rótulos no tema escuro. */
+body.dark-mode .app-shell .brand small{color:#dec9b7}
+body.dark-mode .app-shell .eyebrow,
+body.dark-mode .app-shell .central-quick-card span{color:#e6bda3}
+body.dark-mode .app-shell .central-links-access-note{color:#dec9b7}
+
+/* Indicação de foco acessível ao teclado; sem mudar comportamento. */
+.app-shell .nav-btn:focus-visible,
+.app-shell .btn:focus-visible,
+.app-shell .link-btn:focus-visible,
+.app-shell .central-quick-card:focus-visible,
+.app-shell .central-department-card:focus-visible,
+.app-shell .notification-btn:focus-visible,
+.app-shell .theme-toggle:focus-visible,
+.app-shell .field:focus-visible,
+.app-shell .select:focus-visible,
+.app-shell .textarea:focus-visible{
+  outline:3px solid #8a5236;
+  outline-offset:2px;
+}
+body.dark-mode .app-shell .nav-btn:focus-visible,
+body.dark-mode .app-shell .btn:focus-visible,
+body.dark-mode .app-shell .link-btn:focus-visible,
+body.dark-mode .app-shell .central-quick-card:focus-visible,
+body.dark-mode .app-shell .central-department-card:focus-visible,
+body.dark-mode .app-shell .notification-btn:focus-visible,
+body.dark-mode .app-shell .theme-toggle:focus-visible,
+body.dark-mode .app-shell .field:focus-visible,
+body.dark-mode .app-shell .select:focus-visible,
+body.dark-mode .app-shell .textarea:focus-visible{
+  outline-color:#f1ccad;
+}
+
+/* Adaptação de cards em notebook e celular, sem esconder controles. */
+@media (max-width:1000px){
+  .app-shell .central-quick-grid,
+  .app-shell .central-department-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width:520px){
+  .app-shell .central-quick-grid,
+  .app-shell .central-department-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .app-shell #page-home .section .task{gap:10px}
+}
+
+
+/* BR-065 — leitura clara de comunicados no modo escuro, sem alterar os dados. */
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement p,
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement .muted{
+  color:#ecdacc;font-size:14px;line-height:1.65;
+}
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement h4,
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement strong{
+  color:#fff1e7;
+}
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement-type,
+body.dark-mode .app-shell #page-comunicados #noticeList .announcement-date{
+  color:#e5bfa4;
+}
+body.dark-mode .app-shell #page-comunicados .conecta-bulk-toolbar,
+body.dark-mode .app-shell #page-comunicados .conecta-bulk-check,
+body.dark-mode .app-shell #page-comunicados .bacio-comunicado-text{
+  color:#f5e5d8;
+}
+body.dark-mode .app-shell #page-comunicados .bacio-comunicado-receipt,
+body.dark-mode .app-shell #page-comunicados .bacio-comunicado-read-table{
+  color:#e8d3c3;
+}
+/* Legibilidade geral de informações secundárias nas principais áreas. */
+body.dark-mode .app-shell .announcement p,
+body.dark-mode .app-shell .announcement-date,
+body.dark-mode .app-shell .announcement-type{color:#e0caba}
+body.dark-mode .app-shell .section-head p,
+body.dark-mode .app-shell .subtitle,
+body.dark-mode .app-shell .muted,
+body.dark-mode .app-shell .helper{color:#dcc6b5}
+
+/* BR-065 — terceira guia; tamanho compacto e cores identificáveis em ambos os temas. */
+#page-calendario .delivery-calendar-heading .page-title{
+ font:700 23px/1.3 Arial,Helvetica,sans-serif;letter-spacing:-.2px;
+}
+#page-calendario .delivery-calendar-filters{
+ display:flex;align-items:center;flex-wrap:wrap;gap:11px;
+ border:1px solid var(--line);border-radius:11px;
+ background:var(--paper);padding:12px 15px;margin-bottom:16px;
+}
+#page-calendario .delivery-calendar-filters label{
+ font-size:13px;font-weight:700;color:var(--brown);
+}
+#page-calendario .delivery-calendar-filters .select{
+ width:min(390px,100%);max-width:100%;min-height:42px;
+}
+#page-calendario .delivery-calendar-filter-caption{
+ font-size:12px;line-height:1.5;color:var(--brown2);
+}
+#page-calendario .delivery-calendar-event{
+ font-size:11px;line-height:1.4;padding:6px 7px;margin:5px 0;
+ border-radius:7px;border-left:3px solid #6b4024;
+ background:#f7ebdc;color:#4f2b1f;
+ overflow-wrap:anywhere;
+}
+#page-calendario .delivery-calendar-event strong{display:block;font-size:11px}
+#page-calendario .delivery-calendar-event[data-step="pedido"]{
+ background:#e9e4f3;border-color:#4e446d;color:#332c4a;
+}
+#page-calendario .delivery-calendar-event[data-step="separacao"]{
+ background:#fbe28f;border-color:#b46b0c;color:#4b330c;
+}
+#page-calendario .delivery-calendar-event[data-step="carregamento"]{
+ background:#d8e7e4;border-color:#1c4a5e;color:#1c4050;
+}
+#page-calendario .delivery-calendar-event[data-step="entrega"]{
+ background:#e0ecd9;border-color:#4d5b32;color:#293c22;
+}
+#page-calendario .delivery-calendar-details{margin-top:22px}
+#page-calendario .delivery-calendar-list{
+ display:grid;gap:10px;
+}
+#page-calendario .delivery-calendar-item{
+ display:grid;grid-template-columns:125px minmax(0,1fr);
+ gap:13px;align-items:start;
+ padding:14px 16px;border:1px solid var(--line);
+ border-radius:12px;background:var(--paper);color:var(--brown);
+}
+#page-calendario .delivery-calendar-item-head{
+ display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+ font-size:13px;font-weight:700;
+}
+#page-calendario .delivery-calendar-item-head span{
+ padding:4px 8px;border-radius:7px;background:var(--cream2);
+}
+#page-calendario .delivery-calendar-meta{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:8px;margin-top:9px;
+}
+#page-calendario .delivery-calendar-meta div{min-width:0}
+#page-calendario .delivery-calendar-meta dt{
+ font-size:11px;line-height:1.4;color:var(--brown2);
+}
+#page-calendario .delivery-calendar-meta dd{
+ margin:4px 0 0;font-size:13px;font-weight:700;color:var(--brown);
+}
+body.dark-mode #page-calendario .delivery-calendar-filters{
+ background:#29231f;border-color:#594536;
+}
+body.dark-mode #page-calendario .delivery-calendar-filter-caption{color:#dec9b7}
+body.dark-mode #page-calendario .delivery-calendar-event[data-step="pedido"]{
+ background:#3c3653;border-color:#b6a7df;color:#f0e9ff;
+}
+body.dark-mode #page-calendario .delivery-calendar-event[data-step="separacao"]{
+ background:#4d3b22;border-color:#f1cc00;color:#ffebae;
+}
+body.dark-mode #page-calendario .delivery-calendar-event[data-step="carregamento"]{
+ background:#203d49;border-color:#96bed0;color:#d9f2fa;
+}
+body.dark-mode #page-calendario .delivery-calendar-event[data-step="entrega"]{
+ background:#304533;border-color:#a2c98b;color:#e2f1db;
+}
+body.dark-mode #page-calendario .delivery-calendar-item-head span{
+ background:#4b382d;color:#f5eadf;
+}
+@media(max-width:720px){
+ #page-calendario .delivery-calendar-heading .page-title{font-size:21px}
+ #page-calendario .delivery-calendar-item{grid-template-columns:1fr}
+ #page-calendario .delivery-calendar-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+
 /* UX P0 — contraste dos Comunicados no tema escuro (18/11/2026).
    Somente apresentação: mantém conteúdo, leitura, edição, exclusão e acesso. */
 body.dark-mode .app-shell #noticeList .announcement p,
@@ -3509,5 +3841,6 @@ body.dark-mode .app-shell #noticeBulkActions,
 body.dark-mode .app-shell #noticeBulkActions .conecta-bulk-check {
   color:#f0dfd2;
 }
+
 
 </style>

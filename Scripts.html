@@ -30,6 +30,11 @@ var STORE_LIVE_LAST_FULL_REFRESH=0;
 var STORE_LIVE_POLL_MS=25000;
 var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
+var CALENDAR_VIEW='operacional';
+var PRISMA_PROMO_MONTHS_CACHE={};
+var DELIVERY_CALENDAR_CACHE={};
+var DELIVERY_SELECTED_STORE='';
+var DELIVERY_REQUEST_SEQ=0;
 var EVALUATION_DATA=null;
 var EVALUATION_STAR_FILTER='all';
 var REPORTS_DATA=null;
@@ -94,6 +99,46 @@ function bindEvents(){
   document.getElementById('nextMonthBtn').onclick=function(){CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()+1,1);renderMonthCalendar();};
   document.getElementById('todayMonthBtn').onclick=function(){CALENDAR_CURSOR=new Date();renderMonthCalendar();};
   document.getElementById('newCalendarEventBtn').onclick=openCalendarEventModal;
+  document.querySelectorAll('[data-calendar-view]').forEach(function(tab){
+    tab.addEventListener('click',function(){selectConectaCalendarView_(tab.getAttribute('data-calendar-view'));});
+    tab.addEventListener('keydown',function(e){
+      if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+      e.preventDefault();
+      var tabs=['operacional','promocional','entregas'];
+      var position=tabs.indexOf(tab.getAttribute('data-calendar-view'));
+      var next=tabs[(position+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];
+      selectConectaCalendarView_(next);
+      document.querySelector('[data-calendar-view="'+next+'"]').focus();
+    });
+  });
+  document.getElementById('promotionalPrevMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()-1,1);
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('promotionalNextMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()+1,1);
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('promotionalTodayMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date();
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('deliveryPrevMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()-1,1);
+    loadConectaDeliveryCalendar_();
+  };
+  document.getElementById('deliveryNextMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth()+1,1);
+    loadConectaDeliveryCalendar_();
+  };
+  document.getElementById('deliveryTodayMonth').onclick=function(){
+    CALENDAR_CURSOR=new Date();
+    loadConectaDeliveryCalendar_();
+  };
+  document.getElementById('deliveryStoreFilter').onchange=function(){
+    DELIVERY_SELECTED_STORE=this.value;
+    loadConectaDeliveryCalendar_();
+  };
 
   ['campaignSearch','campaignTypeFilter','campaignStatusFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderCampaignManagement);});
   ['noticeSearch','noticeTypeFilter'].forEach(function(id){document.getElementById(id).addEventListener('input',renderNotices);});
@@ -181,6 +226,9 @@ function bindEvents(){
 function startApp(data){
   try{
     APP_DATA=data||{};
+    if(typeof DELIVERY_REQUEST_SEQ!=='undefined'){
+      DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';
+    }
     CURRENT_ROLE=String((APP_DATA.user||{}).role||'').toLowerCase();
     AUTH_MODE=APP_DATA.authMode||AUTH_MODE||'corporate';
     document.getElementById('storeSignOutBtn').style.display=AUTH_MODE==='store'?'inline-flex':'none';
@@ -214,7 +262,7 @@ function startApp(data){
     document.getElementById('evaluationPageSubtitle').textContent=CURRENT_ROLE==='loja'?'Acompanhe suas notas, SLA e feedbacks do escritório.':'Nota, SLA e histórico das entregas das lojas.';
     document.getElementById('evaluationManagementFilters').style.display=CURRENT_ROLE==='loja'?'none':'grid';
 
-    CALENDAR_DATA=null;EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
+    CALENDAR_DATA=null;CALENDAR_VIEW='operacional';PRISMA_PROMO_MONTHS_CACHE={};EVALUATION_DATA=null;EVALUATION_STAR_FILTER='all';REPORTS_DATA=null;ACCESS_DATA=null;CHAT_DATA=null;CHAT_SELECTED=null;CHAT_THREAD_ID=null;RESPONSES_DATA=null;
     HOME_STORE_ACTIVITY_FILTER='pending';HOME_STORE_ACTIVITY_SHOWN=8;
     syncNavigationFoldVisibility_();
     renderAllCore();
@@ -277,6 +325,7 @@ function showPage(page){
   if(page==='avaliacoes'&&!EVALUATION_DATA)loadEvaluations();
   if(page==='relatorios'){if(!REPORTS_DATA)loadReports();else renderReports();}
   if(page==='calendario'&&!CALENDAR_DATA)loadCalendar();
+  if(page==='calendario')selectConectaCalendarView_(CALENDAR_VIEW);
   if(page==='chat'&&!CHAT_DATA)loadChatWorkspace();
   if(page==='acessos'&&CURRENT_ROLE==='admin'&&!ACCESS_DATA)loadAccesses();
   if(page==='lojas')renderStores();if(page==='agenda')renderAgenda();if(page==='cronograma'&&typeof renderConectaCronograma==='function')renderConectaCronograma();if(page==='comunicados')renderNotices();if(page==='central')renderCentralOperations();
@@ -2674,7 +2723,7 @@ function showStorePasswordChange(){document.getElementById('app').style.display=
 function doStoreLogin(){var email=document.getElementById('storeLoginEmail').value.trim(),password=document.getElementById('storeLoginPassword').value;setBusy('storeLoginBtn',true,'Entrando...');document.getElementById('storeLoginMessage').textContent='';google.script.run.withSuccessHandler(function(result){setBusy('storeLoginBtn',false,'Entrar');STORE_REMEMBER_UNTIL=document.getElementById('storeRememberMe').checked?Date.now()+30*86400000:0;document.getElementById('storeLoginPassword').value='';STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||'';persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');AUTH_MODE='store';var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(e){setBusy('storeLoginBtn',false,'Entrar');document.getElementById('storeLoginMessage').textContent=e&&e.message?e.message:String(e);}).storeLogin(email,password);}
 function doStorePasswordChange(){var a=document.getElementById('storeNewPassword').value,b=document.getElementById('storeNewPassword2').value;if(a.length<8){showToast('A senha deve ter pelo menos 8 caracteres.');return;}if(a!==b){showToast('As senhas não são iguais.');return;}setBusy('storeChangePasswordBtn',true,'Salvando...');google.script.run.withSuccessHandler(function(){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');showToast('Senha alterada.');google.script.run.withSuccessHandler(function(data){data.authMode='store';startApp(data);}).withFailureHandler(serverError).getStoreBootstrap(STORE_ACCESS_TOKEN);}).withFailureHandler(function(e){setBusy('storeChangePasswordBtn',false,'Salvar nova senha');serverError(e);}).storeChangePassword(STORE_ACCESS_TOKEN,a);}
 function tryStoreRefreshOrLogin(){if(!STORE_REFRESH_TOKEN){clearStoreSession();showStoreLogin();return;}google.script.run.withSuccessHandler(function(result){STORE_ACCESS_TOKEN=result.accessToken||'';STORE_REFRESH_TOKEN=result.refreshToken||STORE_REFRESH_TOKEN;persistStoreSession_();sessionStorage.setItem('bacio_force_password_login','1');var data=result.bootstrap||{};data.authMode='store';if((data.user||{}).forcePasswordChange)showStorePasswordChange();else startApp(data);}).withFailureHandler(function(){clearStoreSession();showStoreLogin();}).storeRefreshSession(STORE_REFRESH_TOKEN);}
-function clearStoreSession(){stopStoreLiveSync_();STORE_REMEMBER_UNTIL=0;try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(e){}STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
+function clearStoreSession(){stopStoreLiveSync_();if(typeof DELIVERY_REQUEST_SEQ!=='undefined'){DELIVERY_REQUEST_SEQ++;DELIVERY_CALENDAR_CACHE={};DELIVERY_SELECTED_STORE='';}STORE_REMEMBER_UNTIL=0;try{localStorage.removeItem(STORE_REMEMBER_KEY);}catch(e){}STORE_ACCESS_TOKEN='';STORE_REFRESH_TOKEN='';sessionStorage.removeItem('bacio_store_access');sessionStorage.removeItem('bacio_store_refresh');}
 
 /* ============================================================
    V2: CALENDÁRIO
@@ -2714,6 +2763,286 @@ function saveCalendarEventFromModal(){
 
 function deleteCalendarItem(id){if(!confirm('Excluir este evento do calendário?'))return;google.script.run.withSuccessHandler(function(){showToast('Evento excluído.');CALENDAR_DATA=null;loadCalendar();}).withFailureHandler(serverError).deleteCalendarEvent(id);}
 function calendarTypeLabel(t){return ({demanda_inicio:'Início de demanda',demanda_prazo:'Entrega de demanda',demanda_encerramento:'Encerramento',promocao:'Promoção',campanha:'Campanha',treinamento:'Treinamento',operacao:'Operação',evento:'Evento',outro:'Outro'})[t]||'Evento';}
+
+/* ============================================================
+   BR-064: Calendários Operacional e Promocional (Prisma Growth)
+   Os dados promocionais são lidos do servidor; sem gravação no Prisma.
+============================================================ */
+function selectConectaCalendarView_(view){
+  CALENDAR_VIEW=['operacional','promocional','entregas'].indexOf(view)>=0?view:'operacional';
+  document.getElementById('calendarOperationalPanel').hidden=CALENDAR_VIEW!=='operacional';
+  document.getElementById('calendarPromotionalPanel').hidden=CALENDAR_VIEW!=='promocional';
+  document.getElementById('calendarDeliveryPanel').hidden=CALENDAR_VIEW!=='entregas';
+  document.querySelectorAll('[data-calendar-view]').forEach(function(btn){
+    var active=btn.getAttribute('data-calendar-view')===CALENDAR_VIEW;
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-selected',active?'true':'false');
+    btn.tabIndex=active?0:-1;
+  });
+  if(CALENDAR_VIEW==='promocional')loadPrismaPromoCalendar_();
+  else if(CALENDAR_VIEW==='entregas')loadConectaDeliveryCalendar_();
+  else if(CALENDAR_DATA)renderMonthCalendar();
+}
+function conectaPromoMonthRef_(){
+  return CALENDAR_CURSOR.getFullYear()+'-'+String(CALENDAR_CURSOR.getMonth()+1).padStart(2,'0');
+}
+function loadPrismaPromoCalendar_(){
+  if(CALENDAR_VIEW!=='promocional')return;
+  var month=conectaPromoMonthRef_();
+  var stamp=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth(),1);
+  document.getElementById('promotionalMonthTitle').textContent=
+    stamp.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var cached=PRISMA_PROMO_MONTHS_CACHE[month];
+  if(cached&&Date.now()-cached.stamp<900000){renderPrismaPromoMonth_(cached.data);return;}
+  document.getElementById('promotionalCalendarStatus').textContent='Consultando o planejamento promocional do Prisma...';
+  document.getElementById('promotionalCalendarGrid').innerHTML='';
+  document.getElementById('promotionalFixed').hidden=true;
+  var success=function(data){
+    // Navegação rápida entre meses não pode deixar resposta antiga invadir mês atual.
+    if(conectaPromoMonthRef_()!==month)return;
+    PRISMA_PROMO_MONTHS_CACHE[month]={data:data||{},stamp:Date.now()};
+    renderPrismaPromoMonth_(data||{});
+  };
+  var failure=function(){
+    if(conectaPromoMonthRef_()!==month)return;
+    renderPrismaPromoMonth_({status:'source_unavailable',month:month,promotions:[]});
+  };
+  var run=google.script.run.withSuccessHandler(success).withFailureHandler(failure);
+  if(AUTH_MODE==='store')run.getStorePrismaPromotionalCalendar(STORE_ACCESS_TOKEN,month);
+  else run.getPrismaPromotionalCalendar(month);
+}
+function conectaPromoPeriodos_(days,max){
+  var arr=Array.from(new Set((days||[]).map(Number).filter(function(d){
+    return Number.isInteger(d)&&d>0&&d<=max;
+  }))).sort(function(a,b){return a-b;});
+  var ranges=[];
+  arr.forEach(function(day){
+    var previous=ranges[ranges.length-1];
+    if(previous&&previous.end===day-1)previous.end=day;
+    else ranges.push({start:day,end:day});
+  });
+  return ranges;
+}
+function conectaPromoCard_(promotion,period,monthIndex){
+  var label=period.start===period.end?
+    'Somente dia '+String(period.start).padStart(2,'0'):
+    'Do dia '+String(period.start).padStart(2,'0')+' ao dia '+String(period.end).padStart(2,'0');
+  return '<div class="promotional-calendar-start" title="'+safe(promotion.nome||'Promoção')+'">'+
+    '<span class="promotional-calendar-start-label">Início</span>'+
+    '<strong>'+safe(promotion.nome||'Promoção')+'</strong>'+
+    '<span>'+safe(label)+'</span></div>';
+}
+function conectaPromoDetails_(items,label){
+  if(!items.length)return'';
+  return '<details class="promotional-calendar-vigentes"><summary>'+
+   safe(label)+' ('+items.length+') <span aria-hidden="true">⌄</span></summary>'+
+   '<div class="promotional-calendar-vigentes-body">'+items.map(function(p){
+    return '<div class="promotional-calendar-vigente">'+
+      '<strong>'+safe(p.nome||'Promoção')+'</strong>'+
+      ((p.tipo||p.canais)?'<small>'+safe([p.tipo,p.canais].filter(Boolean).join(' · '))+'</small>':'')+
+      '</div>';
+   }).join('')+'</div></details>';
+}
+function renderPrismaPromoMonth_(data){
+  var status=document.getElementById('promotionalCalendarStatus');
+  var grid=document.getElementById('promotionalCalendarGrid');
+  var fixedPanel=document.getElementById('promotionalFixed');
+  if(!status||!grid||!fixedPanel)return;
+  fixedPanel.hidden=true;fixedPanel.innerHTML='';
+  grid.innerHTML='';
+  var current=conectaPromoMonthRef_();
+  if(!data||data.month!==current){
+    status.textContent='Não foi possível confirmar o mês do calendário promocional. Tente abrir novamente.';return;
+  }
+  if(data.status!=='ok'){
+    var reasons={
+      unconfigured:'Integração pendente: configure a fonte Prisma Growth nas propriedades privadas do Apps Script do Conecta.',
+      source_unavailable:'Fonte indisponível: o Conecta ainda não conseguiu acessar a planilha do Prisma. Verifique a permissão da conta de execução.',
+      month_unavailable:'Este mês não está disponível no planejamento promocional do Prisma.'
+    };
+    status.textContent=reasons[data.status]||'Não foi possível carregar as promoções deste mês.';
+    return;
+  }
+  var y=CALENDAR_CURSOR.getFullYear(),m=CALENDAR_CURSOR.getMonth();
+  var total=new Date(y,m+1,0).getDate(),first=(new Date(y,m,1).getDay()+6)%7;
+  var numberOfCells=Math.ceil((first+total)/7)*7,starts={},ongoing={},fixed=[];
+  var promotions=Array.isArray(data.promotions)?data.promotions:[];
+  promotions.forEach(function(p){
+    var ranges=conectaPromoPeriodos_(p.diasAtivos,total);
+    if(!ranges.length)return;
+    if(ranges.length===1&&ranges[0].start===1&&ranges[0].end===total){
+      fixed.push(p);return;
+    }
+    ranges.forEach(function(period){
+      (starts[period.start]||(starts[period.start]=[])).push({p:p,period:period});
+      for(var d=period.start+1;d<=period.end;d++){
+        var active=ongoing[d]||(ongoing[d]=[]);
+        if(!active.some(function(x){return x.nome===p.nome;}))active.push(p);
+      }
+    });
+  });
+  var activeCount=promotions.filter(function(p){return conectaPromoPeriodos_(p.diasAtivos,total).length>0;}).length;
+  status.textContent=activeCount+' '+(activeCount===1?'promoção identificada':'promoções identificadas')+
+    ' no planejamento de '+document.getElementById('promotionalMonthTitle').textContent+'.';
+  if(fixed.length){
+    fixedPanel.hidden=false;
+    fixedPanel.innerHTML=conectaPromoDetails_(fixed,'Promoções fixas do mês');
+  }
+  var weekdays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  var html=weekdays.map(function(day){
+    return '<div class="promotional-calendar-weekday">'+day+'</div>';
+  }).join('');
+  for(var i=0;i<numberOfCells;i++){
+    var date=new Date(y,m,i-first+1),inside=date.getMonth()===m;
+    var day=date.getDate(),tod=new Date();
+    var today=inside&&tod.getFullYear()===y&&tod.getMonth()===m&&tod.getDate()===day;
+    html+='<div class="promotional-calendar-cell'+(!inside?' other':'')+(today?' today':'')+'">'+
+      '<span class="promotional-calendar-day">'+day+'</span>';
+    if(inside){
+      var events=starts[day]||[],currentOn=ongoing[day]||[];
+      html+=events.map(function(x){return conectaPromoCard_(x.p,x.period,m);}).join('');
+      if(currentOn.length)html+=conectaPromoDetails_(currentOn,'Vigentes');
+      else if(!events.length&&fixed.length)html+=conectaPromoDetails_(fixed,'Fixas');
+    }
+    html+='</div>';
+  }
+  grid.innerHTML=html;
+  if(!activeCount)status.textContent='Nenhuma promoção com dias ativos neste mês, conforme a origem consultada.';
+}
+
+
+
+/* ============================================================
+   BR-065: ENTREGAS E PEDIDOS — leitura de uma loja autorizada.
+   Não grava, não cria eventos e não altera o calendário operacional.
+============================================================ */
+function loadConectaDeliveryCalendar_(){
+  if(CALENDAR_VIEW!=='entregas')return;
+  var month=conectaPromoMonthRef_();
+  var selected=DELIVERY_SELECTED_STORE||'';
+  var requestId=++DELIVERY_REQUEST_SEQ;
+  var heading=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth(),1);
+  document.getElementById('deliveryMonthTitle').textContent=
+    heading.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var key=month+'|'+selected;
+  var cache=DELIVERY_CALENDAR_CACHE[key];
+  if(cache&&Date.now()-cache.stamp<900000){
+    renderConectaDeliveryCalendar_(cache.data);return;
+  }
+  document.getElementById('deliveryCalendarStatus').textContent='Consultando o calendário de expedição do Prisma...';
+  document.getElementById('deliveryCalendarGrid').innerHTML='';
+  document.getElementById('deliveryCalendarList').innerHTML='';
+  var success=function(data){
+    if(requestId!==DELIVERY_REQUEST_SEQ||CALENDAR_VIEW!=='entregas'||
+       conectaPromoMonthRef_()!==month||DELIVERY_SELECTED_STORE!==selected)return;
+    if(data&&data.status==='ok')DELIVERY_CALENDAR_CACHE[key]={data:data,stamp:Date.now()};
+    renderConectaDeliveryCalendar_(data||{month:month,status:'source_unavailable'});
+  };
+  var failure=function(){
+    if(requestId!==DELIVERY_REQUEST_SEQ||CALENDAR_VIEW!=='entregas'||
+       conectaPromoMonthRef_()!==month||DELIVERY_SELECTED_STORE!==selected)return;
+    renderConectaDeliveryCalendar_({month:month,status:'source_unavailable'});
+  };
+  var run=google.script.run.withSuccessHandler(success).withFailureHandler(failure);
+  if(AUTH_MODE==='store')run.getStoreConectaDeliveryCalendar(STORE_ACCESS_TOKEN,month,selected);
+  else run.getConectaDeliveryCalendar(month,selected);
+}
+function conectaEntregaDataExibida_(date){
+  if(!date)return 'Não informado';
+  var m=/^(20\d{2})-(\d{2})-(\d{2})$/.exec(date);
+  return m?m[3]+'/'+m[2]+'/'+m[1]:'Não informado';
+}
+function renderConectaDeliveryCalendar_(data){
+  var status=document.getElementById('deliveryCalendarStatus');
+  var grid=document.getElementById('deliveryCalendarGrid');
+  var list=document.getElementById('deliveryCalendarList');
+  var selector=document.getElementById('deliveryStoreFilter');
+  var footnote=document.getElementById('deliveryCalendarSource');
+  if(!status||!grid||!list||!selector||!footnote)return;
+  grid.innerHTML='';list.innerHTML='';
+  footnote.textContent='Fonte: espelho do calendário de expedição do Prisma. Alterações no Excel original não são sincronizadas automaticamente.';
+  if(!data||data.month!==conectaPromoMonthRef_()){
+    status.textContent='A consulta não corresponde ao mês selecionado. Tente novamente.';return;
+  }
+  var stores=Array.isArray(data.stores)?data.stores:[];
+  var current=DELIVERY_SELECTED_STORE||data.codigo||'';
+  selector.innerHTML='<option value="">Selecione uma loja</option>'+stores.map(function(s){
+    return '<option value="'+safe(s.codigo)+'">'+safe('LJ '+s.codigo+' — '+s.nome)+'</option>';
+  }).join('');
+  if(stores.some(function(s){return s.codigo===current;})){
+    selector.value=current;
+    // Uma loja com uma única unidade recebe o código da API autenticada.
+    if(!DELIVERY_SELECTED_STORE)DELIVERY_SELECTED_STORE=current;
+  }
+  if(data.status!=='ok'){
+    var reasons={
+      select_store:'Selecione uma loja acima para consultar o mês de recebimento.',
+      no_access:'Seu perfil não possui lojas autorizadas para esta consulta.',
+      unconfigured:'Integração pendente: a origem e a versão ativa do Prisma ainda precisam ser configuradas no Conecta.',
+      source_unavailable:'Fonte indisponível: não foi possível validar a versão ativa e o acesso de leitura ao espelho do Prisma.'
+    };
+    status.textContent=reasons[data.status]||'Não foi possível consultar esta programação.';
+    return;
+  }
+  var records=Array.isArray(data.records)?data.records:[];
+  status.textContent=records.length+' '+(records.length===1?'entrega prevista':'entregas previstas')+
+    ' para '+(data.nome||'a loja')+' no mês de '+document.getElementById('deliveryMonthTitle').textContent+'.';
+  footnote.textContent='Fonte: Prisma Expedição · Versão consultada: '+(data.sourceVersion||'não identificada')+
+    '. Este espelho não sincroniza automaticamente com alterações no Excel original.';
+  var y=CALENDAR_CURSOR.getFullYear(),m=CALENDAR_CURSOR.getMonth();
+  var first=(new Date(y,m,1).getDay()+6)%7,total=new Date(y,m+1,0).getDate();
+  var cells=Math.ceil((first+total)/7)*7,dayEvents=Object.create(null);
+  var stages=[
+    {key:'pedido',label:'Pedido'},
+    {key:'separacao',label:'Separação / faturamento'},
+    {key:'carregamento',label:'Carregamento'},
+    {key:'entrega',label:'Entrega prevista'}
+  ];
+  records.forEach(function(r){
+    stages.forEach(function(stage){
+      var date=r[stage.key]||'';
+      if(date.slice(0,7)!==data.month)return;
+      var day=Number(date.slice(8,10));
+      if(day<1||day>total)return;
+      (dayEvents[day]||(dayEvents[day]=[])).push({
+        step:stage.key,label:stage.label,tipo:r.tipo,rota:r.rota
+      });
+    });
+  });
+  var weekdays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  var html=weekdays.map(function(day){
+    return '<div class="promotional-calendar-weekday">'+day+'</div>';
+  }).join('');
+  for(var i=0;i<cells;i++){
+    var date=new Date(y,m,i-first+1),inside=date.getMonth()===m;
+    var day=date.getDate(),today=new Date();
+    var todayFlag=inside&&today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===day;
+    html+='<div class="promotional-calendar-cell'+(!inside?' other':'')+(todayFlag?' today':'')+'">'+
+      '<span class="promotional-calendar-day">'+day+'</span>';
+    if(inside)html+=(dayEvents[day]||[]).map(function(ev){
+      return '<div class="delivery-calendar-event" data-step="'+safe(ev.step)+'" title="'+safe(ev.rota||'')+'">'+
+        '<strong>'+safe(ev.label)+'</strong>'+safe(ev.tipo||'')+'</div>';
+    }).join('');
+    html+='</div>';
+  }
+  grid.innerHTML=html;
+  if(!records.length){
+    list.innerHTML='<div class="empty">Nenhuma entrega identificada para a loja neste mês, conforme a versão consultada.</div>';
+    return;
+  }
+  list.innerHTML='<div class="delivery-calendar-list">'+records.map(function(r){
+    var values=[
+      ['Pedido',r.pedido],['Separação / faturamento',r.separacao],
+      ['Carregamento',r.carregamento],['Entrega prevista',r.entrega]
+    ];
+    return '<article class="delivery-calendar-item">'+
+      '<div class="delivery-calendar-item-head"><span>'+safe(r.tipo)+'</span></div>'+
+      '<div><div class="delivery-calendar-item-head">'+safe(r.rota||'Rota não informada')+'</div>'+
+      '<dl class="delivery-calendar-meta">'+values.map(function(entry){
+        return '<div><dt>'+safe(entry[0])+'</dt><dd>'+safe(conectaEntregaDataExibida_(entry[1]))+'</dd></div>';
+      }).join('')+'</dl></div></article>';
+  }).join('')+'</div>';
+}
 
 /* ============================================================
    V2: AVALIAÇÕES
