@@ -32,6 +32,7 @@ var CALENDAR_DATA=null;
 var CALENDAR_CURSOR=new Date();
 var CALENDAR_VIEW='operacional';
 var PRISMA_PROMO_MONTHS_CACHE={};
+var PRISMA_PROMO_REQUEST_SEQ=0;
 var DELIVERY_CALENDAR_CACHE={};
 var DELIVERY_SELECTED_STORE='';
 var DELIVERY_STORE_SCOPE=null;
@@ -122,6 +123,10 @@ function bindEvents(){
   };
   document.getElementById('promotionalTodayMonth').onclick=function(){
     CALENDAR_CURSOR=new Date();
+    loadPrismaPromoCalendar_();
+  };
+  document.getElementById('promotionalRetry').onclick=function(){
+    delete PRISMA_PROMO_MONTHS_CACHE[conectaPromoMonthRef_()];
     loadPrismaPromoCalendar_();
   };
   document.getElementById('deliveryPrevMonth').onclick=function(){
@@ -2795,23 +2800,32 @@ function conectaPromoMonthRef_(){
 function loadPrismaPromoCalendar_(){
   if(CALENDAR_VIEW!=='promocional')return;
   var month=conectaPromoMonthRef_();
+  var requestId=++PRISMA_PROMO_REQUEST_SEQ;
   var stamp=new Date(CALENDAR_CURSOR.getFullYear(),CALENDAR_CURSOR.getMonth(),1);
   document.getElementById('promotionalMonthTitle').textContent=
     stamp.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   var cached=PRISMA_PROMO_MONTHS_CACHE[month];
-  if(cached&&Date.now()-cached.stamp<900000){renderPrismaPromoMonth_(cached.data);return;}
+  if(cached&&cached.data&&cached.data.status==='ok'&&Date.now()-cached.stamp<900000){
+    renderPrismaPromoMonth_(cached.data);return;
+  }
   document.getElementById('promotionalCalendarStatus').textContent='Consultando o planejamento promocional do Prisma...';
   document.getElementById('promotionalCalendarGrid').innerHTML='';
   document.getElementById('promotionalFixed').hidden=true;
   var success=function(data){
     // Navegação rápida entre meses não pode deixar resposta antiga invadir mês atual.
-    if(conectaPromoMonthRef_()!==month)return;
-    PRISMA_PROMO_MONTHS_CACHE[month]={data:data||{},stamp:Date.now()};
-    renderPrismaPromoMonth_(data||{});
+    if(requestId!==PRISMA_PROMO_REQUEST_SEQ||CALENDAR_VIEW!=='promocional'||
+       conectaPromoMonthRef_()!==month)return;
+    // Não cachear erros: se o administrador corrigir a propriedade, a nova
+    // consulta pode funcionar imediatamente sem esperar 15 minutos.
+    if(data&&data.status==='ok')PRISMA_PROMO_MONTHS_CACHE[month]={data:data,stamp:Date.now()};
+    else delete PRISMA_PROMO_MONTHS_CACHE[month];
+    renderPrismaPromoMonth_(data||{month:month,status:'source_unavailable'});
   };
   var failure=function(){
-    if(conectaPromoMonthRef_()!==month)return;
-    renderPrismaPromoMonth_({status:'source_unavailable',month:month,promotions:[]});
+    if(requestId!==PRISMA_PROMO_REQUEST_SEQ||CALENDAR_VIEW!=='promocional'||
+       conectaPromoMonthRef_()!==month)return;
+    delete PRISMA_PROMO_MONTHS_CACHE[month];
+    renderPrismaPromoMonth_({status:'request_failed',month:month,promotions:[]});
   };
   var run=google.script.run.withSuccessHandler(success).withFailureHandler(failure);
   if(AUTH_MODE==='store')run.getStorePrismaPromotionalCalendar(STORE_ACCESS_TOKEN,month);
@@ -2863,7 +2877,10 @@ function renderPrismaPromoMonth_(data){
   if(data.status!=='ok'){
     var reasons={
       unconfigured:'Integração pendente: configure a fonte Prisma Growth nas propriedades privadas do Apps Script do Conecta.',
-      source_unavailable:'Fonte indisponível: o Conecta ainda não conseguiu acessar a planilha do Prisma. Verifique a permissão da conta de execução.',
+      source_unavailable:'Fonte indisponível: não foi possível acessar o planejamento do Prisma.',
+      source_open_failed:'Não foi possível abrir a planilha do Growth. Confira o ID configurado, as permissões da conta corporativa e a autorização do Google.',
+      source_read_failed:'A aba do Growth foi localizada, mas a leitura das campanhas e cores falhou. Confira a estrutura e o Registro de execução do Apps Script.',
+      request_failed:'A consulta ao servidor falhou. Tente novamente pelo botão Reconsultar.',
       month_unavailable:'Este mês não está disponível no planejamento promocional do Prisma.'
     };
     status.textContent=reasons[data.status]||'Não foi possível carregar as promoções deste mês.';

@@ -107,23 +107,31 @@ function conectaPromoWorkspace_(ref){
     var cached=cache.get(key);
     if(cached){var parsed=JSON.parse(cached);if(parsed&&parsed.status==='ok')return parsed;}
   }catch(ignoreCache){}
+  // Falhas distintas: sem revelar ID da planilha, credenciais ou exceções.
+  var sheet;
   try{
-    var spreadsheet=SpreadsheetApp.openById(sheetId);
-    var sheet=spreadsheet.getSheetByName(period.sheetName);
-    if(!sheet)return {status:'month_unavailable',month:period.ref,promotions:[],source:'Prisma Growth'};
-    var promotions=conectaPromoLerLinhas_(sheet,period);
-    var out={status:'ok',month:period.ref,promotions:promotions,
-      generatedAt:new Date().toISOString(),source:'Prisma Growth'};
-    try{
-      var serialized=JSON.stringify(out);
-      if(serialized.length<95000)cache.put(key,serialized,CONECTA_PROMO_CACHE_SECONDS_);
-    }catch(ignoreCacheWrite){}
-    return out;
-  }catch(e){
-    // Não vazar ID, contas, planilha ou erros de autorização ao navegador.
-    console.log('Calendário promocional: fonte não acessível à execução do Conecta.');
-    return {status:'source_unavailable',month:period.ref,promotions:[],source:'Prisma Growth'};
+    sheet=SpreadsheetApp.openById(sheetId).getSheetByName(period.sheetName);
+  }catch(openError){
+    console.log('Conecta Growth [BR-068]: não foi possível abrir a origem configurada.');
+    return {status:'source_open_failed',month:period.ref,promotions:[],source:'Prisma Growth'};
   }
+  if(!sheet){
+    return {status:'month_unavailable',month:period.ref,promotions:[],source:'Prisma Growth'};
+  }
+  var promotions;
+  try{
+    promotions=conectaPromoLerLinhas_(sheet,period);
+  }catch(readError){
+    console.log('Conecta Growth [BR-068]: falha ao ler linhas e cores do mês.');
+    return {status:'source_read_failed',month:period.ref,promotions:[],source:'Prisma Growth'};
+  }
+  var out={status:'ok',month:period.ref,promotions:promotions,
+    generatedAt:new Date().toISOString(),source:'Prisma Growth'};
+  try{
+    var serialized=JSON.stringify(out);
+    if(serialized.length<95000)cache.put(key,serialized,CONECTA_PROMO_CACHE_SECONDS_);
+  }catch(ignoreCacheWrite){}
+  return out;
 }
 function getPrismaPromotionalCalendar(month){
   var ctx=getCurrentAuthContext_();
@@ -134,4 +142,49 @@ function getStorePrismaPromotionalCalendar(accessToken,month){
   var ctx=getStoreAuthContext_(accessToken);
   if(!ctx||!ctx.user)throw new Error('Acesso não autorizado.');
   return conectaPromoWorkspace_(month);
+}
+
+
+/**
+ * BR-068 — Diagnóstico manual de autorização Growth.
+ * Uso no editor do Apps Script com conta corporativa e perfil ADM.
+ * Somente leitura; retorna categorias seguras, nunca ID/link/nomes de campanhas.
+ * O mês padrão é o mês corrente em America/Sao_Paulo.
+ */
+function validarAcessoPromocionalConecta() {
+  var auth=getCurrentAuthContext_();
+  if(!auth||!auth.user||roleOf_(auth.user)!=='admin'){
+    throw new Error('Teste disponível somente para administradores autenticados.');
+  }
+  var atual=Utilities.formatDate(new Date(),'America/Sao_Paulo','yyyy-MM');
+  var period=conectaPromoMes_(atual);
+  if(!period){
+    console.log('Conecta Growth: o mês atual não está disponível pelas regras do Prisma.');
+    return {ok:false,status:'month_unavailable',mes:atual};
+  }
+  var id=String(PropertiesService.getScriptProperties().getProperty(CONECTA_PROMO_PROPERTY_)||'').trim();
+  if(!id){
+    console.log('Conecta Growth: propriedade da fonte ainda não foi configurada.');
+    return {ok:false,status:'unconfigured',mes:atual};
+  }
+  var ss;
+  try{
+    ss=SpreadsheetApp.openById(id);
+  }catch(error){
+    console.log('Conecta Growth: não foi possível abrir a fonte. Verifique ID, conta de execução e consentimento OAuth.');
+    return {ok:false,status:'source_open_failed',mes:atual};
+  }
+  var sheet=ss.getSheetByName(period.sheetName);
+  if(!sheet){
+    console.log('Conecta Growth: a aba do mês atual não existe na fonte configurada.');
+    return {ok:false,status:'month_unavailable',mes:atual};
+  }
+  try{
+    var promotions=conectaPromoLerLinhas_(sheet,period);
+    console.log('Conecta Growth: leitura autorizada; mês e regras de cores processados com sucesso.');
+    return {ok:true,status:'ok',mes:atual,total:promotions.length};
+  }catch(error){
+    console.log('Conecta Growth: falha ao ler a aba; conferir estrutura C/D/E, dias em G+ e cores.');
+    return {ok:false,status:'source_read_failed',mes:atual};
+  }
 }
