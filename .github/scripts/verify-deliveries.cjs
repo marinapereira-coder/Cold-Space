@@ -125,6 +125,33 @@ data=context.getConectaDeliveryCalendar('2026-11','0006');
 assert.equal(data.status,'ok','Planilha base deve continuar legível');
 assert.equal(data.records[0].tipo,'CONGELADO');
 
+// BR-067 — diferenciar erro de abertura, aba ausente, formato inválido e leitura.
+const originalOpen=context.SpreadsheetApp.openById;
+cache.clear();
+context.SpreadsheetApp.openById=()=>{throw new Error('Google Drive not found or access denied: PRIVATE ID');};
+let problem=context.getConectaDeliveryCalendar('2026-11','0006');
+assert.equal(problem.status,'source_open_failed');
+assert.ok(!JSON.stringify(problem).includes('PRIVATE ID'),'Erro bruto não pode aparecer no cliente');
+cache.clear();
+context.SpreadsheetApp.openById=()=>({getSheetByName:()=>null});
+assert.equal(context.getConectaDeliveryCalendar('2026-11','0006').status,'source_tab_missing');
+cache.clear();
+context.SpreadsheetApp.openById=()=>({getSheetByName:()=>({
+ getLastRow:()=>5,
+ getRange(){return {getDisplayValues:()=>[Array(16).fill('CABEÇALHO INCORRETO')]};}
+})});
+assert.equal(context.getConectaDeliveryCalendar('2026-11','0006').status,'source_format_mismatch');
+cache.clear();
+context.SpreadsheetApp.openById=()=>({getSheetByName:()=>({
+ getLastRow:()=>5,
+ getRange(){throw new Error('Erro temporário na leitura privada');}
+})});
+problem=context.getConectaDeliveryCalendar('2026-11','0006');
+assert.equal(problem.status,'source_read_failed');
+assert.ok(!JSON.stringify(problem).includes('Erro temporário'),'Detalhe de exceção não pode ir à interface');
+context.SpreadsheetApp.openById=originalOpen;
+cache.clear();
+
 // Renderização fictícia: meses e dados de loja permanecem separados.
 const ids=['deliveryCalendarStatus','deliveryCalendarGrid','deliveryCalendarList',
  'deliveryStoreFilter','deliveryCalendarSource','deliveryMonthTitle'];
@@ -196,5 +223,23 @@ assert.ok(index.includes('id="deliveryStoreCount"'));
 assert.ok(scripts.includes("DELIVERY_STORE_SCOPE=null;"));
 assert.ok(styles.includes('#page-calendario #deliveryStoreSearch'));
 
+ui.APP_DATA={stores:[{id:'6',codigo:'6',nome:'LJ 0006'}]};
+ui.DELIVERY_STORE_SCOPE=null;
+for(const [status,fragment] of [
+ ['source_open_failed','Não foi possível abrir a planilha'],
+ ['source_tab_missing','A aba configurada não foi encontrada'],
+ ['source_format_mismatch','não corresponde à versão esperada'],
+ ['source_read_failed','a leitura dos registros falhou']
+]){
+ ui.renderConectaDeliveryCalendar_({month:'2026-11',status});
+ assert.ok(els.deliveryCalendarStatus.textContent.includes(fragment),
+   'Mensagem de diagnóstico ausente: '+status);
+ assert.ok(els.deliveryStoreFilter.innerHTML.includes('LJ 0006'),
+   'O erro não pode limpar as lojas autorizadas da sessão');
+ assert.equal(els.deliveryCalendarGrid.innerHTML,'',
+   'Não apresentar entregas sem fonte válida');
+}
+
 console.log('OK — BR-065: contraste, três calendários, 2 formatos da origem, escopo, cache, erros e renderização.');
+console.log('OK — BR-067: falhas distintas com mensagens seguras e manutenção de escopo.');
 console.log('OK — BR-066: lojas autorizadas no bootstrap, busca por código, falha sem esvaziar e no_access protegido.');
