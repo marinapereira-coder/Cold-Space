@@ -198,3 +198,58 @@ function getStoreConectaDeliveryCalendar(accessToken,month,storeCode) {
   if (!auth || !auth.user) throw new Error('Acesso não autorizado.');
   return conectaEntregaWorkspace_(auth.user,month,storeCode);
 }
+
+
+/**
+ * BR-067 — Teste manual, somente leitura, executável no editor do Apps Script.
+ * Executar como a conta corporativa responsável pelo projeto para conceder
+ * as permissões do Google quando solicitadas. A função não retorna IDs nem
+ * dados de lojas, e não altera nenhuma propriedade ou documento.
+ */
+function validarAcessoExpedicaoConecta() {
+  var auth=getCurrentAuthContext_();
+  if (!auth || !auth.user || roleOf_(auth.user)!=='admin') {
+    throw new Error('Este teste está disponível somente para administradores autenticados.');
+  }
+  var props=PropertiesService.getScriptProperties();
+  var id=String(props.getProperty(CONECTA_ENTREGA_SHEET_PROPERTY_)||'').trim();
+  var aba=String(props.getProperty(CONECTA_ENTREGA_TAB_PROPERTY_)||'').trim();
+  if (!id || !aba) {
+    console.log('Conecta Entregas: falta configurar ID ou aba ativa nas propriedades do script.');
+    return {status:'unconfigured',ok:false};
+  }
+  if (aba!=='CALENDÁRIO'&&!/^PRISMA_CE_[A-Za-z0-9_]+$/.test(aba)) {
+    console.log('Conecta Entregas: nome da aba ativa inválido.');
+    return {status:'source_unavailable',ok:false};
+  }
+  var planilha;
+  try {
+    planilha=SpreadsheetApp.openById(id);
+  } catch (err) {
+    console.log('Conecta Entregas: falha ao abrir a planilha. Confira conta autorizada, ID e consentimento OAuth.');
+    return {status:'source_open_failed',ok:false};
+  }
+  var sheet=planilha.getSheetByName(aba);
+  if (!sheet) {
+    console.log('Conecta Entregas: aba ativa não encontrada na origem.');
+    return {status:'source_tab_missing',ok:false};
+  }
+  try {
+    var normalizada=/^PRISMA_CE_[A-Za-z0-9_]+$/.test(aba);
+    var header=sheet.getRange(normalizada?1:4,1,1,normalizada?8:16)
+      .getDisplayValues()[0]||[];
+    var valido=normalizada
+      ? String(header[0]).trim()==='PEDIDO'&&String(header[7]).trim()==='ENTREGA'
+      : /tipologia/i.test(String(header[2]))&&/lojas/i.test(String(header[3]))&&
+        /DD\/MM\/AA/i.test(String(header[14]));
+    if (!valido) {
+      console.log('Conecta Entregas: cabeçalhos não correspondem ao calendário esperado.');
+      return {status:'source_format_mismatch',ok:false};
+    }
+  } catch (err) {
+    console.log('Conecta Entregas: falha na leitura da aba configurada.');
+    return {status:'source_read_failed',ok:false};
+  }
+  console.log('Conecta Entregas: leitura autorizada e formato da aba validado com sucesso.');
+  return {status:'ok',ok:true};
+}
