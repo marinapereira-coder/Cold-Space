@@ -3045,7 +3045,11 @@ function renderConectaDeliveryCalendar_(data){
       select_store:'Selecione uma loja acima para consultar o mês de recebimento.',
       no_access:'Seu perfil não possui lojas autorizadas para esta consulta.',
       unconfigured:'Integração pendente: a origem e a versão ativa do Prisma ainda precisam ser configuradas no Conecta.',
-      source_unavailable:'Fonte indisponível: não foi possível validar a versão ativa e o acesso de leitura ao espelho do Prisma.',
+      source_unavailable:'Fonte indisponível: o identificador da aba ativa configurada não é válido.',
+      source_open_failed:'Não foi possível abrir a planilha do Prisma. Confira o ID cadastrado e se a conta que implantou o Conecta possui acesso de leitura.',
+      source_tab_missing:'A aba configurada não foi encontrada na planilha do Prisma. Confira o nome exato da aba ativa.',
+      source_format_mismatch:'A estrutura da aba não corresponde à versão esperada do calendário de entregas. Confira a origem e a versão ativa.',
+      source_read_failed:'A planilha foi localizada, mas a leitura dos registros falhou. Verifique os detalhes em Execuções no Apps Script.',
       request_failed:'Não foi possível consultar o servidor agora. A lista de lojas da sua sessão continua disponível; os dados de entrega exigem consulta autorizada.'
     };
     status.textContent=reasons[data.status]||'Não foi possível consultar esta programação.';
