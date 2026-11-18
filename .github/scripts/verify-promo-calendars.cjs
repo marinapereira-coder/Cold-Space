@@ -65,6 +65,8 @@ const sheet={
 let accesses=0;
 const env={
  Date,console:{log(){}},
+ Utilities:{formatDate:()=> '2026-11'},
+ roleOf_:user=>user.role,
  PropertiesService:{getScriptProperties:()=>({getProperty:()=>property.id})},
  CacheService:{getScriptCache:()=>({get(k){return cache.get(k)||null},put(k,v){cache.set(k,v)}})},
  SpreadsheetApp:{openById(id){assert.equal(id,'SOURCE_ID_FAKE');accesses++;return{
@@ -97,10 +99,41 @@ assert.throws(()=>ctx.getPrismaPromotionalCalendar('invalid'),/inválido/);
 property.id='';
 assert.equal(ctx.getPrismaPromotionalCalendar('2026-12').status,'unconfigured');
 property.id='NOT_AUTHORIZED';
+const originalOpen=env.SpreadsheetApp.openById;
 env.SpreadsheetApp.openById=()=>{throw Error('Cannot access private sheet');};
 const fail=ctx.getPrismaPromotionalCalendar('2027-01');
-assert.equal(fail.status,'source_unavailable');
+assert.equal(fail.status,'source_open_failed');
 assert.ok(!JSON.stringify(fail).includes('NOT_AUTHORIZED'),'Não vazar configuração privada');
+
+
+// BR-068 — Validação manual do administrador corporativo, sem divulgar IDs.
+let check=ctx.validarAcessoPromocionalConecta();
+assert.equal(check.status,'source_open_failed');
+assert.equal(check.ok,false);
+assert.ok(!JSON.stringify(check).includes('NOT_AUTHORIZED'));
+property.id='';
+check=ctx.validarAcessoPromocionalConecta();
+assert.equal(check.status,'unconfigured');
+property.id='SOURCE_ID_FAKE';
+env.SpreadsheetApp.openById=originalOpen;
+check=ctx.validarAcessoPromocionalConecta();
+assert.equal(check.status,'ok');
+assert.equal(check.mes,'2026-11');
+assert.equal(check.total,2);
+const originalAuth=env.getCurrentAuthContext_;
+env.getCurrentAuthContext_=()=>({user:{role:'loja'}});
+assert.throws(()=>ctx.validarAcessoPromocionalConecta(),
+ /administradores autenticados/,'Teste de configuração deve exigir ADM');
+env.getCurrentAuthContext_=originalAuth;
+env.SpreadsheetApp.openById=()=>({getSheetByName:()=>null});
+assert.equal(ctx.validarAcessoPromocionalConecta().status,'month_unavailable');
+env.SpreadsheetApp.openById=()=>({getSheetByName:()=>({
+ getLastRow(){throw Error('Sensitive raw spreadsheet details');}
+})});
+check=ctx.validarAcessoPromocionalConecta();
+assert.equal(check.status,'source_read_failed');
+assert.ok(!JSON.stringify(check).includes('Sensitive'));
+env.SpreadsheetApp.openById=originalOpen;
 
 // Teste frontend sem acesso real: períodos consecutivos agrupados, dois inícios separados.
 const a=scripts.indexOf('function selectConectaCalendarView_('),
@@ -112,6 +145,7 @@ const elements={};
 elements.promotionalMonthTitle.textContent='novembro de 2026';
 const ui=vm.createContext({
  CALENDAR_CURSOR:new Date(2026,10,1),CALENDAR_VIEW:'promocional',
+ PRISMA_PROMO_REQUEST_SEQ:0,PRISMA_PROMO_MONTHS_CACHE:{},AUTH_MODE:'corporate',
  document:{getElementById(id){return elements[id]||null}},
  safe:s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
    .replace(/>/g,'&gt;').replace(/"/g,'&quot;'),
@@ -132,4 +166,31 @@ ui.renderPrismaPromoMonth_({month:'2026-11',status:'unconfigured',promotions:[]}
 assert.ok(elements.promotionalCalendarStatus.textContent.includes('Integração pendente'),
  'Integração sem acesso NÃO pode aparentar zero promoções');
 assert.equal(elements.promotionalCalendarGrid.innerHTML,'');
+
+assert.ok(index.includes('id="promotionalRetry"'));
+assert.ok(backend.includes('function validarAcessoPromocionalConecta()'));
+assert.ok(scripts.includes("if(data&&data.status==='ok')PRISMA_PROMO_MONTHS_CACHE[month]"));
+assert.ok(scripts.includes("delete PRISMA_PROMO_MONTHS_CACHE[month]"));
+let failures=0;
+ui.google={script:{run:{
+ withSuccessHandler(success){
+   return {withFailureHandler(){
+     return {getPrismaPromotionalCalendar(){
+       failures++;
+       success({status:'unconfigured',month:'2026-11',promotions:[]});
+     }};
+   }};
+ }
+}}};
+ui.loadPrismaPromoCalendar_();
+ui.loadPrismaPromoCalendar_();
+assert.equal(failures,2,'Após corrigir propriedade, falha anterior não pode ficar no cache local');
+assert.ok(elements.promotionalCalendarStatus.textContent.includes('Integração pendente'));
+ui.renderPrismaPromoMonth_({month:'2026-11',status:'source_open_failed',promotions:[]});
+assert.ok(elements.promotionalCalendarStatus.textContent.includes('Não foi possível abrir'));
+ui.renderPrismaPromoMonth_({month:'2026-11',status:'source_read_failed',promotions:[]});
+assert.ok(elements.promotionalCalendarStatus.textContent.includes('A aba do Growth foi localizada'));
+assert.ok(!/getProperty\(.*\)\s*=>.*SOURCE_ID_FAKE/.test(backend));
+console.log('OK — BR-068: sem cache de falhas, reconsulta e teste autenticado de origem Growth.');
+
 console.log('OK — BR-064: calendários separados, fonte autorizada, cache, promoções ativas, canceladas, escondidas e estado sem conexão.');
