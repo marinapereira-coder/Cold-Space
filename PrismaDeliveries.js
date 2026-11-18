@@ -158,19 +158,33 @@ function conectaEntregaWorkspace_(user, month, requestedCode) {
         {status:'ok',sourceVersion:tab,records:records});
     }
   } catch (ignoreCache) {}
+  // Diagnóstico limitado a categorias públicas de falha.
+  // Não devolver IDs privados, credenciais nem mensagens internas do Google.
+  var sheet;
   try {
-    var sheet=SpreadsheetApp.openById(sheetId).getSheetByName(tab);
-    if (!sheet) return Object.assign(base,{status:'source_unavailable'});
-    var records=conectaEntregaLerPlanilha_(sheet,ref,code,tab);
-    try {
-      var serialized=JSON.stringify(records);
-      if (serialized.length<95000)cache.put(key,serialized,CONECTA_ENTREGA_TTL_SECONDS_);
-    } catch (ignoreCacheWrite) {}
-    return Object.assign(base,{status:'ok',sourceVersion:tab,records:records});
-  } catch (err) {
-    console.log('Conecta Entregas: não foi possível consultar a versão configurada do Prisma.');
-    return Object.assign(base,{status:'source_unavailable'});
+    var spreadsheet=SpreadsheetApp.openById(sheetId);
+    sheet=spreadsheet.getSheetByName(tab);
+  } catch (openError) {
+    console.log('Conecta Entregas [BR-067]: falha ao abrir origem configurada.');
+    return Object.assign(base,{status:'source_open_failed'});
   }
+  if (!sheet) return Object.assign(base,{status:'source_tab_missing'});
+
+  var records;
+  try {
+    records=conectaEntregaLerPlanilha_(sheet,ref,code,tab);
+  } catch (readError) {
+    var message=String(readError && readError.message || '');
+    var invalidFormat=/^O formato (normalizado|do calendário-base) foi alterado\./.test(message);
+    console.log('Conecta Entregas [BR-067]: falha de leitura ('+
+      (invalidFormat?'formato':'outra')+').');
+    return Object.assign(base,{status:invalidFormat?'source_format_mismatch':'source_read_failed'});
+  }
+  try {
+    var serialized=JSON.stringify(records);
+    if (serialized.length<95000)cache.put(key,serialized,CONECTA_ENTREGA_TTL_SECONDS_);
+  } catch (ignoreCacheWrite) {}
+  return Object.assign(base,{status:'ok',sourceVersion:tab,records:records});
 }
 
 function getConectaDeliveryCalendar(month,storeCode) {
