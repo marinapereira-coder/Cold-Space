@@ -3949,4 +3949,47 @@ body.dark-mode .app-shell #noticeList .announcement h4{font-size:13px}
 @media(prefers-reduced-motion:reduce){
   .app-shell .sidebar{transition:none}
 }
+
+/* Densidade da navegação e da Minha Área. */
+.app-shell .sidebar{padding:14px 10px}
+.app-shell .sidebar .brand{margin-bottom:8px;padding:0 6px 10px}
+.app-shell .sidebar .brand h1{font-size:15px}
+.app-shell .sidebar .brand small{font-size:10px;letter-spacing:.06em}
+.app-shell .sidebar .menu-label{margin:10px 7px 4px;font-size:10px;letter-spacing:.06em}
+.app-shell .sidebar .nav-btn,
+.app-shell .sidebar .conecta-nav-fold-toggle{
+  min-height:32px;padding:5px 8px;gap:8px;
+  font-size:12px;font-weight:500;line-height:1.35;border-radius:7px;
+}
+.app-shell .sidebar .nav-btn.active{box-shadow:none}
+.app-shell .sidebar .conecta-nav-fold{margin:3px 0}
+.app-shell .sidebar .conecta-nav-fold-content{
+  gap:1px;margin:2px 0 4px 8px;padding-left:8px;
+}
+.app-shell .sidebar .nav-icon{width:15px;height:15px;flex-basis:15px}
+.app-shell .sidebar .user-card{margin:12px 0 0;padding:8px 10px}
+.app-shell .sidebar .user-card strong,.app-shell .sidebar .user-card span{font-size:11px}
+.app-shell .sidebar .user-card span{margin-top:2px}
+
+.app-shell .content:has(#page-home.active){padding-top:18px}
+.app-shell #page-home .hero{padding:12px 16px;border-radius:12px}
+.app-shell #page-home .hero h2{font-size:16px;font-weight:600;margin:3px 0 2px}
+.app-shell #page-home .hero p{margin:0;font-size:12px;line-height:1.4}
+.app-shell #page-home .eyebrow,.app-shell #page-home .task-type{font-size:10px;letter-spacing:.05em}
+.app-shell #homeSummary{margin:10px 0 14px;padding:0 12px;border-radius:12px}
+.app-shell #homeSummary .summary-item{padding-block:8px}
+.app-shell #homeSummary .summary-number{font:600 15px/1.25 var(--conecta-ui-font)}
+.app-shell #homeSummary .summary-text{font-size:11px}
+.app-shell #page-home .section{padding:12px 16px;margin-bottom:12px;border-radius:12px}
+.app-shell #page-home .section .section-head{margin-bottom:8px;gap:8px}
+.app-shell #page-home .section .section-head h3{margin:3px 0;font-size:13px;font-weight:600}
+.app-shell #page-home .section .section-head p{margin:0;font-size:12px;line-height:1.4}
+.app-shell #page-home .section #taskList .task{min-height:0;padding-block:9px;gap:10px}
+.app-shell #page-home .section #taskList .task h4{margin:3px 0;font-size:12px;font-weight:500}
+.app-shell #page-home .section #taskList .task p{margin:0;font-size:12px;line-height:1.45}
+.app-shell #page-home .task-meta strong,.app-shell #page-home .task-meta span{font-size:11px}
+.app-shell #page-home .section .task .btn{padding:6px 10px;font-size:11px;min-height:32px}
+@media(max-width:760px){
+  .app-shell .sidebar .nav-btn,.app-shell .sidebar .conecta-nav-fold-toggle{min-height:38px}
+}
 </style>
