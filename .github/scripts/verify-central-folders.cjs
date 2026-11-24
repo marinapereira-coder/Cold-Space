@@ -22,7 +22,7 @@ const context=vm.createContext({URL,safe(value){
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }});
 new vm.Script(scripts.slice(start,stop),{filename:'CentralOperations.js'}).runInContext(context);
-assert.equal(context.CENTRAL_LINKS_CATALOG.length,94,'O catálogo original de 94 links deve continuar intacto');
+assert.equal(context.CENTRAL_LINKS_CATALOG.length,96,'A Central reúne os 94 links originais e os dois novos aplicativos');
 
 for(const id of ['centralSearchForm','centralSearch','centralSearchClear','centralSearchFeedback',
  'centralDepartmentGrid','centralLinksArea','centralLinksList','centralMainSections',
@@ -40,7 +40,7 @@ assert.ok(index.includes('<strong>Corriere</strong><span>Link oficial a confirma
 assert.ok(!index.includes('1xiEt-7unlR0Ne322BHZcaUzGzBBMe424'),
  'Não incluir documento corporativo privado no código público');
 assert.equal((index.match(/data-central-department="/g)||[]).length,8);
-assert.equal((index.match(/data-central-quick="/g)||[]).length,4,'Quatro atalhos existentes precisam permanecer');
+assert.equal((index.match(/data-central-quick="/g)||[]).length,6,'Quatro atalhos originais e dois novos aplicativos');
 
 const base=context.CENTRAL_LINKS_CATALOG.find(x=>x.name==='Base Lojas');
 assert.ok(base&&base.department==='operacoes','Base Lojas original ausente');
@@ -91,7 +91,9 @@ assert.equal(clear.hidden,false);
 assert.equal(classFlags.get('central-is-searching'),true);
 assert.ok(list.innerHTML.includes('Base Lojas'),'Resultado Base Lojas deve aparecer imediatamente');
 assert.ok(!list.innerHTML.includes('Budget x Tendência'),'A busca não pode exibir links irrelevantes');
-assert.ok(feedback.textContent.includes('resultado encontrado'));
+assert.ok(feedback.textContent.includes('2 resultados encontrados'));
+assert.ok(list.innerHTML.includes('Base Lojas — aplicativo'));
+assert.ok(context.CENTRAL_LINKS_CATALOG.some(item=>item.name==='Vendas'&&item.url.endsWith('/exec#hp')&&item.department==='operacoes'));
 
 // Termos com acentos e ordem alternativa.
 input.value='lojas base';context.renderCentralLinks_();
@@ -125,4 +127,4 @@ context.CENTRAL_BROWSE_ALL=false;context.renderCentralLinks_();
 assert.equal(results.hidden,true);
 assert.ok(rules.includes('BR-062'),'Banco de Regras deve documentar a pesquisa e as pastas');
 assert.ok(styles.includes('.central-search-home')&&styles.includes('.central-main-sections.central-is-searching'));
-console.log('OK — Central: catálogo de 94 links, pesquisa visível, acentos, pastas e atalhos preservados.');
+console.log('OK — Central: catálogo de 96 links, pesquisa visível, acentos, pastas e atalhos preservados.');
