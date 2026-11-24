@@ -2019,7 +2019,10 @@ function buildEvaluationWorkspaceV2_(
   var visibleIds = {};
   var storeMap = {};
 
-  visibleStores.filter(function(s){return !isConectaTestStoreId_(s.id);}).forEach(
+  var includeTestHistory = roleOf_(user) === 'admin';
+  visibleStores.filter(function (store) {
+    return includeTestHistory || !isConectaTestStoreId_(store.id);
+  }).forEach(
     function (s) {
 
       visibleIds[
