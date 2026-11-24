@@ -366,12 +366,17 @@
           <button
             id="mobileMenuBtn"
             class="icon-btn mobile-menu"
-            aria-label="Abrir menu">
-
-            ☰
+            type="button"
+            aria-controls="sidebar"
+            aria-expanded="true"
+            aria-label="Recolher menu lateral"
+            title="Recolher menu lateral">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14"/></svg>
 
           </button>
 
+
+          <strong id="topName"></strong>
 
           <div
             id="topbarTitle"
@@ -391,6 +396,10 @@
             class="weather">
           </span>
 
+
+          <button id="topChatBtn" class="icon-btn topbar-chat-btn" type="button" aria-label="Abrir chat" title="Abrir chat" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 11h8 M8 14h5"/></svg>
+          </button>
 
           <button
             id="notificationButton"
@@ -431,7 +440,6 @@
           </button>
 
           <button id="switchProfileLoginBtn" class="btn soft" type="button" style="font-size:11px" onclick="switchProfileLogin()">Testar outro perfil</button>
-          <strong id="topName"></strong>
 
         </div>
 

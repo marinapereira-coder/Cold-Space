@@ -3860,4 +3860,82 @@ body.dark-mode #page-calendario #deliveryStoreSearch{
 }
 body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
 #page-calendario #deliveryStoreCount{font-weight:600}
+
+/* Tipografia e navegação do Conecta. */
+.app-shell{
+  --conecta-sidebar-width:218px;
+  --conecta-topbar-height:56px;
+  --conecta-ui-font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-family:var(--conecta-ui-font);
+  font-size:13px;
+  line-height:1.5;
+}
+.app-shell .sidebar{width:var(--conecta-sidebar-width);padding:20px 12px}
+.app-shell .main{margin-left:var(--conecta-sidebar-width)}
+.app-shell .brand{margin-bottom:12px;padding-bottom:14px}
+.app-shell .brand h1{font-size:21px;line-height:1.2}
+.app-shell .brand small,.app-shell .menu-label{font-size:11px;letter-spacing:.8px}
+.app-shell .nav-btn,.app-shell .conecta-nav-fold-toggle{font-size:13px;min-height:38px;padding-block:7px}
+.app-shell .nav-btn .nav-icon{width:17px;height:17px;flex-basis:17px}
+.app-shell .topbar{height:var(--conecta-topbar-height);padding-inline:20px;gap:12px}
+.app-shell .topbar-left,.app-shell .topbar-right{gap:9px;min-width:0}
+.app-shell .topbar-right{flex-shrink:0}
+.app-shell .topbar-title,.app-shell .topbar #topName{
+  font-family:var(--conecta-ui-font);
+  font-size:13px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.app-shell .topbar #topName{max-width:100px;flex-shrink:0}
+.app-shell .topbar #mobileMenuBtn,
+.app-shell .topbar .topbar-chat-btn:not([hidden]){
+  display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;padding:0;
+}
+.app-shell .topbar #mobileMenuBtn svg,.app-shell .topbar .topbar-chat-btn svg{
+  width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.65;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.app-shell .topbar .topbar-chat-btn[aria-current="page"]{box-shadow:inset 0 0 0 1px currentColor}
+.app-shell .topbar .notification-btn{width:36px;height:36px}
+.app-shell .topbar .notification-panel{top:calc(var(--conecta-topbar-height) + 8px)}
+.app-shell .content .page-title,.app-shell #page-home .hero h2,
+.app-shell .section-head h3,.app-shell #page-home .section .section-head h3,
+.app-shell #page-central .central-search-home .page-title{
+  font-family:var(--conecta-ui-font);font-weight:650;letter-spacing:-.025em;line-height:1.25;
+}
+.app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:24px}
+.app-shell #page-home .hero h2{font-size:clamp(23px,2.8vw,28px)}
+.app-shell .section-head h3,.app-shell #page-home .section .section-head h3{font-size:19px}
+.app-shell .campaign-card h4{font-size:18px}
+.app-shell .kpi strong,.app-shell #homeSummary .summary-number{font-size:23px}
+.app-shell #responseKpis .kpi strong{font-size:23px}
+.app-shell .bc-sched h2,.app-shell .bc-sched h3{font-family:var(--conecta-ui-font);font-weight:650}
+.app-shell .bc-sched h2{font-size:22px}
+.app-shell .bc-sched h3{font-size:17px}
+.app-shell .subtitle,.app-shell .section-head p,.app-shell #page-home .hero p,
+.app-shell #page-home .section .task p,.app-shell .announcement p{font-size:13px}
+.app-shell .eyebrow{font-size:11px;letter-spacing:.09em}
+@media(min-width:761px){
+  .app-shell.sidebar-collapsed .sidebar{display:none}
+  .app-shell.sidebar-collapsed .main{margin-left:0}
+}
+@media(max-width:760px){
+  .app-shell .main{margin-left:0}
+  .app-shell .sidebar{top:var(--conecta-topbar-height);visibility:hidden;width:min(246px,86vw)}
+  .app-shell .sidebar.open{visibility:visible}
+  .app-shell .topbar{padding-inline:12px}
+  .app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:22px}
+}
+@media(max-width:520px){
+  .app-shell .topbar{padding-inline:8px;gap:5px}
+  .app-shell .topbar-left,.app-shell .topbar-right{gap:5px}
+  .app-shell .topbar-title{display:none}
+  .app-shell .topbar #topName{max-width:64px;font-size:12px}
+  .app-shell .topbar #switchProfileLoginBtn{padding-inline:6px;white-space:normal;max-width:66px}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .sidebar{transition:none}
+}
 </style>
