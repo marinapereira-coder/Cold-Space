@@ -3867,22 +3867,22 @@ body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
   --conecta-topbar-height:56px;
   --conecta-ui-font:system-ui,-apple-system,"Segoe UI",sans-serif;
   font-family:var(--conecta-ui-font);
-  font-size:13px;
+  font-size:12px;
   line-height:1.5;
 }
 .app-shell .sidebar{width:var(--conecta-sidebar-width);padding:20px 12px}
 .app-shell .main{margin-left:var(--conecta-sidebar-width)}
 .app-shell .brand{margin-bottom:12px;padding-bottom:14px}
-.app-shell .brand h1{font-size:21px;line-height:1.2}
+.app-shell .brand h1{font-family:var(--conecta-ui-font);font-size:17px;line-height:1.25;font-weight:650}
 .app-shell .brand small,.app-shell .menu-label{font-size:11px;letter-spacing:.8px}
-.app-shell .nav-btn,.app-shell .conecta-nav-fold-toggle{font-size:13px;min-height:38px;padding-block:7px}
+.app-shell .nav-btn,.app-shell .conecta-nav-fold-toggle{font-size:12px;min-height:36px;padding-block:7px}
 .app-shell .nav-btn .nav-icon{width:17px;height:17px;flex-basis:17px}
 .app-shell .topbar{height:var(--conecta-topbar-height);padding-inline:20px;gap:12px}
 .app-shell .topbar-left,.app-shell .topbar-right{gap:9px;min-width:0}
 .app-shell .topbar-right{flex-shrink:0}
 .app-shell .topbar-title,.app-shell .topbar #topName{
   font-family:var(--conecta-ui-font);
-  font-size:13px;
+  font-size:12px;
   font-weight:600;
   white-space:nowrap;
   overflow:hidden;
@@ -3905,17 +3905,24 @@ body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
 .app-shell #page-central .central-search-home .page-title{
   font-family:var(--conecta-ui-font);font-weight:650;letter-spacing:-.025em;line-height:1.25;
 }
-.app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:24px}
-.app-shell #page-home .hero h2{font-size:clamp(23px,2.8vw,28px)}
-.app-shell .section-head h3,.app-shell #page-home .section .section-head h3{font-size:19px}
-.app-shell .campaign-card h4{font-size:18px}
-.app-shell .kpi strong,.app-shell #homeSummary .summary-number{font-size:23px}
-.app-shell #responseKpis .kpi strong{font-size:23px}
+.app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:20px}
+.app-shell #page-home .hero h2{font-size:20px}
+.app-shell .section-head h3,.app-shell #page-home .section .section-head h3{font-size:16px}
+.app-shell .campaign-card h4{font-size:15px}
+.app-shell .kpi strong,.app-shell #homeSummary .summary-number{font-size:20px}
+.app-shell #responseKpis .kpi strong{font-size:20px}
 .app-shell .bc-sched h2,.app-shell .bc-sched h3{font-family:var(--conecta-ui-font);font-weight:650}
-.app-shell .bc-sched h2{font-size:22px}
-.app-shell .bc-sched h3{font-size:17px}
+.app-shell .bc-sched h2{font-size:19px}
+.app-shell .bc-sched h3{font-size:15px}
 .app-shell .subtitle,.app-shell .section-head p,.app-shell #page-home .hero p,
-.app-shell #page-home .section .task p,.app-shell .announcement p{font-size:13px}
+.app-shell #page-home .section .task p,.app-shell .announcement p,
+.app-shell .table .row,.app-shell .weather,
+.app-shell .topbar .theme-toggle{font-size:12px}
+.app-shell #page-home .section .task h4,.app-shell .announcement h4{font-size:13px}
+body.dark-mode .app-shell #noticeList .announcement p,
+body.dark-mode .app-shell #noticeList .announcement .muted,
+body.dark-mode .app-shell .bacio-comunicado-text{font-size:12px}
+body.dark-mode .app-shell #noticeList .announcement h4{font-size:13px}
 .app-shell .eyebrow{font-size:11px;letter-spacing:.09em}
 @media(min-width:761px){
   .app-shell.sidebar-collapsed .sidebar{display:none}
@@ -3926,7 +3933,7 @@ body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
   .app-shell .sidebar{top:var(--conecta-topbar-height);visibility:hidden;width:min(246px,86vw)}
   .app-shell .sidebar.open{visibility:visible}
   .app-shell .topbar{padding-inline:12px}
-  .app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:22px}
+  .app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:18px}
 }
 @media(max-width:520px){
   .app-shell .topbar{padding-inline:8px;gap:5px}
