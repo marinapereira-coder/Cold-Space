@@ -2443,7 +2443,8 @@ body:not(.dark-mode) .app-shell .main{background-color:#fdfcf9}
 .app-shell #page-home .section .section-head{margin-bottom:17px}
 .app-shell #page-home .section .task-list{border-color:var(--line)}
 .app-shell #page-home .section .task{min-height:84px}
-.app-shell #page-home .section .task h4,.app-shell .announcement h4{font-size:13px}
+.app-shell #page-home .section .task h4{font-size:12px;font-weight:600}
+.app-shell .announcement h4{font-size:13px}
 .app-shell #page-home .section .task p,.app-shell .announcement p{font-size:13px;line-height:1.5}
 .app-shell .campaign-card{border-radius:17px;min-height:200px;transition:box-shadow .18s ease,transform .18s ease}
 .app-shell .campaign-card:hover{transform:translateY(-2px);box-shadow:0 18px 32px rgba(83,45,29,.16)}
@@ -3877,6 +3878,8 @@ body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
 .app-shell .brand small,.app-shell .menu-label{font-size:11px;letter-spacing:.8px}
 .app-shell .nav-btn,.app-shell .conecta-nav-fold-toggle{font-size:12px;min-height:36px;padding-block:7px}
 .app-shell .nav-btn .nav-icon{width:17px;height:17px;flex-basis:17px}
+/* O atalho no topo usa este item para herdar a visibilidade por perfil. */
+.app-shell .sidebar .nav-btn[data-page="chat"]{display:none}
 .app-shell .topbar{height:var(--conecta-topbar-height);padding-inline:20px;gap:12px}
 .app-shell .topbar-left,.app-shell .topbar-right{gap:9px;min-width:0}
 .app-shell .topbar-right{flex-shrink:0}
@@ -3906,8 +3909,9 @@ body.dark-mode #page-calendario #deliveryStoreSearch::placeholder{color:#dbc5b3}
   font-family:var(--conecta-ui-font);font-weight:650;letter-spacing:-.025em;line-height:1.25;
 }
 .app-shell .content .page-title,.app-shell #page-central .central-search-home .page-title{font-size:20px}
-.app-shell #page-home .hero h2{font-size:20px}
-.app-shell .section-head h3,.app-shell #page-home .section .section-head h3{font-size:16px}
+.app-shell #page-home .hero h2{font-size:18px;margin-block:5px}
+.app-shell .section-head h3{font-size:16px}
+.app-shell #page-home .section .section-head h3{font-size:14px}
 .app-shell .campaign-card h4{font-size:15px}
 .app-shell .kpi strong,.app-shell #homeSummary .summary-number{font-size:20px}
 .app-shell #responseKpis .kpi strong{font-size:20px}
