@@ -721,7 +721,8 @@ const evalBuilderStart=modern.indexOf('function buildEvaluationWorkspaceV2_(');
 const evalBuilderStop=modern.indexOf('function mapEvaluationRowV2_(',evalBuilderStart);
 const mapStop=modern.indexOf('function evaluationTitleV2_(',evalBuilderStop);
 const metricsCtx=vm.createContext({
- getVisibleStores_:()=>[{id:'loja1',nome:'LJ 0006'}],
+ getVisibleStores_:()=>[{id:'loja1',nome:'LJ 0006'},{id:'TESTE_CONECTA',nome:'Homologação'}],
+ roleOf_:user=>user.role,
  isConectaTestStoreId_:id=>String(id)==='TESTE_CONECTA',
  storeLabelV2_:store=>store.nome||'Loja',
  table_:(_name,fallback)=>fallback,
@@ -729,7 +730,8 @@ const metricsCtx=vm.createContext({
   if(url.includes('bacio_demandas'))return [{id:'d1',titulo:'Crema',ativa:true}];
   if(url.includes('bacio_avaliacoes'))return [
    {id:'a1',resposta_id:'r1',demanda_id:'d1',loja_id:'loja1',estrelas:5,status:'aprovada',sla_cumprido:true},
-   {id:'a2',resposta_id:'r2',demanda_id:'d1',loja_id:'loja1',estrelas:null,status:'ajuste_necessario',sla_cumprido:true}
+   {id:'a2',resposta_id:'r2',demanda_id:'d1',loja_id:'loja1',estrelas:null,status:'ajuste_necessario',sla_cumprido:true},
+   {id:'a3',resposta_id:'r3',demanda_id:'d1',loja_id:'TESTE_CONECTA',estrelas:1,status:'aprovada',sla_cumprido:false}
   ];
   return [];
  }
@@ -738,6 +740,11 @@ vm.runInContext(modern.slice(evalBuilderStart,mapStop),metricsCtx);
 vm.runInContext(modern.slice(modern.indexOf('function roundOneV2_('),
  modern.indexOf('/* ======================================================================\n * CALENDÁRIO',modern.indexOf('function roundOneV2_('))),metricsCtx);
 const m=metricsCtx.buildEvaluationWorkspaceV2_({role:'admin'});
+assert.equal(m.items.length,3,'O histórico ADM inclui a avaliação de homologação');
+assert.equal(m.items[2].storeId,'TESTE_CONECTA');
+assert.equal(m.stores.length,1,'O desempenho por loja exclui homologação');
+assert.equal(m.summary.approved,1,'Aprovações de homologação ficam fora dos indicadores');
+assert.equal(metricsCtx.buildEvaluationWorkspaceV2_({role:'consultor'}).items.length,2);
 assert.equal(m.summary.total,2,'Ajustes continuam no total de avaliações');
 assert.equal(m.summary.avgStars,5,'Uma devolução sem nota não reduz a média');
 assert.equal(m.stores[0].avgStars,5,'Média por loja considera só notas preenchidas');
