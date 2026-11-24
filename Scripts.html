@@ -83,7 +83,8 @@ function bindEvents(){
     var nav=e.target.closest('[data-page]');if(nav){showPage(nav.getAttribute('data-page'));}
     var close=e.target.closest('[data-close]');if(close){closeModal(close.getAttribute('data-close'));}
   });
-  document.getElementById('mobileMenuBtn').onclick=function(){document.getElementById('sidebar').classList.toggle('open');};
+  initSidebarToggle_();
+  document.getElementById('topChatBtn').onclick=function(){showPage('chat');};
   document.getElementById('themeToggle').onclick=toggleTheme;
   document.getElementById('notificationButton').onclick=function(e){e.stopPropagation();toggleNotificationPanel();};
   document.getElementById('notificationPanel').onclick=function(e){e.stopPropagation();};
@@ -331,7 +332,10 @@ function showPage(page){
   expandNavigationFoldForPage_(page);
   var titles={home:'Bacio Conecta',agenda:'Agenda',cronograma:'Cronograma de demandas',calendario:'Calendário',campanhas:'Central de Solicitações',comunicados:'Comunicados',central:'Central de Operações',chat:'Chat',respostas:'Respostas das Lojas',avaliacoes:'Avaliações',relatorios:'Relatórios',lojas:'Lojas & Estrutura',acessos:'Usuários & Acessos'};
   document.getElementById('topbarTitle').textContent=titles[page]||'Bacio Conecta';
-  document.getElementById('sidebar').classList.remove('open');closeNotificationPanel();
+  closeMobileSidebar_();
+  if(page==='chat')document.getElementById('topChatBtn').setAttribute('aria-current','page');
+  else document.getElementById('topChatBtn').removeAttribute('aria-current');
+  closeNotificationPanel();
   if(page==='respostas'&&CURRENT_ROLE!=='loja'&&!RESPONSES_DATA)loadResponses();if(page==='respostas')renderTestResponses();
   if(page==='avaliacoes'&&!EVALUATION_DATA)loadEvaluations();
   if(page==='relatorios'){if(!REPORTS_DATA)loadReports();else renderReports();}
@@ -359,6 +363,48 @@ function renderHome(){
   renderStoreHomeRating_();
 }
 /* Submenus apenas visuais: mantêm os mesmos botões, data-page e permissões. */
+var sidebarMobileQuery_;
+
+function initSidebarToggle_(){
+ sidebarMobileQuery_=window.matchMedia('(max-width: 760px)');
+ var button=document.getElementById('mobileMenuBtn');
+ var sidebar=document.getElementById('sidebar');
+ var app=document.getElementById('app');
+ button.onclick=function(){
+  if(sidebarMobileQuery_.matches)sidebar.classList.toggle('open');
+  else app.classList.toggle('sidebar-collapsed');
+  syncSidebarToggle_();
+ };
+ sidebarMobileQuery_.addEventListener('change',closeMobileSidebar_);
+ document.addEventListener('keydown',function(event){
+  if(event.key==='Escape'&&sidebar.classList.contains('open')){
+   closeMobileSidebar_();
+   button.focus();
+  }
+ });
+ syncSidebarToggle_();
+}
+
+function closeMobileSidebar_(){
+ var sidebar=document.getElementById('sidebar');
+ if(sidebar.classList.contains('open')&&sidebar.contains(document.activeElement)){
+  document.getElementById('mobileMenuBtn').focus();
+ }
+ sidebar.classList.remove('open');
+ syncSidebarToggle_();
+}
+
+function syncSidebarToggle_(){
+ var sidebar=document.getElementById('sidebar');
+ var button=document.getElementById('mobileMenuBtn');
+ var expanded=sidebarMobileQuery_.matches?sidebar.classList.contains('open'):
+  !document.getElementById('app').classList.contains('sidebar-collapsed');
+ var label=expanded?'Recolher menu lateral':'Expandir menu lateral';
+ button.setAttribute('aria-expanded',String(expanded));
+ button.setAttribute('aria-label',label);
+ button.title=label;
+}
+
 function initNavigationGroups_(){
  var sidebar=document.getElementById('sidebar');
  if(!sidebar||sidebar.querySelector('.conecta-nav-fold'))return;
@@ -409,6 +455,8 @@ function expandNavigationFoldForPage_(page){
  });
 }
 function syncNavigationFoldVisibility_(){
+ var chatNav=document.querySelector('.nav-btn[data-page="chat"]');
+ document.getElementById('topChatBtn').hidden=!chatNav||chatNav.style.display==='none';
  document.querySelectorAll('.conecta-nav-fold').forEach(function(group){
   var nav=group.querySelectorAll('.nav-btn[data-page]');
   var visible=Array.prototype.some.call(nav,function(el){return el.style.display!=='none';});
